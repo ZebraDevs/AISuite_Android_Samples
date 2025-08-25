@@ -1,0 +1,187 @@
+<resources>
+    <string name="app_name">AI Data Capture Demo</string>
+    <string name="about">About</string>
+
+    <string name="usecase_demos">Use Case Demos</string>
+    <string name="ocr_find_demo">OCR Find</string>
+    <string name="ocr_find_desc">Search for specific text</string>
+    <string name="product_enrollment_recognition_demo">Product &amp; Shelf Recognizer</string>
+    <string name="product_enrollment_recognition_desc">Enroll and recognize products on shelves and peg boards</string>
+
+    <string name="technology_demos">Technology Demos</string>
+    <string name="barcode_demo">Barcode Recognizer</string>
+    <string name="barcode_desc">Detect and decode barcodes</string>
+    <string name="ocr_demo">Text/OCR Recognizer</string>
+    <string name="ocr_desc">Detect and decode text with advanced settings</string>
+    <string name="retail_shelf_demo">Product &amp; Shelf Localizer</string>
+    <string name="retail_shelf_desc">Detect shelves, shelf labels, peg labels and products</string>
+
+    <string name="save_products_button">Save Product Crops</string>
+    <string name="capture_image_button">Capture to Enroll Products</string>
+    <string name="restore_default">Restore to Default Settings</string>
+    <string name="advanced_settings">Advanced Settings</string>
+    <string name="settings">Settings</string>
+    <string name="start_scan">Start Scan</string>
+    <string name="enrollment_done">Enrollment Done</string>
+    <string name="load_database">Load Product Database</string>
+    <string name="save_database">Save Product Database</string>
+    <string name="delete_database">Delete Product Database</string>
+    <string name="apply">Apply</string>
+    <string name="cancel">Cancel</string>
+    <string name="back_button">Back</string>
+    <string name="home_button">Home</string>
+    <string name="enterproductsku">Enroll Product</string>
+    <string name="enterproducthint">Scan or Type Product SKU</string>
+
+    <string name="barcode_settings">Barcode Recognizer Settings</string>
+    <string name="ocr_find_settings">OCR Find Settings</string>
+    <string name="text_ocr_recognizer_settings">Text/OCR Recognizer Settings</string>
+    <string name="retailshelf_settings">Product &amp; Shelf Localizer Settings</string>
+    <string name="productrecognition_settings">Product &amp; Shelf Recognizer Settings</string>
+    <string name="recommendation_tips">Recommendation &amp; Tips</string>
+
+    <string name="australian_postal">Australian Post</string>
+    <string name="aztec">Aztec</string>
+    <string name="canadian_postal">Canadian Post</string>
+    <string name="chinese_2of5">Chinese 2 Of 5</string>
+    <string name="codabar">Codabar</string>
+    <string name="code11">Code 11</string>
+    <string name="code39">Code 39</string>
+    <string name="code93">Code 93</string>
+    <string name="code128">Code 128</string>
+    <string name="composite_ab">Composite AB</string>
+    <string name="composite_c">Composite C</string>
+    <string name="d2of5">D2Of5</string>
+    <string name="datamatrix">Datamatrix</string>
+    <string name="dotcode">Dotcode</string>
+    <string name="dutch_postal">Dutch Postal</string>
+    <string name="ean_8">EAN 28</string>
+    <string name="ean_13">EAN 13</string>
+    <string name="finnish_postal_4s">Finnish Postal</string>
+    <string name="grid_matrix">Grid Matrix</string>
+    <string name="gs1_databar">GS1 Databar</string>
+    <string name="gs1_databar_expanded">GS1 Databar Expanded</string>
+    <string name="gs1_databar_lim">GS1 Databar Lim</string>
+    <string name="gs1_datamatrix">GS1 Datamatrix</string>
+    <string name="gs1_qrcode">GS1 QRCode</string>
+    <string name="hanxin">Hanxin</string>
+    <string name="i2of5">I2Of5</string>
+    <string name="japanese_postal">Japanese Postal</string>
+    <string name="korean_3of5">Korean 3Of5</string>
+    <string name="mailmark">Mailmark</string>
+    <string name="matrix_2of5">Matrix 2Of5</string>
+    <string name="maxicode">Maxicode</string>
+    <string name="micropdf">Micro PDF</string>
+    <string name="microqr">Micro QR</string>
+    <string name="msi">MSI</string>
+    <string name="pdf417">PDF 417</string>
+    <string name="qrcode">QR Code</string>
+    <string name="tlc39">TLC 39</string>
+    <string name="trioptic39">Trioptic 39</string>
+    <string name="uk_postal">UK Postal</string>
+    <string name="upc_a">UPCA</string>
+    <string name="upce0">UPCE0</string>
+    <string name="upce1">UPCE1</string>
+    <string name="usplanet">US Planet</string>
+    <string name="uspostnet">US Postnet</string>
+    <string name="us4state">US 4 State</string>
+    <string name="us4state_fics">US 4 State FICS</string>
+
+    <string name="runtime_processor">Inference (processor) Type</string>
+    <string name="resolution">Resolution</string>
+    <string name="model_input_size">Model Input Size</string>
+    <string name="barcode_symbology">Barcode Symbologies</string>
+    <string name="detection_parameters">Detection Parameters</string>
+    <string name="recognition_parameters">Recognition Parameters</string>
+    <string name="grouping">Grouping</string>
+    <string name="import_database">Import Database</string>
+    <string name="export_database">Export Database</string>
+    <string name="clear_active_database">Clear Active Database</string>
+    <string name="save_active_database">Save to Active Database</string>
+
+    <string name="instruction_1">Capture image to start</string>
+    <string name="instruction_2">Tap specific products to enroll into active Database</string>
+    <string name="instruction_3">These settings should only be modified by power users</string>
+    <string name="instruction_4">Visit Techdocs for information on the advanced settings ></string>
+
+    <string name="importdb_description">Allows you to select and load a previously saved database of enrolled products from a file, allowing you to start recognizing products without the need to enroll them. </string>
+    <string name="exportdb_description">Saves your current enrolled products as a file to your device’s “Download” directory or SD card, making it easy to backup or share your Active Database.</string>
+    <string name="cleardb_description">Removes all of the enrolled products from the Active Database within the application to allow you to start enrolling products from scratch. Note: this does not delete or clear any previously saved database files that have been exported.</string>
+
+    <string name="model_input_size_640">640 x 640 (small)</string>
+    <string name="model_input_size_1280">1280 x 1280 (medium)</string>
+    <string name="model_input_size_1600">1600 x 1600 (large)</string>
+    <string name="model_input_size_2560">2560 x 2560 (extra large)</string>
+
+    <string name="processor_cpu">CPU (Central Processing Unit)</string>
+    <string name="processor_gpu">GPU (Graphics Processing Unit)</string>
+    <string name="processor_dsp">DSP (Digital Signal Processor)</string>
+
+    <string name="resolution_size_1280">1MP (1280 x 720)</string>
+    <string name="resolution_size_1920">2MP (1920 x 1080)</string>
+    <string name="resolution_size_2688">4MP (2688 x 1512)</string>
+    <string name="resolution_size_3840">8MP (3840 x 2160)</string>
+
+    <string name="runtime_processor_cpu_desc">For trial use if DSP and GPU are not available</string>
+    <string name="runtime_processor_gpu_desc">For trial use if DSP not available</string>
+    <string name="runtime_processor_dsp_desc">Best Choice</string>
+
+    <string name="resolution_1mp_desc_bc">Large or close-up barcodes</string>
+    <string name="resolution_2mp_desc_bc">General barcodes</string>
+    <string name="resolution_4mp_desc_bc">Dense, faint, or small barcodes</string>
+    <string name="resolution_8mp_desc_bc">Tiny, distant, or low-contrast barcodes</string>
+
+    <string name="model_input_size_640_bc">Fastest; best for large or close-up barcodes</string>
+    <string name="model_input_size_1280_bc">Balanced speed and accuracy</string>
+    <string name="model_input_size_1600_bc">Slower; use for small, damaged or distant barcodes</string>
+    <string name="model_input_size_2560_bc">More accurate but slower; use for challenging barcodes</string>
+
+    <string name="resolution_1mp_desc_ocr">Large or close-up text filling most of the screen</string>
+    <string name="resolution_2mp_desc_ocr">General text</string>
+    <string name="resolution_4mp_desc_ocr">Dense, faint text or detailed documents</string>
+    <string name="resolution_8mp_desc_ocr">Tiny, distant, or low-contrast text</string>
+
+    <string name="model_input_size_640_ocr">Fastest; best for large or close-up text</string>
+    <string name="model_input_size_1280_ocr">Balanced speed and accuracy</string>
+    <string name="model_input_size_1600_ocr">Slower; use for small, damaged or distant text</string>
+    <string name="model_input_size_2560_ocr">More accurate but slower; use for challenging fonts</string>
+
+    <string name="heatmap_threshold">Heatmap Threshold</string>
+    <string name="box_threshold">Box Threshold</string>
+    <string name="min_box_area">Min Box Area</string>
+    <string name="min_box_size">Min Box Size</string>
+    <string name="unclip_ratio">Unclip Ratio</string>
+    <string name="min_ratio_for_rotation">Min Ratio for Rotation</string>
+
+    <string name="decoder_type">Decoder Type</string>
+    <string name="cutoff">Cutoff</string>
+    <string name="topk">Top K</string>
+    <string name="total">Total</string>
+
+    <string name="character_confidence_threshold">Character Confidence Threshold</string>
+    <string name="max_word_combinations">Max Word Combinations</string>
+    <string name="topk_ignore_cutoff">TopK Ignore Cutoff</string>
+    <string name="topk_characters">TopK Characters</string>
+    <string name="total_probability_threshold">Total Probability Threshold</string>
+
+    <string name="enable_grouping">Enable Grouping</string>
+    <string name="width_distance_ratio">Width Distance Ratio</string>
+    <string name="height_distance_ratio">Height Distance Ratio</string>
+    <string name="center_distance_ratio">Center Distance Ratio</string>
+    <string name="paragraph_height_distance">Paragraph Height Distance</string>
+    <string name="paragraph_height_ratio_threshold">Paragraph Height Ratio Threshold</string>
+
+    <string name="enable_tiling">Enable Tiling</string>
+    <string name="top_correlation_threshold">Top Correlation Threshold</string>
+    <string name="merge_points_cutoff">Merge Points Cutoff</string>
+    <string name="split_margin_factor">Split Margin Factor</string>
+    <string name="aspect_ratio_lower_threshold">Aspect Ratio Lower Threshold</string>
+    <string name="aspect_ratio_upper_threshold">Aspect Ratio Upper Threshold</string>
+    <string name="topK_merged_predictions">TopK Merged Predictions</string>
+
+    <string name="ocr_showall">Show All</string>
+    <string name="ocr_numericcharacters">Numeric Characters</string>
+    <string name="ocr_alphacharacters">Alpha Characters</string>
+    <string name="ocr_alphanumericcharacters">Alpha Numeric Characters</string>
+    <string name="ocr_exactmatch">Exact Match</string>
+</resources>

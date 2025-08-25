@@ -1,0 +1,43 @@
+[versions]
+agp = "8.11.1"
+cameraCore = "1.4.2"
+cameraCamera2 = "1.4.2"
+cameraExtensions = "1.4.2"
+junit = "4.13.2"
+junitVersion = "1.3.0"
+espressoCore = "3.7.0"
+appcompat = "1.7.1"
+material = "1.12.0"
+activity = "1.10.1"
+constraintlayout = "2.2.1"
+zebraAIVisionSdk = "2.22.18"
+barcodeLocalizer = "5.0.1"
+textOcrRecognizer = "2.7.1"
+productAndShelfRecognizer = "3.4.2"
+kotlin = "2.2.0"
+kotlinxCoroutinesCore = "1.10.2"
+
+[libraries]
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-camera-extensions = { module = "androidx.camera:camera-extensions", version.ref = "cameraExtensions" }
+camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCamera2" }
+camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
+camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCore" }
+camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCore" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesCore" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
+barcode-localizer = { group = "com.zebra.ai.models", name = "barcode-localizer", version.ref = "barcodeLocalizer" }
+text-ocr-recognizer = { group = "com.zebra.ai.models", name = "text-ocr-recognizer", version.ref = "textOcrRecognizer" }
+product-and-shelf-recognizer = { group = "com.zebra.ai.models", name = "product-and-shelf-recognizer", version.ref = "productAndShelfRecognizer" }
+zebra-ai-vision-sdk = { group = "com.zebra.ai.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+

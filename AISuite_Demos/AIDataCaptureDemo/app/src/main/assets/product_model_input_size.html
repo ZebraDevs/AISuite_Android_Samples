@@ -1,0 +1,62 @@
+<div id="summary">
+        Model input size&nbsp;is the resolution your image is resized to before AI
+        analysis.&nbsp;<strong
+    >Smaller sizes are faster and use less memory, while larger sizes can help
+        detect smaller or more distant labels and products&mdash;but also uses
+        more processing power and memory.</strong
+    >&nbsp;Choose the input size to balance speed and accuracy for your needs.
+        <strong>Note:</strong> Model Input Size can be customized in increments of 32
+        using the SDK. The options below represent some generic sizes.
+</div>
+<div id="description">
+        Model input size&nbsp;is the resolution your image is resized to before AI
+        analysis.&nbsp;<strong
+    >Smaller sizes are faster and use less memory, while larger sizes can help
+        detect smaller or more distant labels and products&mdash;but also uses
+        more processing power and memory.</strong
+    >&nbsp;Choose the input size to balance speed and accuracy for your needs.
+        <strong>Note:</strong> Model Input Size can be customized in increments of 32
+        using the SDK. The options below represent some generic sizes.
+</div>
+<div id="title">Model Input Size Options</div>
+<div id="details">
+    <p><strong>Small &ndash; 640 x 640</strong></p>
+    <ul>
+        <li><strong>Fastest</strong> processing</li>
+        <li>Best for large format products and labels where products, label font, and barcode lack fine details.</li>
+        <li>Small labels and products may not be detected particularly if the shelf is captured far away.</li>
+    </ul>
+    <p><strong>Medium &ndash; 1280 x 1280</strong></p>
+    <ul>
+        <li>Balanced speed and accuracy</li>
+        <li>Ideal for retail item and label detection, may have better coverage compared to lower resolutions at the same distance.</li>
+    </ul>
+    <p><strong>Large &ndash; 1600 x 1600</strong></p>
+    <ul>
+        <li><strong>Higher accuracy and detection</strong> coverage for smaller labels, products and slim shelves. Improved recognition accuracy for products with smaller, more dense details.</li>
+        <li>Useful for challenging environments where the mobile user may have to capture shelf from a further than typical distance or product size is small and item density on shelf has increased.</li>
+        <li><strong>Slower</strong>, uses more memory, processing, and battery</li>
+        <li><strong>Not recommended for CPU/GPU</strong> (inference type)</li>
+    </ul>
+    <p><strong>Extra-large &ndash; 2560 x 2560</strong></p>
+    <ul>
+        <li>Maximum detail and accuracy,</li>
+        <li>Best for use cases where coverage on small items and labels are a challenge or where images are taken far away from the shelf edge.</li>
+        <li>Ideal for highly challenging use cases where products have fine details.</li>
+        <li>Slowest processing and highest memory/battery consumption</li>
+        <li>Not recommended for CPU/GPU (inference type)</li>
+    </ul>
+</div>
+<div id="recommendation">
+    <p><strong>Recommendation:</strong></p>
+    <ul>
+        <li>Start with 1280x1280 for typical shelf, label and product samples.</li>
+        <li>Decrease to 640x640 if products and labels are reasonably sized and the application requires less latency and improved battery life.</li>
+        <li>Increase to 1600x1600 if you encounter issues detecting small labels or small products.</li>
+        <li>Use 2560 x 2560 for situations where product size is a challenge or user is unable to get close to the shelf edge or product details are extremely fine. <strong>Caution:</strong> this can slow processing and adversely impact battery life,</li>
+        <li>Use 2560x2560 only for the most demanding and only if your device has sufficient processing power and memory.</li>
+    </ul>
+</div>
+<div id="tip">
+    <p><strong>Tip:</strong> Larger model input sizes improve accuracy but come at a significant cost to speed, memory, and battery life. If the app becomes slow or unstable, reduce the input size. <strong>Experiment to find the smallest size that works reliably for your use case.</strong></p>
+</div>

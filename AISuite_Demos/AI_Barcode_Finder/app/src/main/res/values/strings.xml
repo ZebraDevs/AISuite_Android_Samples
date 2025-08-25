@@ -1,0 +1,392 @@
+<resources>
+    <string name="app_name">AI Barcode Finder</string>
+    <string name="note_label">Note:&#160;</string>
+    <string name="back_label">Back</string>
+
+    <string name="menu">Menu</string>
+    <string name="menu_barcode_finder">Barcode Finder</string>
+    <string name="app_icon">App icon</string>
+    <string name="image_description">image description</string>
+
+    <!-- Strings related to settings -->
+    <string name="setting_barcode_recognizer_title">Settings</string>
+    <string name="setting_back_icon_description">Back</string>
+
+    <!-- Settings Card Title -->
+    <string name="setting_model_input_size_title">Model Input Size</string>
+
+    <!-- Settings Card Description -->
+    <string name="setting_model_input_size_description_part1">Model input size is the resolution your image is resized to before AI analysis.&#160;</string>
+    <string name="setting_model_input_size_description_part2">Smaller sizes are faster and use less memory, while larger sizes can help detect smaller or more distant barcodes —but also uses more processing power and memory.&#160;</string>
+    <string name="setting_model_input_size_description_part3">Choose the input size to balance speed and accuracy for your needs.&#160;</string>
+    <string name="setting_model_input_size_description_part4">Model Input Size can be customized in increments of 32 using the SDK. The options below represent some generic sizes.&#160;</string>
+
+    <!-- Text Button -->
+    <string name="setting_more_button">More &gt;</string>
+
+    <!-- Radio Button Titles and Subtitles -->
+    <string name="setting_model_input_640_title">640 x 640 (small)</string>
+    <string name="setting_model_input_640_subtitle">Fastest; best for large or close-up barcodes</string>
+    <string name="setting_model_input_1280_title">1280 x 1280 (medium)</string>
+    <string name="setting_model_input_1280_subtitle">Balanced speed and accuracy</string>
+    <string name="setting_model_input_1600_title">1600 x 1600 (large)</string>
+    <string name="setting_model_input_1600_subtitle">Slower; use for small, damaged or distant barcodes</string>
+    <string name="setting_model_input_2560_title">2560 x 2560 (extra-large)</string>
+    <string name="setting_model_input_2560_subtitle">More Accurate but Slower; use challenging barcodes</string>
+
+    <!-- Home Screen Model Input Size Titles -->
+    <string name="home_model_input_640_title">640 x 640</string>
+    <string name="home_model_input_1280_title">1280 x 1280</string>
+    <string name="home_model_input_1600_title">1600 x 1600</string>
+    <string name="home_model_input_2560_title">2560 x 2560</string>
+
+    <!-- Resolution Section -->
+    <string name="setting_resolution_title">Resolution</string>
+
+    <!-- Description Text -->
+    <string name="setting_resolution_description_part1">Camera resolution is the number of pixels in your photo (e.g., 1MP = 1280x720).&#160;</string>
+    <string name="setting_resolution_description_part2">Higher resolution captures more detail for small or distant barcodes but uses more power and memory.&#160;</string>
+    <string name="setting_resolution_description_part3">Benefits are limited if the model input size is low.&#160;</string>
+
+    <!-- Radio Button Titles and Subtitles -->
+    <string name="setting_resolution_1mp_title">1MP (1280 × 720)</string>
+    <string name="setting_resolution_1mp_subtitle">Large or close-up barcodes</string>
+    <string name="setting_resolution_2mp_title">2MP (1920 × 1080)</string>
+    <string name="setting_resolution_2mp_subtitle">General barcode scanning</string>
+    <string name="setting_resolution_4mp_title">4MP (2688 × 1512)</string>
+    <string name="setting_resolution_4mp_subtitle">Dense, faint, or small barcodes</string>
+    <string name="setting_resolution_8mp_title">8MP (3840 × 2160)</string>
+    <string name="setting_resolution_8mp_subtitle">Tiny, distant, or low-contrast barcodes</string>
+
+    <!-- Inference Section -->
+    <string name="setting_inference_title">Inference (processor) Type</string>
+    <string name="setting_inference_subtitle">Inference (processor) Types</string>
+
+    <!-- Description Text -->
+    <string name="setting_inference_description1">This setting chooses which chip in your device runs AI tasks, affecting speed and battery life. &#160;</string>
+    <string name="setting_inference_description2">Not all devices have a DSP. </string>
+    <string name="setting_inference_description3">These models are designed to work the best with devices that have a DSP, on IOT Platforms, chipsets without a DSP will be slower. for details on compatible models, look for Zebra QC6490 and QC4490 mobile computers. see </string>
+    <string name="setting_inference_description4">Zebra Platform Devices</string>
+    <string name="setting_inference_description_link">https://supportcommunity.zebra.com/s/article/000022440?language=en_US</string>
+
+    <!-- Inference description bullet items -->
+    <!-- DSP Section -->
+    <string name="setting_inference_dsp_fastest">Recommended: Fastest and most battery-efficient</string>
+    <string name="setting_inference_dsp_ideal_use">Ideal for real-time, energy-efficient tasks</string>
+    <string name="setting_inference_dsp_note">Note: DSP is only supported in specific chipsets and not available in all devices</string>
+
+    <!-- GPU Section -->
+    <string name="setting_inference_gpu_best">Next best option: Very fast, handles complex or heavy tasks</string>
+    <string name="setting_inference_gpu_power_usage">Uses more power than DSP</string>
+    <string name="setting_inference_gpu_fallback">Use if DSP is not available</string>
+
+    <!-- CPU Section -->
+    <string name="setting_inference_cpu_fallback">Fallback: Always available, but slowest and least efficient</string>
+    <string name="setting_inference_cpu_usage_condition">Only use if DSP/GPU are not available</string>
+
+    <!-- General Recommendations -->
+    <string name="setting_inference_processor_recommendation_dsp_gpu">Use DSP if available on your device; otherwise, use GPU.</string>
+    <string name="setting_inference_processor_recommendation_cpu">Only use CPU if other options aren’t working.</string>
+    <string name="setting_inference_processor_tip">Choosing the right processor improves speed and battery life, especially during continuous or real-time use.</string>
+
+    <!-- Radio Button Titles and Subtitles -->
+    <string name="setting_inference_dsp_title">DSP (Digital Signal Processor)</string>
+    <string name="setting_inference_dsp_subtitle">Best choice</string>
+    <string name="setting_inference_gpu_title">GPU (Graphics Processing Unit)</string>
+    <string name="setting_inference_gpu_subtitle">For trial use if DSP not available</string>
+    <string name="setting_inference_cpu_title">CPU (Central Processing Unit)</string>
+    <string name="setting_inference_cpu_subtitle">For trial use if DSP and GPU are not available</string>
+
+    <!-- Barcode Symbologies Section -->
+    <string name="setting_barcode_symbologies_title">Barcode Symbologies </string>
+    <string name="setting_barcode_symbology_description1">Select the types of barcodes to be recognized.&#160;</string>
+    <string name="setting_barcode_symbology_description2">Enabling more symbologies may slow down scanning and increase power consumption.&#160;</string>
+    <string name="setting_barcode_symbology_description3">Choose the symbologies based on your barcode scanning requirements.&#160;</string>
+
+    <!-- Note Text -->
+    <string name="setting_barcode_symbology_note_description">The detailed settings screen provides access to all 40+ available symbologies.</string>
+
+    <!-- General Symbology Information -->
+    <string name="setting_symbology_optimization_info">Different symbology types are optimized for different use cases and industries.</string>
+    <string name="setting_barcode_symbology_types">Barcode Symbology Types</string>
+
+    <!-- 1D Barcodes Section -->
+    <string name="setting_1d_barcodes_title">1D Barcodes</string>
+    <string name="setting_1d_barcodes_description">Linear barcodes like Code 39, Code 128, UPC, EAN</string>
+    <string name="setting_1d_barcodes_usage">Widely used in retail and manufacturing</string>
+    <string name="setting_1d_barcodes_advantages">Fast scanning but limited data capacity</string>
+
+    <!-- 2D Barcodes Section -->
+    <string name="setting_2d_barcodes_title">2D Barcodes</string>
+    <string name="setting_2d_barcodes_description">Matrix codes like QR Code, DataMatrix, PDF417</string>
+    <string name="setting_2d_barcodes_advantages">Higher data density and error correction</string>
+    <string name="setting_2d_barcodes_capability">Can store more information including text, URLs, and binary data</string>
+
+    <!-- GS1 Barcodes Section -->
+    <string name="setting_gs1_barcodes_title">GS1 Barcodes</string>
+    <string name="setting_gs1_barcodes_description">Global standards for supply chain and retail</string>
+    <string name="setting_gs1_barcodes_types">Includes GS1 DataBar, GS1 DataMatrix, GS1 QR Code</string>
+    <string name="setting_gs1_barcodes_usage">Used for product identification and traceability</string>
+
+    <!-- Postal Barcodes Section -->
+    <string name="setting_postal_barcodes_title">Postal Barcodes</string>
+    <string name="setting_postal_barcodes_description">Specialized for mail and package tracking</string>
+    <string name="setting_postal_barcodes_formats">Country-specific formats (US, UK, Australia, etc.)</string>
+    <string name="setting_postal_barcodes_advantages">Optimized for automated sorting systems</string>
+
+    <string name="setting_reset_to_default">Reset to Default Settings </string>
+
+    <!-- Model Input Size Description -->
+    <string name="setting_model_input_size_description1">Model input size is the resolution your image is resized to before AI analysis. &#160;</string>
+    <string name="setting_model_input_size_description2">Smaller sizes are faster, while larger sizes improve accuracy. &#160;</string>
+    <string name="setting_model_input_size_description3">Choose the input size to balance speed and accuracy for your needs. &#160;</string>
+    <string name="setting_model_input_size_description4">Model Input Size can be customized in increments of 32 using the SDK. The options below represent some generic sizes. &#160;</string>
+
+    <string name="setting_model_input_size_options">Model Input Size Options </string>
+    <!-- Model Input Size: Small -->
+    <string name="setting_model_input_small">Small – 640 x 640 </string>
+    <string name="setting_model_input_small_fastest">Fastest processing</string>
+    <string name="setting_model_input_small_best">Best for large, clear, or close-up barcodes</string>
+    <string name="setting_model_input_small_miss">May miss small, damaged, or distant barcodes</string>
+
+    <!-- Model Input Size: Medium -->
+    <string name="setting_model_input_medium">Medium – 1280 x 1280 </string>
+    <string name="setting_model_input_medium_balanced">Balanced speed and accuracy </string>
+    <string name="setting_model_input_medium_handles">Handles most barcode types and sizes in standard conditions</string>
+
+    <!-- Model Input Size: Large -->
+    <string name="setting_model_input_large">Large – 1600 x 1600 </string>
+    <string name="setting_model_input_large_accuracy">Higher accuracy</string>
+    <string name="setting_model_input_large_best">Best for small, damaged, or distant barcodes</string>
+    <string name="setting_model_input_large_slower">Slowest Processing, and highest memory/battery consumption</string>
+    <string name="setting_model_input_large_not_recommended">Not recommended for CPU/GPU (inference type)</string>
+
+    <!-- Model Input Size: Extra Large -->
+    <string name="setting_model_input_extra_large">Extra Large – 2560 x 2560 </string>
+    <string name="setting_model_input_extra_large_detail">Maximum detail and accuracy. </string>
+    <string name="setting_model_input_extra_large_challenging">Useful for highly challenging scanning tasks</string>
+    <string name="setting_model_input_extra_large_slowest">Slowest processing and highest memory/battery consumption </string>
+    <string name="setting_model_input_extra_large_dsp">Only use with DSP (inference type) </string>
+
+    <!-- Header and Section Titles -->
+    <string name="setting_recommendation_tips">Recommendation &amp; Tips </string>
+    <string name="setting_recommendation_title">Recommendation: &#160;</string>
+    <string name="setting_tip_title">Tip: &#160;</string>
+
+    <!-- Recommendation Bullet Items -->
+    <string name="setting_recommendation_start">Start with 640x640 for close/large barcode.</string>
+    <string name="setting_recommendation_increase">Increase to the next size if you encounter issues reading barcodes.</string>
+    <string name="setting_recommendation_demanding">Use larger model input sizes only for the most demanding and challenging use cases, and only if your device has sufficient processing power and memory.</string>
+
+    <!-- Tips -->
+    <string name="setting_tip_larger_sizes">Larger model input sizes improve accuracy but come at a significant cost to speed, memory, and battery life. If the app becomes slow or unstable, reduce the input size.&#160;</string>
+    <string name="setting_tip_experiment">Experiment to find the smallest size that works reliably for your use case. </string>
+
+    <!-- Camera Resolution Description -->
+    <string name="setting_camera_resolution_description1">The camera resolution is the number of pixels in the image captured by your device (e.g., 1MP = 1280x720, 8MP = 3840x2160). This affects the detail in the original photo before it’s resized for AI processing. &#160;</string>
+    <string name="setting_camera_resolution_description2">Higher resolution means more detail, helping read small, or distant barcodes—but also uses more processing power and memory. &#160;</string>
+    <string name="setting_camera_resolution_description3">If speed, battery life, or memory use are your top priorities, low resolution can be a good choice for large or close-up barcodes. &#160;</string>
+    <string name="setting_camera_resolution_description4">If the model input size is set low, using a high camera resolution won’t improve results much, since the detailed image will be downscaled before processing. </string>
+    <string name="setting_resolution_options_title">Resolution Options </string>
+
+    <!-- Resolution Titles -->
+    <string name="setting_resolution_1mp">1MP (1280 × 720) </string>
+    <string name="setting_resolution_2mp">2MP (1920 × 1080) </string>
+    <string name="setting_resolution_4mp">4MP (2688 × 1512) </string>
+    <string name="setting_resolution_8mp">8MP (3840 × 2160) </string>
+
+    <!-- Bullet Items for 1MP -->
+    <string name="setting_resolution_1mp_fastest">Fastest, power-efficient </string>
+    <string name="setting_resolution_1mp_best">Best for simple, large, or close-up barcodes </string>
+    <string name="setting_resolution_1mp_miss">May miss small or damaged barcodes </string>
+
+    <!-- Bullet Items for 2MP -->
+    <string name="setting_resolution_2mp_good">Good for general use, moderate detail </string>
+    <string name="setting_resolution_2mp_handles">Handles most standard barcode scanning scenarios </string>
+
+    <!-- Bullet Items for 4MP -->
+    <string name="setting_resolution_4mp_detail">Captures more detail, good for poor contrast or dense, smaller barcodes </string>
+    <string name="setting_resolution_4mp_memory">Higher memory and battery use </string>
+
+    <!-- Bullet Items for 8MP -->
+    <string name="setting_resolution_8mp_maximum">Maximum detail and accuracy </string>
+    <string name="setting_resolution_8mp_best">Best for extremely small, dense, or challenging use cases. </string>
+    <string name="setting_resolution_8mp_slowest">Slowest and highest memory/battery consumption. </string>
+    <string name="setting_resolution_8mp_limited">Limited benefit if model input size is low; Not recommended for CPU/GPU (inference types) </string>
+
+    <!-- Recommendation Bullet Items -->
+    <string name="setting_recommendation_start_res"> Start with 1 or 2MP. This offers a good balance between image detail, speed, and battery use. &#160;</string>
+    <string name="setting_recommendation_increase_res">Increase to 4MP or 8MP only if you need to capture very small, faint, or distant barcodes, and your device can handle the extra processing. &#160;</string>
+    <string name="setting_recommendation_match">Match your camera resolution to your model input size: If your model input size is 640x640, higher resolutions provide little benefit. For larger model input sizes (like 1280x1280 or 1600x1600), a higher resolution can help. &#160;</string>
+
+    <!-- Tip Section -->
+    <string name="setting_tip_make_sure">Make sure the barcode(s) you want to scan appears &#160;</string>
+    <string name="setting_tip_at_least">at least 8 pixels tall &#160;</string>
+    <string name="setting_tip_in_image">in your image for reliable recognition. &#160;</string>
+    <string name="setting_tip_experiment_res">Experiment to find the smallest resolution that works reliably for your use case. &#160;</string>
+
+    <!-- Home Screen-->
+    <string name="home_settings_header">AI Barcode Finder Settings</string>
+    <string name="home_bullet_point">&#160;&#160;&#160;•&#160;&#160;&#160;</string>
+    <string name="home_model_input">Model Input Size:&#160;</string>
+    <string name="home_resolution">Resolution:&#160;</string>
+    <string name="home_processor_type">Inference (processor) Type:&#160;</string>
+    <string name="home_restore_settings">Restore to Default Settings</string>
+    <string name="home_start_scan_button">Start Scan</string>
+    <string name="home_circular_progress_indicator">Initializing&#160;.&#160;.&#160;</string>
+
+    <!--NavBar Screen-->
+    <string name="navbar_home">Home</string>
+    <string name="navbar_configure_demo">Configure Demo</string>
+    <string name="navbar_settings">Settings</string>
+    <string name="navbar_about">About</string>
+    <string name="navbar_feedback">Send Feedback</string>
+    <string name="navbar_watermark">Powered by\nZebra Mobile Computing AI Data Capture SDK</string>
+
+    <!-- About Screen-->
+    <string name="about_header">About</string>
+    <string name="about_description">Explore how Zebra Mobile Computing AI Data Capture SDK\'s Barcode Detectors and Analyzers work for Zebra Android™ devices. </string>
+    <string name="about_sdk_name">AI Data Capture SDK</string>
+    <string name="about_license">End User License Agreement</string>
+    <string name="about_copyright">Copyright © 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.</string>
+    <string name="about_barcode_model_version_title">Barcode Model version </string>
+    <string name="about_view_license">View License</string>
+    <string name="about_version_placeholder">"?.?.?"</string>
+
+    <!-- SDK Initialization Messages -->
+    <string name="sdk_initializing">Initializing...</string>
+    <string name="sdk_initialization_failed">SDK Initialization Failed</string>
+    <string name="sdk_initialization_error_message">We encountered an issue while initializing the SDK, the application will need to restart.</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_ok_2">Ok</string>
+    <string name="dialog_error">Error</string>
+
+    <!-- Actionable Barcode Dialog -->
+    <string name="action_type">Action type</string>
+    <string name="question_mark">"?"</string>
+    <string name="more_options">More options</string>
+    <string name="current_barcode_configuration">Current barcode configurations</string>
+    <string name="add_more_barcode">Add more barcodes</string>
+
+
+    <!-- Configure Action Dialog -->
+    <string name="product_name">Product Name</string>
+    <string name="product">Product</string>
+    <string name="barcode">Barcode</string>
+    <string name="hash_code">"#"</string>
+
+    <!-- Configure Screen -->
+    <string name="config_add_barcodes">Select barcodes to add to demo</string>
+    <string name="config_add_barcodes_icon">Add Barcode Icon</string>
+    <string name="config_close_icon">Close Icon</string>
+    <string name="config_camera_permission">Camera permission is required for barcode scanning</string>
+    <string name="config_grant_camera">Grant Permission</string>
+
+    <!-- Action Confirm Pickup Dialog -->
+    <string name="confirm_pickup">Confirm Pickup</string>
+    <string name="product_name_placeholder">Product name here</string>
+    <string name="id_placeholder">652185000726</string>
+
+    <!-- Action Product Recall Dialog -->
+    <string name="product_recall_required">Product Recall Required</string>
+
+    <!-- Action Quantity Pickup Dialog -->
+    <string name="quantity_picked">Quantity Picked:</string>
+    <string name="quantity_to_be_picked">Quantity to be picked:</string>"
+    <string name="replenish_stock">Replenish Stock:</string>
+
+    <!-- Finder Screen-->
+    <string name="init_barcode_scanner">Initializing barcode scanner...</string>
+
+    <!-- Scan Results Item Screen -->
+    <string name="scan_barcode">Barcode:</string>
+    <string name="scan_results">Scan Results</string>
+    <string name="no_scan_results">No scan results yet</string>
+    <string name="clear_scan_results">Clear Results</string>
+    <string name="clear_all_scan_results">Clear All</string>
+
+    <!-- Common-->
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="clear_all">Clear All</string>
+    <string name="apply">Apply</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm">Confirm</string>
+    <string name="no_action">No Action</string>
+    <string name="product_recall">Product Recall</string>
+    <string name="quantity_to_pick">Quantity to pick</string>
+    <string name="pickup">Pickup</string>
+    <string name="id">ID</string>
+
+    <string name="product_name_here">Product name here</string>"
+
+    <!--EULA Screen-->
+    <string name="eula_header">End User License Agreement\n(Unrestricted Software)</string>
+
+    <!-- Title and Introduction -->
+    <string name="eula_title">Zebra Development Tool License Agreement\n</string>
+    <string name="eula_intro">This End User License Agreement ("Agreement") includes information about the rights and obligations of the individual or entity entering into this Agreement ("Licensee"). These rights and obligations govern Licensee’s use of software, code, or any other type of machine-readable instructions provided by Zebra Technologies Corporation or its affiliates ("Zebra") that accompanies or references this Agreement ("Software").\n\nThe Software or hardware associated with the Software may be protected by patent(s) in the U.S. and elsewhere. Information regarding Zebra’s patents is available at www.ip.zebra.com.\n</string>
+
+    <!-- Acceptance -->
+    <string name="eula_acceptance">1. Acceptance\n\nThis Agreement is a legal contract made between Zebra and Licensee that defines the terms and conditions under which Zebra is willing to provide Licensee permission to use the Software. By ordering, subscribing to, installing, executing, running, downloading, or otherwise using the Software, Licensee (i) accepts and agrees to enter into this Agreement and to be bound by its terms, (ii) represents that Licensee has read and understands this Agreement, and (iii) confirms that Licensee is lawfully able to enter into this Agreement.\n</string>
+
+    <!-- Term of this Agreement -->
+    <string name="eula_term">2. Term of this Agreement\n\n2.1 This Agreement becomes effective on the date Licensee accepts this Agreement and ends upon termination hereof in accordance with this Section 2 (“Term”).\n\n2.2 This Agreement will terminate upon Licensee’s failure to cure a breach or violation hereof within thirty (30) days of Zebra providing Licensee notice of the breach or violation.\n\n2.3 If Licensee’s use of the Software is pursuant to an order, a subscription, or other type of commercial agreement, this Agreement will terminate upon expiration or termination of that other agreement.\n\n2.4 If Zebra makes the Software available to Licensee on a trial, demo, or otherwise limited basis (“Demo”) according to documentation associated with the Software, a Zebra website, an order form, or other communication between the parties (“Communication”), then this Agreement will terminate on the later of (i) sixty (60) days and (ii) a termination date identified on the Communication.\n\n2.5 Upon termination of this Agreement, Licensee shall immediately cease using the Software and any Zebra Content (as defined below) obtained by Licensee in connection with the Software.\n\n2.6 Sections 4, 5, 7, and 10-13 will survive the termination of this Agreement, along with any other provision expected to survive termination by its nature or intent.\n</string>
+
+    <!-- License and Ownership -->
+    <string name="eula_license_ownership">3. License and Ownership\n\n3.1 Subject to Licensee’s compliance with Section 4 of this Agreement, Zebra hereby grants Licensee a limited, revocable, non-exclusive, non-sublicensable license to, during the Term, use the Software solely for Licensee’s internal business purposes and, for Software delivered with Zebra hardware, solely in support of Zebra hardware.\n\n3.2 If Zebra makes the Software available to Licensee as a Demo, Licensee shall limit use of the Software for the purpose of demonstrating features or capabilities of the Software so that Licensee can evaluate whether to obtain a full license to the Software.\n\n3.3 The Software is licensed; not sold. Zebra reserves all rights, title, and interest not expressly granted herein.\n</string>
+
+    <!-- Restrictions -->
+    <string name="eula_restrictions">4. Restrictions\n\n4.1 Licensee shall not or permit another to (i) modify, distribute, publicly display, publicly perform, or create derivative works of the Software; (ii) disassemble, decompile, reverse-engineer, or attempt to discover or derive source code of the Software, except and only to the extent that such activity is expressly permitted by applicable law notwithstanding this restriction; (iii) rent, sell, lease, lend, sublicense, provide commercial hosting services involving the Software, or in any other way allow third parties to exploit the Software; (iv) modify, circumvent, deactivate, degrade, or thwart any software-based or hardware-based protection mechanism Zebra has in place to safeguard the Software; (v) use, remove, alter, or obscure any of Zebra’s trademarks, trade names, logos, or service marks without prior written consent from Zebra; or (vi) embed any virus, Trojan horse, worm, backdoor, shutdown mechanism, malicious code, sniffer, bot, drop dead mechanism, or spyware or other software, code, or program that is likely to or is intended to have an adverse impact on the performance of, disable, corrupt, cause damage to, cause or facilitate unauthorized access to, or deny authorized access to any software, hardware, network, services, systems, data, or Zebra products.\n\n4.2 The rights granted to Licensee hereunder cannot be used or otherwise applied to anyone other than Licensee. Unless made through the sale of a device on which the Software is installed by or under the authorization of Zebra and subject to such third party’s acceptance of this Agreement, Licensee may not convey the Software to any third party or permit another to do so.\n\n4.3 Licensee may not assign this Agreement or any rights or obligations hereunder, by operation of law or otherwise, without prior written consent from Zebra. Zebra may assign this Agreement and its rights and obligations without Licensee’s consent. Subject to the foregoing, this Agreement will be binding upon and inure to the benefit of the parties to it and their respective legal representatives, successors, and permitted assigns.\n\n4.4 Unless Zebra has authorized Licensee or configured the Software to make the rights granted hereunder applicable to more than one device or transferable to a different device, the Software and the rights granted hereunder are specific to the original device on which the Software is first installed and activated (i.e., non-transferable) even if the original device is decommissioned, replaced, or otherwise no longer in use.\n\n4.5 “Sensitive Data” means any information that is protected under applicable data protection or privacy laws due to its sensitive nature, including government-issued identification numbers, financial account information, payment card data, personal health information (as defined in applicable legislation), biometric identifiers (as defined in applicable legislation), genetic data, racial or ethnic origin, political opinions, religious beliefs, union membership, sexual orientation, or any other data that, if disclosed or misused, could result in harm to an individual. Licensee agrees to not send Sensitive Data to Zebra via the Software. If Licensee’s use of the Software includes collection of Sensitive Data associated with end users, Licensee shall limit use of the Software to individuals from whom Licensee has obtained all legally required consents and to whom Licensee has provided all legally required notifications with respect to such data collection (“Authorized Users”). Use of the Software by Authorized Users may be subject to terms and conditions of employment or consulting agreements governing a relationship with Licensee.\n</string>
+
+    <!-- Permissions -->
+    <string name="eula_permissions">5. Permissions\n\n5.1 “Content” means image data, images, graphics, text, templates, formats, forms, digital certificates or other types of user-identifying packages, plug-ins, widgets, audio, video, and audiovisual data.\n\n5.2 “Input” means data provided to Zebra by Licensee for use by the Software, including Content, measurement values, readings, sensor outputs, calculation results, and instructions.\n\n5.3 “Feedback” means ideas, suggestions, comments, or reviews Licensee provides to Zebra in relation to the Software.\n\n5.4 “Machine Data” means usage data or status information collected by the Software or hardware that interfaces with the Software, such as information related to a computing device running the Software. Example Machine Data includes remaining usage time, network information (e.g., name or identifier), user interaction data, device location, telemetry data, environmental indicators, wireless signal strength, device identifier, software version, hardware version, device type, metadata associated with the operation of the Software, LED state, reboot cause, storage and memory availability or usage, power cycle count, and device up time.\n\n5.5 To the extent permission is required, Licensee hereby grants Zebra permission to use Input and Content and access all software incorporated into Zebra hardware as necessary for the Software to perform functions associated with the Input or Content. Licensee shall defend and hold harmless Zebra from and against any claim, suit, or proceeding alleging that Zebra’s use of or access to Licensee’s Content or Input violates a person’s privacy rights or infringes or misappropriates a third party’s intellectual property right.\n\n5.6 The Software may provide Machine Data to Zebra. All title and ownership rights in and to Machine Data are held by Zebra. In the event and to the extent Licensee is deemed to have any ownership rights in Machine Data, Licensee hereby grants Zebra a perpetual, irrevocable, fully paid, worldwide license to use, reproduce, and make derivative works of Machine Data.\n\n5.7 Licensee agrees that Zebra is free to use Feedback and Content to improve Zebra’s products and services, including for purposes of performance, accuracy, functionality, and training algorithms and models.\n\n5.8 Where applicable, Licensee hereby agrees to waive and not enforce any “moral rights” or equivalent rights in Feedback, Input, or Content provided to Zebra in connection with the Software.\n</string>
+
+    <!-- Updates, Support, and Fixes -->
+    <string name="eula_updates_support">6. Updates, Support, and Fixes\n\n6.1 Nothing in this Agreement entitles Licensee to new releases, updates, maintenance, or technical support for the Software. Such entitlements must be obtained from Zebra through a separate purchase agreement, support agreement, or service contract, as available.\n\n6.2 If Zebra, at its discretion, makes updates, fixes, or patches to the Software available during the Term without providing superseding terms, this Agreement applies to such updates, fixes, and patches.\n\n6.3 Provided the functionality and features of the Software remain substantially similar thereafter, Zebra may automatically update the Software without requiring Licensee’s acceptance. Zebra will make reasonable efforts to provide (or instruct its resellers to provide) Licensee notice of automatic updates made to the Software, although such notice is not required under this Agreement.\n</string>
+
+    <!-- Data -->
+    <string name="eula_data">7. Data\n\n7.1 Zebra’s Privacy Statement (located at www.zebra.com/privacy), as amended from time to time, is hereby incorporated by reference into this Agreement. If Licensee or Authorized Users submit personal data to Zebra in connection with the Software, the ways in which Zebra collects and uses that data are regulated by Zebra’s Privacy Statement in accordance with applicable law. All such data provided to Zebra shall also be processed in accordance with applicable Software documentation. If Licensee or Authorized Users provide email account data to Zebra in connection with the Software, Licensee agrees that Zebra may retain the email account data according to Zebra’s Privacy Statement and contact such accounts for purposes of notification, support, or updates associated with the Software or Zebra products related thereto.\n\n7.2 Licensee acknowledges and agrees that Zebra may, as permitted by law, (i) process personal data for purposes associated with use of the Software, (ii) create aggregated and/or pseudonymized data records (i.e., data that cannot be used to identify a person without the use of additional information that is kept separately) using Licensee data or personal data, and (iii) use the aggregated or pseudonymized data records to improve the Software, develop new software or services, understand industry trends, create and publish white papers, reports, or databases summarizing the foregoing, investigate and help address and/or prevent actual or potential unlawful activity, and generally for any legitimate purpose related to Zebra’s business.\n</string>
+
+    <!-- Modifications of this Agreement -->
+    <string name="eula_modifications">8. Modifications of this Agreement\n\nModification or amendment of this Agreement must be made through written agreement by an authorized representative of each party. Written agreement may be satisfied by Zebra’s issuance of a superseding agreement for use of the Software and Licensee’s acceptance thereof in accordance with Section 1.\n</string>
+
+    <!-- Third-Party Resources -->
+    <string name="eula_third_party_resources">9. Third-Party Resources\n\n9.1 Access to and use of Content, software, applications, code, hardware or services not created by Zebra or Licensee (collectively, “Third-Party Resources”) are subject to terms and conditions provided by the applicable third party and may be protected by the third party’s intellectual property rights. Licensee is responsible for assuring that end users of Third-Party Resources agree to all terms and conditions provided by such third party, including applicable privacy policies.\n\n9.2 Third-party Resources linked or made available via the Software are not considered part of the Software, and Zebra reserves the right to, at its sole discretion, disable integrations of Third-Party Resources or compatibility of the Software therewith. Nothing in this Agreement is a license, permission, or assignment of any rights in or to such Third-Party Resources.\n\n9.3 Licensee acknowledges that if the Software requires access to Third-Party Resources to perform a function or provide a feature and Licensee denies such permission, the corresponding function or feature will not be available or execute properly.\n</string>
+
+    <!-- Disclaimers of Warranty -->
+    <string name="eula_disclaimers_warranty">10. Disclaimers of Warranty\n\nEXCEPT AS OTHERWISE PROVIDED IN A SEPARATE AGREEMENT OR SERVICE CONTRACT LICENSEE ENTERS INTO WITH ZEBRA: (I) THE SOFTWARE AND ANY THIRD-PARTY RESOURCE ASSOCIATED WITH THE SOFTWARE ARE PROVIDED "AS IS" AND ON AN "AS AVAILABLE" BASIS, AND (II) TO THE FULLEST EXTENT POSSIBLE PURSUANT TO APPLICABLE LAW WITH RESPECT TO THE SOFTWARE AND ANY THIRD-PARTY RESOURCE ASSOCIATED WITH THE SOFTWARE, ZEBRA MAKES NO REPRESENTATIONS AND DISCLAIMS ALL WARRANTIES, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING, WITHOUT LIMITATION, IMPLIED WARRANTIES OF MERCHANTABILITY, SATISFACTORY QUALITY OR WORKMANLIKE EFFORT, FITNESS FOR A PARTICULAR PURPOSE, RELIABILITY OR AVAILABILITY, AND NON-INFRINGEMENT. ZEBRA DOES NOT WARRANT THAT THE OPERATION OR AVAILABILITY OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR FREE. NO ADVICE OR INFORMATION, WHETHER ORAL OR WRITTEN, OBTAINED FROM ZEBRA WILL BE DEEMED TO ALTER THIS DISCLAIMER OF WARRANTY.\n</string>
+
+    <!-- Limitations of Liability -->
+    <string name="eula_limitations_liability">11. Limitations of Liability\n\n11.1 TO THE EXTENT ALLOWABLE BY APPLICABLE LAW, ZEBRA WILL NOT BE RESPONSIBLE OR LIABLE TO LICENSEE UNDER THIS AGREEMENT FOR:\n\n11.1.1 INDIRECT, SPECIAL, INCIDENTAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES, EVEN IF ZEBRA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES AND REGARDLESS OF THE FORM OF ACTION OR THEORY OF RECOVERY;\n\n11.1.2 DAMAGES OF ANY KIND ARISING OUT OF OR RELATING TO (I) LOSS OF DATA OR (II) AN INABILITY TO USE OR ACCESS THE SOFTWARE DUE TO CONNECTIVITY OR DATA TRANSMISSION ISSUES NOT CAUSED BY ZEBRA OR NOT UNDER ZEBRA’S CONTROL, INCLUDING NETWORK INTERRUPTIONS, TRANSMISSION LATENCIES, OR DEFECTS IN SYSTEMS LICENSEE USES TO CONNECT TO THE INTERNET OR OTHER COMMUNICATION SYSTEMS; OR\n\n11.1.3 DIRECTLY OR INDIRECTLY, ANY DAMAGE OR LOSS CAUSED BY OR IN CONNECTION WITH LICENSEE’S USE OF THIRD-PARTY RESOURCES IN ASSOCIATION WITH THE SOFTWARE, INCLUDING BUT NOT LIMITED TO, ANY DAMAGE TO OR LOSS OF DATA, AS LICENSEE ACKNOWLEDGES AND AGREES THAT LICENSEE’S USE OF THIRD-PARTY RESOURCES IN ASSOCIATION WITH THE SOFTWARE IS AT LICENSEE’S SOLE RISK.\n\n11.2 THE SOFTWARE MAY ENABLE COLLECTION OF TRACKING OR BIOMETRIC DATA USABLE TO TRACK A DEVICE OR IDENTIFY A PERSON, RESPECTIVELY. LICENSEE HEREBY AGREES TO ASSUME ALL RISK AND LIABILITY ASSOCIATED WITH LICENSEE’S COLLECTION, USE, OR MISUSE OF TRACKING OR BIOMETRIC DATA VIA THE SOFTWARE. THE RIGHTS GRANTED TO LICENSEE UNDER SECTION 3 OF THIS AGREEMENT ARE CONDITIONAL ON LICENSEE COMPLYING WITH ALL APPLICABLE LAWS REGARDING COLLECTION OR USE OF TRACKING OR BIOMETRIC DATA WITH RESPECT TO AUTHORIZED USERS, INCLUDING LAWS REQUIRING LICENSEE TO OBTAIN CONSENT OR PROVIDE NOTICE FOR THE COLLECTION OR USE OF SUCH DATA. LICENSEE AGREES TO DEFEND AND HOLD HARMLESS ZEBRA FROM AND AGAINST ANY CLAIM, SUIT, OR PROCEEDING ARISING FROM LICENSEE’S COLLECTION, USE, OR MISUSE OF TRACKING DATA OR BIOMETRIC DATA IMPLEMENTED VIA THE SOFTWARE, INCLUDING CLAIMS BROUGHT BY LICENSEE’S EMPLOYEES OR END USERS.\n\n11.3 NOTWITHSTANDING THE FOREGOING, ZEBRA’S TOTAL AGGREGATE LIABILITY TO LICENSEE FOR ALL LOSSES, DAMAGES, AND CAUSES OF ACTION, INCLUDING, WITHOUT LIMITATION, THOSE BASED ON CONTRACT, TORT, OR OTHERWISE, ARISING OUT OF LICENSEE’S USE OF THE SOFTWARE, INCLUDING ANY LOSS OF DATA, WILL NOT EXCEED THE AMOUNT PAID BY LICENSEE FOR THE LICENSE GRANTED HEREIN DURING THE TWELVE MONTHS PRECEDING THE EVENTS GIVING RISE TO THE LIABILITY.\n\n11.4 THE FOREGOING LIMITATIONS, EXCLUSIONS, AND DISCLAIMERS HEREIN WILL APPLY TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, EVEN IF ANY REMEDY FAILS ITS ESSENTIAL PURPOSE.\n</string>
+
+    <!-- Governing Law -->
+    <string name="eula_governing_law">12. Governing Law\n\nThis Agreement is governed by the laws of the State of Illinois, without regard to its conflict of law provisions. This Agreement will not be governed by the UN Convention on Contracts for the International Sale of Goods, the application of which is expressly excluded. Licensee hereby submits itself and its property in any legal action or proceeding relating to this Agreement or for recognition and enforcement of any judgment in respect thereof to the exclusive general jurisdiction of the courts of the State of Illinois or to the United States North District Court of Illinois and to the respective appellate courts thereof in connection with any appeal therefrom. This Agreement is drafted in the English language, which shall be the governing language in case of discrepancies or disputes arising from translated versions.\n</string>
+
+    <!-- Handling of Disputes -->
+    <string name="eula_handling_disputes">13. Handling of Disputes\n\n13.1 Licensee acknowledges that, in the event Licensee breaches any provision of this Agreement, Zebra may not have an adequate remedy in money or damages. Zebra will therefore be entitled to seek an injunction against such breach from any court of competent jurisdiction immediately upon request without posting bond. Zebra’s right to seek injunctive relief will not limit its right to seek further remedies.\n\n13.2 If any term of this Agreement is to any extent illegal, otherwise invalid, or incapable of being enforced, such term will be excluded to the extent of such invalidity or unenforceability, all other terms hereof will remain in full force and effect, and, to the extent permitted and possible, the invalid or unenforceable term will be deemed replaced by a term that is valid and enforceable and that comes closest to expressing the intention of such invalid or unenforceable term.\n\n13.3 The parties agree that Licensee and Zebra are the sole parties to this Agreement, and Licensee hereby agrees to not seek remedies under this Agreement against Zebra’s authorized distributors or resellers with respect to the Software.\n</string>
+
+    <!-- Open-Source Software -->
+    <string name="eula_open_source_software">14. Open-Source Software\n\nThe Software may be subject to one or more open-source licenses. The open-source license provisions may override some terms of this Agreement. Zebra makes the applicable open-source licenses available on a legal notices website, readme file, system reference guides, or command line interface (CLI) reference guides associated with certain Zebra products.\n</string>
+
+    <!-- Government End User Restricted Rights -->
+    <string name="eula_government_end_user_restricted_rights">15. Government End User Restricted Rights\n\nThe U.S. Government has certain restricted rights in software under the Federal Acquisition Regulations and Defense Federal Acquisition Regulations Supplement, as applicable. If Licensee is a U.S. Government agency or contractor, Licensee should comply with the above regulations, including obtaining any necessary licenses or approval from relevant regulatory bodies before exporting or re-exporting the Software to certain countries or individuals/entities on sanctioned lists. Consistent with the above regulations and other relevant sections of the Code of Federal Regulations, the Software is distributed and licensed to U.S. Government end users (i) only as a “commercial item” consisting of “commercial computer software” and “computer software documentation” as such terms are defined in the above regulations, and (ii) with only those rights as are granted to all other end users pursuant to the terms and conditions contained herein.\n</string>
+
+    <!-- Export Control -->
+    <string name="eula_export_control">16. Export Control\n\nBy ordering, subscribing to, installing, executing, running, downloading, or otherwise using the Software and any accompanying documentation, Licensee agrees that it is not located in a country that is subject to export embargoes or that has been designated as a "terrorist supporting" country. Licensee acknowledges that the Software and any accompanying documentation may be subject to export control laws and regulations of the United States, European Economic Area, United Kingdom and any other local/country export control laws and regulations, which may be amended from time to time. Licensee agrees to comply with all applicable international and national laws that apply to the Software and any accompanying documentation, including all applicable import, export and compliance laws and regulations, and to obtain any necessary licenses or approvals when applicable. Failure to comply with the above conditions may result in legal action by Zebra or relevant authorities. Licensee confirms to not download or otherwise obtain the Software for “military end-use”, and/or “military intelligence end-use” as described on the U.S. Munitions List (22 C.F.R. §121) and in 15 C.F.R. §744 of the U.S. Export Administration Regulations.\n</string>
+    <!-- Bullet Point -->
+    <string name="eula_bullet_point">•&#160;</string>
+    <string name="eula_close_button">Close</string>
+
+    <!-- Inference Options -->
+    <string name="processor_type_dsp">DSP</string>
+    <string name="processor_type_dsp_desc">Best Choice</string>
+    <string name="processor_type_dsp_id">dsp</string>
+    <string name="processor_type_gpu">GPU</string>
+    <string name="processor_type_gpu_desc"></string>
+    <string name="processor_type_gpu_id">gpu</string>
+    <string name="processor_type_cpu">CPU</string>
+    <string name="processor_type_cpu_desc">Use only when DSP or GPU are not available</string>
+    <string name="processor_type_cpu_id">cpu</string>
+
+</resources>

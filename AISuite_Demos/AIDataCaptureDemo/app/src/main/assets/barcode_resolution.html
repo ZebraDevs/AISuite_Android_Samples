@@ -1,0 +1,85 @@
+<div id="summary">
+        Camera resolution is the number of pixels in your photo (e.g., 1MP =
+        1280x720).
+        <strong
+        >Higher resolution captures more detail for small or distant barcodes but
+            uses more power and memory.</strong
+        >
+        Benefits are limited if the model input size is low.
+</div>
+<div id="description">
+        The camera resolution is the number of pixels in the image captured by your
+        device (e.g., 1MP = 1280x720, 8MP = 3840x2160). This affects the detail in
+        the original photo before it&rsquo;s resized for AI processing.
+        <strong
+        >Higher resolution means more detail, helping read small, or distant
+            barcodes&mdash;but also uses more processing power and memory.</strong
+        >
+        If speed, battery life, or memory use are your top priorities, low resolution
+        can be a good choice for large or close-up barcodes.
+        <strong>Note:</strong> If the model input size is set low, using a high
+        camera resolution won&rsquo;t improve results much, since the detailed image
+        will be downscaled before processing.
+</div>
+<div id="title">Resolution Options</div>
+<div id="details">
+    <p><strong>1MP (1280 x 720)</strong></p>
+    <ul style="list-style-type: disc">
+        <li>Fastest, power-efficient</li>
+        <li>Best for simple, large, or close-up barcodes</li>
+        <li>May miss small or damaged barcodes</li>
+    </ul>
+    <p><strong>2MP (1920 x 1080)</strong></p>
+    <ul style="list-style-type: disc">
+        <li>Good for general use, moderate detail</li>
+        <li>Handles most standard barcode scanning scenarios</li>
+    </ul>
+    <p><strong>4MP (2688 x 1512)</strong></p>
+    <ul style="list-style-type: disc">
+        <li>
+            Captures more detail, good for poor contrast or dense, smaller barcodes
+        </li>
+        <li>Higher memory and battery use</li>
+    </ul>
+    <p><strong>8MP (3840 x 2160)</strong></p>
+    <ul style="list-style-type: disc">
+        <li>Maximum detail and accuracy,</li>
+        <li>Best for extremely small, dense, or challenging use cases.</li>
+        <li>Slowest and highest memory/battery consumption</li>
+        <li>
+            Limited benefit if model input size is low; Not recommended for CPU/GPU
+            (inference types)
+        </li>
+    </ul>
+</div>
+<div id="recommendation">
+    <p><strong>Recommendation:</strong></p>
+    <ul style="list-style-type: disc">
+        <li>
+            <strong>Start with 1 or 2MP.</strong> This offers a good balance between
+            image detail, speed, and battery use.
+        </li>
+        <li>
+            <strong>Increase</strong> to 4MP or 8MP&nbsp;<strong>only if</strong> you
+            need to capture very small, faint, or distant barcodes, and your device
+            can handle the extra processing.
+        </li>
+        <li>
+            <strong>Match your camera resolution to your model input size:</strong> If
+            your model input size is 640x640, higher resolutions provide little
+            benefit. For larger model input sizes (like 1280x1280 or 1600x1600), a
+            higher resolution can help.
+        </li>
+    </ul>
+</div>
+<div id="tip">
+    <p>
+        <strong>Tip:</strong>&nbsp;Make sure the barcode(s) you want to scan appears
+        <strong>at least 8 pixels tall</strong> in your image for reliable
+        recognition.
+        <strong
+        >Experiment to find the smallest resolution that works reliably for your
+            use case</strong
+        >
+    </p>
+</div>

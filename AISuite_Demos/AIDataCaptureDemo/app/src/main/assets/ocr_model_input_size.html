@@ -1,0 +1,60 @@
+<div id="summary">
+    Model input size&nbsp;is the resolution your image is resized to before AI
+    analysis.
+    <strong
+    >Smaller sizes are faster, while larger sizes improve accuracy.</strong
+    >
+    Choose the input size to balance speed and accuracy for your needs.
+    <strong>Note:</strong> Model Input Size can be customized in increments of 32
+    using the SDK. The options below represent some generic sizes.
+</div>
+<div id="description">
+    Model input size&nbsp;is the resolution your image is resized to before AI
+    analysis.
+    <strong
+    >Smaller sizes are faster, while larger sizes improve accuracy.</strong
+    >
+    Choose the input size to balance speed and accuracy for your needs.
+    <strong>Note:</strong> Model Input Size can be customized in increments of 32
+    using the SDK. The options below represent some generic sizes.
+</div>
+<div id="title">Model Input Size Options</div>
+<div id="details">
+<p><strong>Small &ndash; 640 x 640</strong></p>
+<ul style="list-style-type: disc">
+    <li>Fastest processing</li>
+    <li>Best for large or close-up text</li>
+    <li>May miss small/fine details</li>
+</ul>
+<p><strong>Medium &ndash; 1280 x 1280</strong></p>
+<ul style="list-style-type: disc">
+    <li>Balanced speed and accuracy</li>
+    <li>Good for moderately small text or stylized fonts and handwriting</li>
+</ul>
+<p><strong>Large &ndash; 1600 x 1600</strong></p>
+<ul style="list-style-type: disc">
+    <li>Higher accuracy</li>
+    <li>Best for small, distant or poor contrast text</li>
+    <li>Slower, uses more memory</li>
+    <li>Not recommended for CPU/GPU (inference type)</li>
+</ul>
+<p><strong>Extra-large &ndash; 2560 x 2560</strong></p>
+<ul style="list-style-type: disc">
+    <li>Maximum detail and accuracy</li>
+    <li>Useful for highly challenging recognition tasks</li>
+    <li>Slowest processing and highest memory/battery consumption</li>
+    <li>Not recommended for CPU/GPU (inference type)</li>
+</ul>
+</div>
+<div id="recommendation">
+<p><strong>Recommendation:</strong></p>
+<ul style="list-style-type: disc;">
+    <li><strong>Start with 640x640</strong></li>
+    <li>Increase to 1280x1280 when 640x640 misses small, faint, or low-contrast text. </li>
+    <li>Use 1600x1600 for very small or distant text, dense documents, or when maximum detail is needed. <strong>Caution:</strong> this can slow processing and use more battery. </li>
+    <li>Use 2560x2560 only for the most demanding and challenging use cases, and only if your device has sufficient processing power and memory.</li>
+</ul>
+</div>
+<div id="tip">
+<p><strong>Tip:</strong> Larger model input sizes improve accuracy but come at a significant cost to speed, memory, and battery life. If the app becomes slow or unstable, reduce the input size. <strong>Experiment to find the smallest size that works reliably for your use case.</strong></p>
+</div>
