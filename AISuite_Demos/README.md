@@ -11,7 +11,7 @@ The AI Suite Demo repository provides re-usable source code that can be used to 
 
 ## Useful References
 - [SDK Documentation](https://techdocs.zebra.com/ai-datacapture/latest/about/)
-- [Model Information](https://techdocs.zebrea.com/ai-datacapture/latest/models/)
+- [Model Information](https://techdocs.zebra.com/ai-datacapture/latest/setup/#featuresmodels)
 - [Developer Experience Videos](https://www.youtube.com/zebratechnologies)
 
 ## Key Features

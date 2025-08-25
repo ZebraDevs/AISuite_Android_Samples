@@ -22,7 +22,7 @@ Use this project as a sample for:
 ### Prerequisites
 - Android Studio Hedgehog or later
 - Android SDK 34 (Android 14)
-- Zebra AI Data Capture SDK ([Documentation](https://techdocs.zebra.com/enterprise-ai/vision-sdk/))
+- Zebra AI Data Capture SDK ([Documentation](https://techdocs.zebra.com/ai-datacapture/latest/about/))
 
 ### Setup & Installation
 1. **Clone the repository:**
@@ -47,7 +47,7 @@ Use this project as a sample for:
 - **Scan Results:** View completed scan operations and manage barcode inventory.
 
 ## Documentation & Support
-- [Zebra AI Data Capture SDK Documentation](https://techdocs.zebra.com/enterprise-ai/vision-sdk/)
+- [Zebra AI Data Capture SDK Documentation](https://techdocs.zebra.com/ai-datacapture/latest/about/)
 - [Jetpack Compose Documentation](https://developer.android.com/jetpack/compose)
 - [CameraX Documentation](https://developer.android.com/training/camerax)
 - [Android Developer Documentation](https://developer.android.com/docs)

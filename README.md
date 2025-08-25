@@ -4,7 +4,7 @@
 Welcome to the [Mobile Computing AISuite's](https://www.zebra.com/ap/en/software/mobile-computer-software/zebra-mobile-computing-ai-suite.html) Sample and Demo application's repository! This repository serves as an archive for numerous applications that demonstrate the capabilities and functionalities of the AI Data Capture SDK.
 
 ## Overview
-The [AI Data Capture SDK](https://techdocs.zebra.com/ai-datacapture/latest/about/) offers a range of tools and resources for developers looking to integrate and utilize the [AISuite Models](https://techdocs.zebra.com/ai-datacapture/latest/models) within their applications. The sample and demo applications contained in this repository provide practical examples and guidance on how to leverage the SDK effectively.
+The [AI Data Capture SDK](https://techdocs.zebra.com/ai-datacapture/latest/about/) offers a range of tools and resources for developers looking to integrate and utilize the [AISuite Models](https://techdocs.zebra.com/ai-datacapture/latest/setup/#featuresmodels) within their applications. The sample and demo applications contained in this repository provide practical examples and guidance on how to leverage the SDK effectively.
 
 AI Data Capture SDK offers constructs that are compatible with [CameraX](https://developer.android.com/media/camera/camerax) , which allows developers to build their apps quickly and easily. This also allows the applications to use different detectors or analyzers beyond whats offered in AISuite.
 
@@ -12,7 +12,7 @@ Most of the samples here are built based on CameraX framework.
 
 ## Useful References
 - [SDK Documentation](https://techdocs.zebra.com/ai-datacapture/latest/about/)
-- [Model Information](https://zebra-stage.github.io/ai-datacapture/latest/textocr/)
+- [Model Information](https://techdocs.zebra.com/ai-datacapture/latest/setup/#featuresmodels)
 - [Developer Experience Videos](https://www.youtube.com/zebratechnologies)
 
 ## Contents
@@ -46,8 +46,8 @@ To get started with the sample applications:
 ### AISuite_Snippets
 Sample code snippets to easily integrate into applications.
 
-- [Analyzers](AISuite_Snippets/app/src/main/java/com/zebra/example/java/analyzers) - Code snippets for using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/about/CameraX#EntityTrackerAnalyzer).
-- [Detectors](AISuite_Snippets/app/src/main/java/com/zebra/example/java/detectors) - Code snippets for using detectors (process() APIs) for [BarcodeDecoder](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata), [TextOCR](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedata).
+- [Analyzers](AISuite_Snippets/app/src/main/java/com/zebra/example/java/analyzers) - Code snippets for using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer).
+- [Detectors](AISuite_Snippets/app/src/main/java/com/zebra/example/java/detectors) - Code snippets for using detectors (process() APIs) for [BarcodeDecoder](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata), [TextOCR](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor).
 - [LowLevel](AISuite_Snippets/app/src/main/java/com/zebra/example/java/lowlevel) - Code snippets for using foundational apis for detecting, decoding barcodes, OCR and product recognition.
   
 ### AISuite_QuickStart
@@ -72,4 +72,3 @@ This README.md is designed to provide clarity and a user-friendly onboarding exp
 
 ## License
 All content under this repository's root folder is subject to the [Development Tool License Agreement](Zebra%20Development%20Tool%20License.pdf). By accessing, using, or distributing any part of this content, you agree to comply with the terms of the Development Tool License Agreement.
-
