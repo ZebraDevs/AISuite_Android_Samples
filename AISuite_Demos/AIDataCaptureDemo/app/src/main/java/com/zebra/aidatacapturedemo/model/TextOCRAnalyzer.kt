@@ -2,8 +2,6 @@
 
 package com.zebra.aidatacapturedemo.model
 
-import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.graphics.Rect
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
@@ -16,8 +14,8 @@ import com.zebra.ai.vision.entity.ParagraphEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.OCRFilterData
 import com.zebra.aidatacapturedemo.data.OCRFilterType
-import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.PROFILING
+import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -46,9 +44,9 @@ class TextOCRAnalyzer(
     private var isAnalyzing = true
 
     init {
-        mOCRFilterTypeData = if (uiState.value.usecaseSelected == UsecaseState.OCR.value){
+        mOCRFilterTypeData = if (uiState.value.usecaseSelected == UsecaseState.OCR.value) {
             OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
-        }else{
+        } else {
             when (uiState.value.selectedOcrFilterType) {
                 OCRFilterType.SHOW_ALL -> {
                     OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
@@ -104,7 +102,6 @@ class TextOCRAnalyzer(
         executorService.submit {
             try {
                 Log.d(TAG, "Starting image analysis")
-                val bitmap = rotateBitmapIfNeeded(image)
                 textOCR?.process(ImageData.fromImageProxy(image))
                     ?.thenAccept { result ->
                         onDetectionTextResult(result)
@@ -149,6 +146,12 @@ class TextOCRAnalyzer(
                 Log.i(TAG, "TextOCR creation success")
             }.exceptionally { e ->
                 Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
+                if (e.message?.contains("Given runtimes are not available") == true) {
+                    viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
+                    viewModel.updateSelectedProcessor(0) //Auto-Select
+                    viewModel.saveSettings()
+                    initialize()
+                }
                 null
             }
         } catch (e: Exception) {
@@ -163,86 +166,97 @@ class TextOCRAnalyzer(
 
     private fun configure() {
         try {
-            if (uiState.value.usecaseSelected == UsecaseState.OCR.value) {
+            if (uiState.value.usecaseSelected == UsecaseState.OCRFind.value) {
                 //Swap the values as the presented index is reverse of what model expects
-                val processorOrder = when (uiState.value.textOCRSettings.commonSettings.processorSelectedIndex) {
-                    0 -> arrayOf(2)
-                    1 -> arrayOf(1)
-                    2 -> arrayOf(0)
-                    else -> {
-                        arrayOf(2)
+                val processorOrder =
+                    when (uiState.value.ocrFindSettings.commonSettings.processorSelectedIndex) {
+                        0 -> arrayOf(2, 0, 1) // AUTO
+                        1 -> arrayOf(2) // DSP
+                        2 -> arrayOf(1) // GPU
+                        3 -> arrayOf(0) //CPU
+                        else -> {
+                            arrayOf(2, 0, 1)
+                        }
                     }
-                }
                 textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = processorOrder
 
                 textOCRSettings.decodingTotalProbThreshold = 0F
 
                 textOCRSettings.detectionInferencerOptions.defaultDims.width =
-                    uiState.value.textOCRSettings.commonSettings.inputSizeSelected
+                    uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
                 textOCRSettings.detectionInferencerOptions.defaultDims.height =
-                    uiState.value.textOCRSettings.commonSettings.inputSizeSelected
+                    uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
             } else {
                 //Swap the values as the presented index is reverse of what model expects
-                val processorOrder = when (uiState.value.ocrFindSettings.commonSettings.processorSelectedIndex) {
-                    0 -> arrayOf(2)
-                    1 -> arrayOf(1)
-                    2 -> arrayOf(0)
-                    else -> {
-                        arrayOf(2)
+                val processorOrder =
+                    when (uiState.value.textOCRSettings.commonSettings.processorSelectedIndex) {
+                        0 -> arrayOf(2, 0, 1) // AUTO
+                        1 -> arrayOf(2) // DSP
+                        2 -> arrayOf(1) // GPU
+                        3 -> arrayOf(0) //CPU
+                        else -> {
+                            arrayOf(2, 0, 1)
+                        }
                     }
-                }
                 textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = processorOrder
 
                 textOCRSettings.decodingTotalProbThreshold = 0F
 
                 textOCRSettings.detectionInferencerOptions.defaultDims.width =
-                    uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
+                    uiState.value.textOCRSettings.commonSettings.inputSizeSelected
                 textOCRSettings.detectionInferencerOptions.defaultDims.height =
-                    uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
+                    uiState.value.textOCRSettings.commonSettings.inputSizeSelected
 
                 //Detection Parameters
-                textOCRSettings.heatmapThreshold = uiState.value.ocrFindSettings.advancedOCRSetting.heatmapThreshold.toFloat()
-                textOCRSettings.boxThreshold = uiState.value.ocrFindSettings.advancedOCRSetting.boxThreshold.toFloat()
-                textOCRSettings.minBoxArea = uiState.value.ocrFindSettings.advancedOCRSetting.minBoxArea.toInt()
-                textOCRSettings.minBoxSize = uiState.value.ocrFindSettings.advancedOCRSetting.minBoxSize.toInt()
-                textOCRSettings.unclipRatio = uiState.value.ocrFindSettings.advancedOCRSetting.unclipRatio.toFloat()
-                textOCRSettings.minRatioForRotation = uiState.value.ocrFindSettings.advancedOCRSetting.minRatioForRotation.toFloat()
+                textOCRSettings.heatmapThreshold =
+                    uiState.value.textOCRSettings.advancedOCRSetting.heatmapThreshold.toFloat()
+                textOCRSettings.boxThreshold =
+                    uiState.value.textOCRSettings.advancedOCRSetting.boxThreshold.toFloat()
+                textOCRSettings.minBoxArea =
+                    uiState.value.textOCRSettings.advancedOCRSetting.minBoxArea.toInt()
+                textOCRSettings.minBoxSize =
+                    uiState.value.textOCRSettings.advancedOCRSetting.minBoxSize.toInt()
+                textOCRSettings.unclipRatio =
+                    uiState.value.textOCRSettings.advancedOCRSetting.unclipRatio.toFloat()
+                textOCRSettings.minRatioForRotation =
+                    uiState.value.textOCRSettings.advancedOCRSetting.minRatioForRotation.toFloat()
 
                 textOCRSettings.decodingMaxWordCombinations =
-                    uiState.value.ocrFindSettings.advancedOCRSetting.maxWordCombinations.toInt()
-                textOCRSettings.decodingTopkIgnoreCutoff = uiState.value.ocrFindSettings.advancedOCRSetting.topkIgnoreCutoff.toInt()
+                    uiState.value.textOCRSettings.advancedOCRSetting.maxWordCombinations.toInt()
+                textOCRSettings.decodingTopkIgnoreCutoff =
+                    uiState.value.textOCRSettings.advancedOCRSetting.topkIgnoreCutoff.toInt()
                 textOCRSettings.decodingTotalProbThreshold =
-                    uiState.value.ocrFindSettings.advancedOCRSetting.totalProbabilityThreshold.toFloat()
+                    uiState.value.textOCRSettings.advancedOCRSetting.totalProbabilityThreshold.toFloat()
 
                 // OCR Tiling related
-                if (uiState.value.ocrFindSettings.advancedOCRSetting.enableTiling) {
+                if (uiState.value.textOCRSettings.advancedOCRSetting.enableTiling) {
                     textOCRSettings.tiling.enable = true
                     textOCRSettings.tiling.topCorrelationThr =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.topCorrelationThreshold.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.topCorrelationThreshold.toFloat()
                     textOCRSettings.tiling.mergePointsCutoff =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.mergePointsCutoff.toInt()
+                        uiState.value.textOCRSettings.advancedOCRSetting.mergePointsCutoff.toInt()
                     textOCRSettings.tiling.splitMarginFactor =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.splitMarginFactor.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.splitMarginFactor.toFloat()
                     textOCRSettings.tiling.aspectRatioLowerThr =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.aspectRatioLowerThreshold.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.aspectRatioLowerThreshold.toFloat()
                     textOCRSettings.tiling.aspectRatioUpperThr =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.aspectRatioUpperThreshold.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.aspectRatioUpperThreshold.toFloat()
                     textOCRSettings.tiling.topkMergedPredictions =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.topKMergedPredictions.toInt()
+                        uiState.value.textOCRSettings.advancedOCRSetting.topKMergedPredictions.toInt()
                 } else {
                     textOCRSettings.tiling.enable = false
                 }
-                if (uiState.value.ocrFindSettings.advancedOCRSetting.enableGrouping) {
+                if (uiState.value.textOCRSettings.advancedOCRSetting.enableGrouping) {
                     textOCRSettings.grouping.widthDistanceRatio =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.widthDistanceRatio.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.widthDistanceRatio.toFloat()
                     textOCRSettings.grouping.heightDistanceRatio =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.heightDistanceRatio.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.heightDistanceRatio.toFloat()
                     textOCRSettings.grouping.centerDistanceRatio =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.centerDistanceRatio.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.centerDistanceRatio.toFloat()
                     textOCRSettings.grouping.paragraphHeightDistance =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.paragraphHeightDistance.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.paragraphHeightDistance.toFloat()
                     textOCRSettings.grouping.paragraphHeightRatioThreshold =
-                        uiState.value.ocrFindSettings.advancedOCRSetting.paragraphHeightRatioThreshold.toFloat()
+                        uiState.value.textOCRSettings.advancedOCRSetting.paragraphHeightRatioThreshold.toFloat()
                 } else {
                     //Reset to default values
                     textOCRSettings.grouping.widthDistanceRatio = 1.5f
@@ -254,38 +268,6 @@ class TextOCRAnalyzer(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Fatal error: configure failed - ${e.message}")
-        }
-    }
-
-    private fun rotateBitmapIfNeeded(imageProxy: ImageProxy): Bitmap? {
-        try {
-            val bitmap = imageProxy.toBitmap()
-            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-            return rotateBitmap(bitmap, rotationDegrees)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error converting image to bitmap: " + e.message)
-            return null
-        }
-    }
-
-    private fun rotateBitmap(bitmap: Bitmap?, degrees: Int): Bitmap? {
-        if (degrees == 0 || bitmap == null) return bitmap
-
-        try {
-            val matrix = Matrix()
-            matrix.postRotate(degrees.toFloat())
-            return Bitmap.createBitmap(
-                bitmap,
-                0,
-                0,
-                bitmap.getWidth(),
-                bitmap.getHeight(),
-                matrix,
-                true
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error rotating bitmap: " + e.message)
-            return bitmap
         }
     }
 

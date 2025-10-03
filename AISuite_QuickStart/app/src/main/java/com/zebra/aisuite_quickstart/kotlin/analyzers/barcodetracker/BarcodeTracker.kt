@@ -77,7 +77,11 @@ class BarcodeTracker(
      */
     private fun initializeBarcodeDecoder() {
         val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
-            val rpo = arrayOf(InferencerOptions.DSP)
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
 
             Symbology.CODE39.enable(true)
             Symbology.CODE128.enable(true)

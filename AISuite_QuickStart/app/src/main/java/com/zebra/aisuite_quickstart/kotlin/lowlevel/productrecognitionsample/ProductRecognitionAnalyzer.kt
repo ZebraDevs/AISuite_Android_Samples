@@ -2,7 +2,6 @@
 package com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample
 
 import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -11,6 +10,7 @@ import com.zebra.ai.vision.detector.BBox
 import com.zebra.ai.vision.detector.FeatureExtractor
 import com.zebra.ai.vision.detector.Localizer
 import com.zebra.ai.vision.detector.Recognizer
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -95,7 +95,7 @@ class ProductRecognitionAnalyzer(
         scope.launch {
             try {
                 Log.d(TAG, "Starting image analysis")
-                val bitmap: Bitmap = rotateBitmapIfNeeded(image)
+                val bitmap: Bitmap = CommonUtils.rotateBitmapIfNeeded(image)
                 val futureResultBBox = localizer!!.detect(bitmap, executorService)
                 futureResultBBox?.thenCompose { bBoxes ->
                     detections = bBoxes
@@ -140,39 +140,5 @@ class ProductRecognitionAnalyzer(
     fun stop() {
         isStopped = true
         job.cancel()
-    }
-
-    /**
-     * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
-     *
-     * @param imageProxy The ImageProxy to be converted and possibly rotated.
-     * @return The rotated Bitmap.
-     */
-    fun rotateBitmapIfNeeded(imageProxy: ImageProxy): Bitmap {
-        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-        return rotateBitmap(imageProxy.toBitmap(), rotationDegrees)
-    }
-
-    /**
-     * Rotates the given bitmap by the specified number of degrees.
-     *
-     * @param bitmap The bitmap to be rotated.
-     * @param degrees The degrees to rotate the bitmap.
-     * @return The rotated Bitmap.
-     */
-    private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap {
-        if (degrees == 0) return bitmap
-
-        val matrix = Matrix()
-        matrix.postRotate(degrees.toFloat())
-        return Bitmap.createBitmap(
-            bitmap,
-            0,
-            0,
-            bitmap.width,
-            bitmap.height,
-            matrix,
-            true
-        )
     }
 }

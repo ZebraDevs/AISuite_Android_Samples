@@ -7,6 +7,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.coroutineScope
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
+import com.zebra.ai.vision.detector.AIVisionSDKException
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
@@ -59,9 +60,17 @@ class BarcodeEntityTrackerAnalyzer(
                     )
                     Log.i(TAG, "BarcodeEntityTrackerAnalyzer init Success")
                 }.exceptionally { e: Throwable ->
-                Log.e(TAG, "BarcodeEntityTrackerAnalyzer init Failed -> " + e.message)
-                null
-            }
+                    Log.e(TAG, "BarcodeEntityTrackerAnalyzer init Failed -> " + e.message)
+                    if (e.message?.contains("Given runtimes are not available") == true ||
+                        e.message?.contains("Initialize barcodeDecoder due to SNPE exception") == true
+                    ) {
+                        viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
+                        viewModel.updateSelectedProcessor(0) //Auto-Select
+                        viewModel.saveSettings()
+                        initialize()
+                    }
+                    null
+                }
         } catch (ex: IOException) {
             Log.e(TAG, "getBarcodeDecoder init Failed -> " + ex.message)
         }
@@ -92,10 +101,13 @@ class BarcodeEntityTrackerAnalyzer(
         try {
             //Swap the values as the presented index is reverse of what model expects
             val processorOrder = when (uiState.value.barcodeSettings.commonSettings.processorSelectedIndex) {
-                0 -> arrayOf(2)
-                1 -> arrayOf(1)
-                2 -> arrayOf(0)
-                else -> { arrayOf(2) }
+                0 -> arrayOf(2, 0, 1) // AUTO
+                1 -> arrayOf(2) // DSP
+                2 -> arrayOf(1) // GPU
+                3 -> arrayOf(0) //CPU
+                else -> {
+                    arrayOf(2, 0, 1)
+                }
             }
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = processorOrder
 
@@ -157,18 +169,19 @@ class BarcodeEntityTrackerAnalyzer(
 
     private fun handleEntities(result: EntityTrackerAnalyzer.Result) {
         mActivityLifecycle.coroutineScope.launch(Dispatchers.Main) {
-
-            val returnEntityList = result.getValue(barcodeDecoder!!)
-            var rectList : List<ResultData> = mutableListOf()
-            returnEntityList?.forEach { entity ->
-                if (entity != null){
-                    val barcodeEntity = entity as BarcodeEntity
-                    val value = barcodeEntity.value
-                    val rect = barcodeEntity.boundingBox
-                    rectList += ResultData(boundingBox = rect, text = value)
+            barcodeDecoder?.let {
+                val returnEntityList = result.getValue(it)
+                var rectList: List<ResultData> = mutableListOf()
+                returnEntityList?.forEach { entity ->
+                    if (entity != null) {
+                        val barcodeEntity = entity as BarcodeEntity
+                        val value = barcodeEntity.value
+                        val rect = barcodeEntity.boundingBox
+                        rectList += ResultData(boundingBox = rect, text = value)
+                    }
                 }
+                viewModel.updateBarcodeResultData(results = rectList)
             }
-            viewModel.updateBarcodeResultData(results = rectList)
         }
     }
 

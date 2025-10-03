@@ -473,14 +473,14 @@ class AIDataCaptureDemoViewModel(
 
             UsecaseState.OCRFind.value -> {
                 val currentInputSizeSelected = _uiState.value.ocrFindSettings.commonSettings
-                if(currentInputSizeSelected.processorSelectedIndex == 1){
+                if(currentInputSizeSelected.processorSelectedIndex == 2){
                     dimension = 640
                 }
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
             UsecaseState.OCR.value -> {
                 val currentInputSizeSelected = _uiState.value.textOCRSettings.commonSettings
-                if(currentInputSizeSelected.processorSelectedIndex == 1){
+                if(currentInputSizeSelected.processorSelectedIndex == 2){
                     dimension = 640
                 }
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
@@ -535,7 +535,7 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
-    fun getSelectedResolution() : Int {
+    fun getSelectedResolution() : Int? {
         val currentResolutionSelectedIndex = when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 _uiState.value.barcodeSettings.commonSettings.resolutionSelectedIndex
@@ -555,12 +555,12 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.textOCRSettings.commonSettings.resolutionSelectedIndex
             }
             else -> {
-                1
+                null
             }
         }
         return currentResolutionSelectedIndex
     }
-    fun getProcessorSelectedIndex() : Int {
+    fun getProcessorSelectedIndex() : Int? {
         val currentProcessorSelectedIndex = when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 _uiState.value.barcodeSettings.commonSettings.processorSelectedIndex
@@ -580,13 +580,13 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.textOCRSettings.commonSettings.processorSelectedIndex
             }
             else -> {
-                0
+                null
             }
         }
         return currentProcessorSelectedIndex
     }
 
-    fun getInputSizeSelected() : Int {
+    fun getInputSizeSelected() : Int? {
         val currentInputSizeSelected = when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 _uiState.value.barcodeSettings.commonSettings.inputSizeSelected
@@ -606,7 +606,7 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.textOCRSettings.commonSettings.inputSizeSelected
             }
             else -> {
-                1280
+                null
             }
         }
         return currentInputSizeSelected
@@ -1062,7 +1062,7 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun updateOCRTextFieldValues(name: String, value: String) {
-        val advancedOCRSetting = _uiState.value.ocrFindSettings.advancedOCRSetting
+        val advancedOCRSetting = _uiState.value.textOCRSettings.advancedOCRSetting
         val updatedOCRSetting =
         when (name) {
             getString(context, R.string.heatmap_threshold) -> {
@@ -1201,11 +1201,11 @@ class AIDataCaptureDemoViewModel(
                 advancedOCRSetting
             }
         }
-        _uiState.value.ocrFindSettings.advancedOCRSetting = updatedOCRSetting
+        _uiState.value.textOCRSettings.advancedOCRSetting = updatedOCRSetting
     }
 
     fun updateOCRSwitchOptions(name: String, enabled: Boolean) {
-        val advancedOCRSetting = _uiState.value.ocrFindSettings.advancedOCRSetting
+        val advancedOCRSetting = _uiState.value.textOCRSettings.advancedOCRSetting
         val updatedOCRSetting =
             when (name) {
             getString(context, R.string.enable_tiling) -> {
@@ -1223,7 +1223,7 @@ class AIDataCaptureDemoViewModel(
                 advancedOCRSetting
             }
         }
-        _uiState.value.ocrFindSettings.advancedOCRSetting = updatedOCRSetting
+        _uiState.value.textOCRSettings.advancedOCRSetting = updatedOCRSetting
     }
 
     fun applySettings() {
@@ -1246,7 +1246,7 @@ class AIDataCaptureDemoViewModel(
             }
 
             UsecaseState.OCRFind.value -> {
-                FileUtils.saveAdvancedOCRSettings(uiState.value.ocrFindSettings)
+                FileUtils.saveOCRFindSettings(uiState.value.ocrFindSettings)
             }
             UsecaseState.OCR.value -> {
                 FileUtils.saveOCRSettings(uiState.value.textOCRSettings)
@@ -1320,6 +1320,14 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 modelDemoReady = isReady
+            )
+        }
+    }
+
+    fun updateProductEnrollmentState(state: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isProductEnrollmentCompleted = state
             )
         }
     }
@@ -1402,6 +1410,7 @@ class AIDataCaptureDemoViewModel(
                 // clear all the previous results
                 updateProductRecognitionResult(results = null)
                 updateRetailShelfDetectionResult(results = null)
+                updateProductEnrollmentState(state = false)
                 startPreviewAnalysis()
                 startProcessing()
             }
@@ -1432,5 +1441,13 @@ class AIDataCaptureDemoViewModel(
 
     fun executeHighRes(highResBitmap: Bitmap) {
         productEnrollmentRecognition!!.executeHighRes(highResBitmap)
+    }
+
+    fun updateToastMessage(message: String?) {
+        _uiState.update { uiStateData ->
+            uiStateData.copy(
+                toastMessage = message
+            )
+        }
     }
 }

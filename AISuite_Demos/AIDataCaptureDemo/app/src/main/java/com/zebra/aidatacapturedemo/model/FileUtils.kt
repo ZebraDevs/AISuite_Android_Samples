@@ -126,7 +126,7 @@ class FileUtils(cacheDir: String, context : Context) {
             }
         }
 
-        fun saveAdvancedOCRSettings(settings: OcrFindSettings) {
+        fun saveOCRFindSettings(settings: OcrFindSettings) {
             try {
                 FileWriter(settingsFiles.getValue(UsecaseState.OCRFind.value)).use { writer ->
                     gson.toJson(settings, writer)

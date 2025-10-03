@@ -77,8 +77,10 @@ public class OCRHandler {
         try {
             TextOCR.Settings textOCRSettings = new TextOCR.Settings(mavenModelName);
 
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = rpo;
             textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;

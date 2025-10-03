@@ -8,6 +8,7 @@ import com.zebra.ai.vision.detector.AIVisionSDKException
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.ai.vision.detector.Localizer
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -113,7 +114,7 @@ class BarcodeSampleAnalyzer(
     private suspend fun processImageAsync(image: ImageProxy): Array<BarcodeDecoder.Result> {
         return suspendCancellableCoroutine { cont ->
             try {
-                val bitmap = image.toBitmap()
+                val bitmap = CommonUtils.rotateBitmapIfNeeded(image)
                 localizer.detect(bitmap, executor).thenCompose { bBoxes ->
                     try {
                         barcodeDecoder.decode(bitmap, bBoxes, executor)
@@ -140,6 +141,7 @@ class BarcodeSampleAnalyzer(
         isStopped = true
         job.cancel() // Cancel the coroutine job to stop processing
     }
+
 }
 
 

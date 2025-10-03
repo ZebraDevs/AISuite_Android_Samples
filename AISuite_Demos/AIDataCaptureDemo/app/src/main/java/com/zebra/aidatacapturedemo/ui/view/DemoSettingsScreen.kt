@@ -407,47 +407,54 @@ fun AddProcessorRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     val currentUIState = viewModel.uiState.collectAsState().value
     val listOfProcessors = listOf<RadioButtonData>(
         RadioButtonData(
-            stringResource(R.string.processor_dsp),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.runtime_processor,
-                    0
-                )
+            stringResource(R.string.processor_auto),
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.runtime_processor,
+                0
             ),
             0,
+            onItemSelected = { selectedProcessor ->
+                viewModel.updateSelectedProcessor(selectedProcessor)
+            }),
+        RadioButtonData(
+            stringResource(R.string.processor_dsp),
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.runtime_processor,
+                1
+            ),
+            1,
             onItemSelected = { selectedProcessor ->
                 viewModel.updateSelectedProcessor(selectedProcessor)
             }
         ),
         RadioButtonData(
             stringResource(R.string.processor_gpu),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.runtime_processor,
-                    1
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.runtime_processor,
+                2
             ),
-            1,
+            2,
             onItemSelected = { selectedProcessor ->
                 viewModel.updateSelectedProcessor(selectedProcessor)
             }),
         RadioButtonData(
             stringResource(R.string.processor_cpu),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.runtime_processor,
-                    2
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.runtime_processor,
+                3
             ),
-            2,
+            3,
             onItemSelected = { selectedProcessor ->
                 viewModel.updateSelectedProcessor(selectedProcessor)
             })
     )
-    ListOfRadioButtonOptions(viewModel.getProcessorSelectedIndex(), listOfProcessors)
+    viewModel.getProcessorSelectedIndex()?.let {
+        ListOfRadioButtonOptions(it, listOfProcessors)
+    }
 }
 
 @Composable
@@ -456,12 +463,10 @@ fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     val listOfModelInputSizes = mutableListOf<RadioButtonData>(
         RadioButtonData(
             stringResource(R.string.model_input_size_640),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.model_input_size,
-                    0
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.model_input_size,
+                0
             ),
             0,
             onItemSelected = { selectedModelInputSize ->
@@ -469,12 +474,10 @@ fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             }),
         RadioButtonData(
             stringResource(R.string.model_input_size_1280),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.model_input_size,
-                    1
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.model_input_size,
+                1
             ),
             1,
             onItemSelected = { selectedModelInputSize ->
@@ -482,12 +485,10 @@ fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             }),
         RadioButtonData(
             stringResource(R.string.model_input_size_1600),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.model_input_size,
-                    2
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.model_input_size,
+                2
             ),
             2,
             onItemSelected = { selectedModelInputSize ->
@@ -496,12 +497,10 @@ fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
         ),
         RadioButtonData(
             stringResource(R.string.model_input_size_2560),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.model_input_size,
-                    3
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.model_input_size,
+                3
             ),
             3,
             onItemSelected = { selectedModelInputSize ->
@@ -511,7 +510,7 @@ fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     )
     if (currentUIState.usecaseSelected == UsecaseState.Barcode.value) {
         // Remove inputSize 2560 option for Barcode Decoder
-        listOfModelInputSizes.removeAt(listOfModelInputSizes.size-1)
+        listOfModelInputSizes.removeAt(listOfModelInputSizes.size - 1)
     }
     var selectedIndex = 0
     if (viewModel.getInputSizeSelected() == 1280) {
@@ -530,12 +529,11 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     val listOfResolutionSizes = listOf<RadioButtonData>(
         RadioButtonData(
             stringResource(R.string.resolution_size_1280),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.resolution,
-                    0
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.resolution,
+                0
+
             ),
             0,
             onItemSelected = { selectedResolution ->
@@ -543,12 +541,10 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             }),
         RadioButtonData(
             stringResource(R.string.resolution_size_1920),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.resolution,
-                    1
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.resolution,
+                1
             ),
             1,
             onItemSelected = { selectedResolution ->
@@ -556,12 +552,10 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             }),
         RadioButtonData(
             stringResource(R.string.resolution_size_2688),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.resolution,
-                    2
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.resolution,
+                2
             ),
             2,
             onItemSelected = { selectedResolution ->
@@ -570,12 +564,10 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
         ),
         RadioButtonData(
             stringResource(R.string.resolution_size_3840),
-            stringResource(
-                getSettingDescription(
-                    currentUIState.usecaseSelected,
-                    R.string.resolution,
-                    3
-                )
+            getSettingDescription(
+                currentUIState.usecaseSelected,
+                R.string.resolution,
+                3
             ),
             3,
             onItemSelected = { selectedResolution ->
@@ -583,7 +575,9 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             }
         )
     )
-    ListOfRadioButtonOptions(viewModel.getSelectedResolution(), listOfResolutionSizes)
+    viewModel.getSelectedResolution()?.let {
+        ListOfRadioButtonOptions(it, listOfResolutionSizes)
+    }
 }
 
 @Composable

@@ -61,8 +61,10 @@ public class BarcodeLegacySample {
             long diff = System.currentTimeMillis() - mStart;
             Log.d(TAG, "Barcode Localizer.settings() obj creation time = " + diff + " milli sec");
 
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             locSettings.inferencerOptions.runtimeProcessorOrder = rpo;
             locSettings.inferencerOptions.defaultDims.height = 640;

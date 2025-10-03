@@ -82,7 +82,11 @@ class ProductRecognitionSample(private val context: Context) {
             val feSettings = FeatureExtractor.Settings(mavenModelName)
             Log.d(TAG, "FeatureExtractor.Settings obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
 
-            val rpo = arrayOf(InferencerOptions.DSP)
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
 
             feSettings.inferencerOptions.runtimeProcessorOrder = rpo
             locSettings.inferencerOptions.runtimeProcessorOrder = rpo

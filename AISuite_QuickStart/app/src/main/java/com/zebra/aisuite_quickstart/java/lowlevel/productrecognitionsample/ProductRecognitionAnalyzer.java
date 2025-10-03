@@ -2,7 +2,6 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
 
 import android.graphics.Bitmap;
-import android.graphics.Matrix;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -15,6 +14,7 @@ import com.zebra.ai.vision.detector.FeatureExtractor;
 import com.zebra.ai.vision.detector.InvalidInputException;
 import com.zebra.ai.vision.detector.Localizer;
 import com.zebra.ai.vision.detector.Recognizer;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -106,7 +106,7 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
         Future<?> future = executorService.submit(() -> {
             try {
                 Log.d(TAG, "Starting image analysis");
-                Bitmap bitmap = rotateBitmapIfNeeded(image);
+                Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
                 CompletableFuture<BBox[]> futureResultBBox = localizer.detect(bitmap, executorService);
 
                 futureResultBBox.thenCompose(bBoxes -> {
@@ -158,32 +158,6 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
         if (isStopped) {
             future.cancel(true);
         }
-    }
-
-    /**
-     * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
-     *
-     * @param imageProxy The ImageProxy to be converted and possibly rotated.
-     * @return The rotated Bitmap.
-     */
-    public Bitmap rotateBitmapIfNeeded(ImageProxy imageProxy) {
-        int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
-        return rotateBitmap(imageProxy.toBitmap(), rotationDegrees);
-    }
-
-    /**
-     * Rotates the given bitmap by the specified number of degrees.
-     *
-     * @param bitmap The bitmap to be rotated.
-     * @param degrees The degrees to rotate the bitmap.
-     * @return The rotated Bitmap.
-     */
-    private Bitmap rotateBitmap(Bitmap bitmap, int degrees) {
-        if (degrees == 0) return bitmap;
-
-        Matrix matrix = new Matrix();
-        matrix.postRotate(degrees);
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
     }
 
     /**

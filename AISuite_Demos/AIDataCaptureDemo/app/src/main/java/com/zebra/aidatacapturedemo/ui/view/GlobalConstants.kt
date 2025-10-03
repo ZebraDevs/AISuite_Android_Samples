@@ -99,8 +99,8 @@ fun getIconSecondaryColor(demo: String): Color {
     return secondaryColor
 }
 
-fun getIconId(demo: String): Int {
-    var iconId = 0
+fun getIconId(demo: String): Int? {
+    var iconId: Int? = null
     when (demo) {
         UsecaseState.Barcode.value -> {
             iconId = R.drawable.barcode_icon
@@ -125,8 +125,8 @@ fun getIconId(demo: String): Int {
     return iconId
 }
 
-fun getSettingHeading(demo: String): Int {
-    var settingsString = 0
+fun getSettingHeading(demo: String): Int? {
+    var settingsString : Int? = null
     when (demo) {
         UsecaseState.Barcode.value -> {
             settingsString = R.string.barcode_settings
@@ -151,8 +151,8 @@ fun getSettingHeading(demo: String): Int {
     return settingsString
 }
 
-fun getDemoTitle(demo: String): Int {
-    var settingsString = 0
+fun getDemoTitle(demo: String): Int? {
+    var settingsString : Int? = null
     when (demo) {
         UsecaseState.Barcode.value -> {
             settingsString = R.string.barcode_demo
@@ -181,20 +181,23 @@ fun getDemoTitle(demo: String): Int {
     return settingsString
 }
 
-fun getSettingDescription(demo: String, setting: Int, value: Int): Int {
-    var descString = 0
+fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
+    var descString : Int? = null
     when (setting) {
         R.string.runtime_processor -> {
             when (value) {
                 0 -> {
-                    descString = R.string.runtime_processor_dsp_desc
+                    descString = R.string.runtime_processor_auto_desc
                 }
 
                 1 -> {
-                    descString = R.string.runtime_processor_gpu_desc
+                    descString = R.string.runtime_processor_dsp_desc
                 }
 
                 2 -> {
+                    descString = R.string.runtime_processor_gpu_desc
+                }
+                3 -> {
                     descString = R.string.runtime_processor_cpu_desc
                 }
             }

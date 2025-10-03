@@ -39,10 +39,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -81,6 +83,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.zebra.ai.vision.detector.BBox
 import com.zebra.aidatacapturedemo.R
+import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.model.FileUtils
 import com.zebra.aidatacapturedemo.ui.view.Variables.borderPrimaryMain
@@ -140,6 +143,8 @@ fun CameraCapturedImageScreen(
             CircularProgressIndicator()
         }
     } else {
+        var isProductEnrollmentProgressBarVisible by remember { mutableStateOf(false) }
+
         val density = LocalDensity.current
         val widthInDp: Dp = with(density) { cameraPreviewViewSize.height.toDp() }
         val heightInDp: Dp = with(density) { cameraPreviewViewSize.width.toDp() }
@@ -176,10 +181,16 @@ fun CameraCapturedImageScreen(
             adjustedInnerPaddingHeight
         )
         if (showInfo.value) {
+            val topInfoInstruction = if (isProductEnrollmentProgressBarVisible) {
+                stringResource(R.string.instruction_enrolling_into_db)
+            } else {
+                stringResource(R.string.instruction_2)
+            }
+
             HandleTopInfo(
                 activityInnerPadding = innerPadding,
                 R.drawable.icon_add,
-                stringResource(R.string.instruction_2),
+                topInfoInstruction,
                 showInfo
             )
         }
@@ -193,6 +204,9 @@ fun CameraCapturedImageScreen(
             (screenHeightInDp - camPreviewViewBottomInDp) + innerPadding.calculateBottomPadding()
 
         DrawEnrollProductsIcon(
+            isProductEnrollmentProgressBarVisible = isProductEnrollmentProgressBarVisible,
+            isProductEnrollmentProgressBarVisibleOnChange = { isProductEnrollmentProgressBarVisible = it},
+            uiState = uiState,
             viewModel = viewModel,
             coroutineScope = coroutineScope,
             productResults = productResults,
@@ -205,6 +219,9 @@ fun CameraCapturedImageScreen(
 
 @Composable
 fun DrawEnrollProductsIcon(
+    isProductEnrollmentProgressBarVisible: Boolean,
+    isProductEnrollmentProgressBarVisibleOnChange: (Boolean) -> Unit,
+    uiState: AIDataCaptureDemoUiState,
     coroutineScope: CoroutineScope,
     productResults: MutableList<ProductData>,
     navController: NavController,
@@ -248,7 +265,7 @@ fun DrawEnrollProductsIcon(
                     .clickable {
                         saveProductDataList(viewModel, productResults)
                         viewModel.enrollProductIndex()
-                        viewModel.handleBackButton(navController)
+                        isProductEnrollmentProgressBarVisibleOnChange(true)
                     }
             ) {
                 Text(
@@ -264,6 +281,22 @@ fun DrawEnrollProductsIcon(
             }
         }
         }
+    }
+
+    if (isProductEnrollmentProgressBarVisible) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Variables.borderDefault, trackColor = mainPrimary)
+        }
+    }
+
+    if (uiState.isProductEnrollmentCompleted) {
+        viewModel.handleBackButton(navController)
+        isProductEnrollmentProgressBarVisibleOnChange(false)
     }
 }
 

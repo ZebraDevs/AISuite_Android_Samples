@@ -11,11 +11,13 @@ import androidx.camera.core.ImageProxy;
 import com.zebra.ai.vision.detector.InvalidInputException;
 import com.zebra.ai.vision.detector.TextOCR;
 import com.zebra.ai.vision.internal.detector.Word;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * The OCRAnalyzer class implements the ImageAnalysis.Analyzer interface and is responsible
@@ -58,6 +60,7 @@ public class OCRAnalyzer implements ImageAnalysis.Analyzer {
     private final TextOCR textOCR;
     private final ExecutorService executorService;
     private boolean isAnalyzing = true;
+    private volatile boolean isStopped = false;
 
     /**
      * Constructs a new OCRAnalyzer with the specified callback and TextOCR instance.
@@ -87,10 +90,10 @@ public class OCRAnalyzer implements ImageAnalysis.Analyzer {
 
         isAnalyzing = false; // Set to false to prevent re-entry
 
-        executorService.submit(() -> {
+        Future<?> future = executorService.submit(() -> {
             try {
                 Log.d(TAG, "Starting image analysis");
-                Bitmap bitmap = image.toBitmap();
+                Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
 
                 CompletableFuture<Word[]> futureTextWords = textOCR.detectWords(bitmap, executorService);
 
@@ -110,5 +113,17 @@ public class OCRAnalyzer implements ImageAnalysis.Analyzer {
                 image.close();
             }
         });
+        // Cancel the task if the analyzer is stopped
+        if (isStopped) {
+            future.cancel(true);
+        }
+    }
+    /**
+     * Stops the analysis process and terminates any ongoing tasks. This method should be
+     * called to release resources and halt image analysis when it is no longer required.
+     */
+    public void stopAnalyzing() {
+        isStopped = true;
+        executorService.shutdownNow(); // Attempt to cancel ongoing tasks
     }
 }

@@ -15,9 +15,9 @@ android {
 
     defaultConfig {
         applicationId = "com.zebra.aidatacapturedemo"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 36
-        versionCode = 4
+        versionCode = 7
         val appVersion: String = libs.versions.appVersion.get().toString()
         versionName = appVersion
 

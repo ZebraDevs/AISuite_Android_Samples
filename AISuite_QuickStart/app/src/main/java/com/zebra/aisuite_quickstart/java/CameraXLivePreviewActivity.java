@@ -1,8 +1,12 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java;
 
+import android.content.Context;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.hardware.camera2.CameraMetadata;
+import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
@@ -26,9 +30,9 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
 import com.zebra.ai.vision.detector.BBox;
+import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.ComplexBBox;
 import com.zebra.ai.vision.detector.Recognizer;
 import com.zebra.ai.vision.entity.BarcodeEntity;
@@ -37,9 +41,6 @@ import com.zebra.ai.vision.entity.ParagraphEntity;
 import com.zebra.ai.vision.internal.detector.Line;
 import com.zebra.ai.vision.internal.detector.Word;
 import com.zebra.ai.vision.viewfinder.EntityViewController;
-import com.zebra.ai.vision.viewfinder.listners.EntityClickListener;
-import com.zebra.ai.vision.viewfinder.listners.EntityViewResizeListener;
-import com.zebra.ai.vision.viewfinder.listners.EntityViewResizeSpecs;
 import com.zebra.aisuite_quickstart.CameraXViewModel;
 import com.zebra.aisuite_quickstart.R;
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding;
@@ -54,8 +55,13 @@ import com.zebra.aisuite_quickstart.java.detectors.textocrsample.TextOCRAnalyzer
 import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionAnalyzer;
 import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionGraphic;
 import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionHandler;
+import com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample.BarcodeSample;
+import com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample.BarcodeSampleAnalyzer;
+import com.zebra.aisuite_quickstart.java.lowlevel.simpleocrsample.OCRAnalyzer;
+import com.zebra.aisuite_quickstart.java.lowlevel.simpleocrsample.OCRSample;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityBarcodeTracker;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityViewGraphic;
+import com.zebra.aisuite_quickstart.utils.CameraUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,36 +73,37 @@ import java.util.concurrent.Executors;
  * The CameraXLivePreviewActivity class is an Android activity that demonstrates the use of CameraX
  * for live camera preview and integrates multiple detection and recognition capabilities, including
  * barcode detection, text OCR, product recognition, and entity tracking.
-
+ * <p>
  * This class provides functionality for switching between different models and use cases, handling
  * camera lifecycle, managing image analysis, and updating the UI based on detection results.
-
+ * <p>
  * Usage:
  * - This activity is started as part of the application to demonstrate CameraX functionalities.
  * - It binds and unbinds camera use cases based on user selection and manages their lifecycle.
  * - It provides a spinner UI to select between different detection models and dynamically adapts
- *   the camera preview and analysis based on the selected model.
-
+ * the camera preview and analysis based on the selected model.
+ * <p>
  * Dependencies:
  * - CameraX: Provides camera lifecycle and use case management.
  * - BarcodeHandler, OCRHandler, ProductRecognitionHandler, BarcodeTracker, EntityBarcodeTracker:
- *   Classes that handle specific detection and recognition tasks.
+ * Classes that handle specific detection and recognition tasks.
  * - ActivityCameraXlivePreviewBinding: Used for view binding to access UI components.
  * - GraphicOverlay: Custom view for rendering graphical overlays on camera preview.
  * - ExecutorService: Used for asynchronous task execution.
-
+ * <p>
  * Exception Handling:
  * - Handles exceptions during analyzer setup and model disposal.
-
+ * <p>
  * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
  */
-public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, BarcodeTracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback {
+public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, BarcodeTracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback {
 
     private ActivityCameraXlivePreviewBinding binding;
     private final String TAG = "CameraXLivePreviewActivityJava";
-    private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private static final String BARCODE_DETECTION = "Barcode";
+    private static final String LEGACY_BARCODE_DETECTION = "Legacy Barcode";
     private static final String TEXT_OCR_DETECTION = "OCR";
+    private static final String LEGACY_OCR_DETECTION = "Legacy OCR";
     private static final String ENTITY_ANALYZER = "Tracker";
     private static final String PRODUCT_RECOGNITION = "Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
@@ -109,16 +116,16 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     ProcessCameraProvider cameraProvider;
     private int imageWidth;
     private int imageHeight;
-    private final int lensFacing = CameraSelector.LENS_FACING_BACK;
     private CameraSelector cameraSelector;
     private ResolutionSelector resolutionSelector;
     private final ExecutorService executors = Executors.newFixedThreadPool(3);
-    private final ExecutorService taskExecutor = Executors.newFixedThreadPool(3);
     private BarcodeHandler barcodeHandler;
     private OCRHandler ocrHandler;
     private ProductRecognitionHandler productRecognitionHandler;
     private BarcodeTracker barcodeTracker;
     private EntityBarcodeTracker entityBarcodeTracker;
+    private BarcodeSample barcodeLegacySample;
+    private OCRSample ocrSample;
     private String selectedModel = BARCODE_DETECTION;
     private String previousSelectedModel = "";
     private boolean isSpinnerInitialized = false;
@@ -128,11 +135,20 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private EntityViewGraphic entityViewGraphic;
     private boolean isIconStyleEnable = false;
     private final Size selectedSize = new Size(1920, 1080);
+    private int initialRotation = Surface.ROTATION_0;
+    private DisplayManager displayManager;
+
+    private boolean isFrontCamera = false;
+    private DisplayManager.DisplayListener displayListener;
 
     // Store pending viewfinder resize data to apply once analyzer is ready
     private android.graphics.Matrix pendingTransformMatrix = null;
     private android.graphics.RectF pendingCropRegion = null;
-    private int initialRotation = Surface.ROTATION_0;
+    // Orientation constants for clarity
+    private static final int ROTATION_0 = Surface.ROTATION_0;     // 0
+    private static final int ROTATION_90 = Surface.ROTATION_90;   // 1
+    private static final int ROTATION_180 = Surface.ROTATION_180; // 2
+    private static final int ROTATION_270 = Surface.ROTATION_270; // 3
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,8 +158,21 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         }
 
         binding = ActivityCameraXlivePreviewBinding.inflate(getLayoutInflater());
-        cameraSelector = new CameraSelector.Builder().requireLensFacing(lensFacing).build();
+        int cameraFacing = CameraUtil.getPreferredCameraFacing(this);
+        if (cameraFacing == CameraMetadata.LENS_FACING_BACK) {
+            // Set up the camera to use the back camera
+            isFrontCamera = false;
+            cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build();
+        } else {
+            // Set up the camera to use the front camera
+            isFrontCamera = true;
+            cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_FRONT).build();
+        }
+
         setContentView(binding.getRoot());
+
+        displayManager = (DisplayManager) getSystemService(DISPLAY_SERVICE);
+        registerDisplayRotationListener();
 
         resolutionSelector = new ResolutionSelector.Builder()
                 .setAspectRatioStrategy(
@@ -186,7 +215,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 }
 
                 initialRotation = getWindow().getDecorView().getDisplay().getRotation();
-                if (initialRotation == 0 || initialRotation == 2) {
+                if(initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
                     imageWidth = selectedSize.getHeight();
                     imageHeight = selectedSize.getWidth();
                 } else {
@@ -220,38 +249,32 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     private void initEntityView() {
         entityViewController = new EntityViewController(binding.entityView, this);
-        entityViewController.registerEntityClickListener(new EntityClickListener() {
-            @Override
-            public void onEntityClicked(Entity entity) {
-                isIconStyleEnable = !isIconStyleEnable;
-                entityViewGraphic.enableIconPen(isIconStyleEnable);
-            }
+        entityViewController.registerEntityClickListener(entity -> {
+            isIconStyleEnable = !isIconStyleEnable;
+            entityViewGraphic.enableIconPen(isIconStyleEnable);
         });
 
-        entityViewController.registerViewfinderResizeListener(new EntityViewResizeListener() {
-            @Override
-            public void onViewfinderResized(EntityViewResizeSpecs entityViewResizeSpecs) {
-                if (entityBarcodeTracker != null && entityBarcodeTracker.getEntityTrackerAnalyzer() != null) {
-                    // Analyzer is ready, apply the transform immediately
-                    entityBarcodeTracker.getEntityTrackerAnalyzer().updateTransform(entityViewResizeSpecs.getSensorToViewMatrix());
-                    entityBarcodeTracker.getEntityTrackerAnalyzer().setCropRect(entityViewResizeSpecs.getViewfinderFOVCropRegion());
+        entityViewController.registerViewfinderResizeListener(entityViewResizeSpecs -> {
+            if (entityBarcodeTracker != null && entityBarcodeTracker.getEntityTrackerAnalyzer() != null) {
+                // Analyzer is ready, apply the transform immediately
+                entityBarcodeTracker.getEntityTrackerAnalyzer().updateTransform(entityViewResizeSpecs.getSensorToViewMatrix());
+                entityBarcodeTracker.getEntityTrackerAnalyzer().setCropRect(entityViewResizeSpecs.getViewfinderFOVCropRegion());
 
-                    // Clear any pending data
+                // Clear any pending data
+                pendingTransformMatrix = null;
+                pendingCropRegion = null;
+                Log.d(TAG, "Applied viewfinder resize specs immediately");
+            } else {
+                // Analyzer not ready yet, extract and store the actual VALUES
+
+                try {
+                    pendingTransformMatrix = new android.graphics.Matrix(entityViewResizeSpecs.getSensorToViewMatrix());
+                    pendingCropRegion = new android.graphics.RectF(entityViewResizeSpecs.getViewfinderFOVCropRegion());
+                    Log.d(TAG, "Stored pending viewfinder resize data for later application");
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to extract resize spec values", e);
                     pendingTransformMatrix = null;
                     pendingCropRegion = null;
-                    Log.d(TAG, "Applied viewfinder resize specs immediately");
-                } else {
-                    // Analyzer not ready yet, extract and store the actual VALUES
-
-                    try {
-                        pendingTransformMatrix = new android.graphics.Matrix(entityViewResizeSpecs.getSensorToViewMatrix());
-                        pendingCropRegion = new android.graphics.RectF(entityViewResizeSpecs.getViewfinderFOVCropRegion());
-                        Log.d(TAG, "Stored pending viewfinder resize data for later application");
-                    } catch (Exception e) {
-                        Log.e(TAG, "Failed to extract resize spec values", e);
-                        pendingTransformMatrix = null;
-                        pendingCropRegion = null;
-                    }
                 }
             }
         });
@@ -333,6 +356,18 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         productRecognitionHandler.getProductRecognitionAnalyzer().stopAnalyzing();
                     }
                     break;
+                case LEGACY_BARCODE_DETECTION:
+                    Log.i(TAG, "Stopping the barcode legacy analyzer");
+                    if (barcodeLegacySample != null && barcodeLegacySample.getBarcodeAnalyzer() != null) {
+                        barcodeLegacySample.getBarcodeAnalyzer().stopAnalyzing();
+                    }
+                    break;
+                case LEGACY_OCR_DETECTION:
+                    Log.i(TAG, "Stopping the legacy ocr analyzer");
+                    if (ocrSample != null && ocrSample.getOCRAnalyzer() != null) {
+                        ocrSample.getOCRAnalyzer().stopAnalyzing();
+                    }
+                    break;
                 default:
                     Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
@@ -376,6 +411,18 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         productRecognitionHandler.stop();
                     }
                     break;
+                case LEGACY_BARCODE_DETECTION:
+                    Log.i(TAG, "Disposing the barcode legacy analyzer");
+                    if (barcodeLegacySample != null) {
+                        barcodeLegacySample.stop();
+                    }
+                    break;
+                case LEGACY_OCR_DETECTION:
+                    Log.i(TAG, "Disposing the legacy ocr analyzer");
+                    if (ocrSample != null) {
+                        ocrSample.stop();
+                    }
+                    break;
                 default:
                     Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
@@ -393,6 +440,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         options.add(ENTITY_ANALYZER);
         options.add(PRODUCT_RECOGNITION);
         options.add(ENTITY_VIEW_FINDER);
+        //options.add(LEGACY_BARCODE_DETECTION); // uncomment to use barcode legacy option
+       // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option
 
         // Creating adapter for spinner
         ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
@@ -408,7 +457,6 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     }
 
     private Rect mapBoundingBoxToOverlay(Rect bbox) {
-
         Display display = getWindowManager().getDefaultDisplay();
         int currentRotation = display.getRotation();
 
@@ -426,7 +474,9 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         int effectiveImageWidth = imageWidth;
         int effectiveImageHeight = imageHeight;
 
-        if (relativeRotation == 1 || relativeRotation == 3) {
+        boolean isTablet = isTablet(this.getApplicationContext());
+        if ((isTablet && (relativeRotation == ROTATION_0 || relativeRotation == ROTATION_180)) ||
+                (!isTablet && (relativeRotation == ROTATION_90 || relativeRotation == ROTATION_270))) {
             effectiveImageWidth = imageHeight;
             effectiveImageHeight = imageWidth;
         }
@@ -438,6 +488,16 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         float offsetX = (overlayWidth - effectiveImageWidth * scale) / 2f;
         float offsetY = (overlayHeight - effectiveImageHeight * scale) / 2f;
 
+        // Handle mirroring for front camera
+        if (isFrontCamera) {
+            int left = transformedBbox.left;
+            int right = transformedBbox.right;
+
+            // Calculate mirrored left and right
+            transformedBbox.left = effectiveImageWidth - right;
+            transformedBbox.right = effectiveImageWidth - left;
+        }
+
         return new Rect(
                 (int) (transformedBbox.left * scale + offsetX),
                 (int) (transformedBbox.top * scale + offsetY),
@@ -445,6 +505,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 (int) (transformedBbox.bottom * scale + offsetY)
         );
     }
+
 
     private Rect transformBoundingBoxForRotation(Rect bbox, int relativeRotation) {
         // relativeRotation values:
@@ -455,10 +516,10 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         // These values are calculated based on the difference between current and initial device rotation.
         // The transformation is needed to map the bounding box from the image coordinate system to the display coordinate system.
         switch (relativeRotation) {
-            case 0: // No transformation needed, image is already aligned
+            case ROTATION_0: // No transformation needed, image is already aligned
                 // No transformation
                 return new Rect(bbox);
-            case 1:
+            case ROTATION_90:
                 // 90 degree clockwise rotation: swap x/y and adjust for width
                 // left becomes top, top becomes (imageWidth - right), right becomes bottom, bottom becomes (imageWidth - left)
                 return new Rect(
@@ -467,7 +528,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         bbox.bottom,
                         imageWidth - bbox.left
                 );
-            case 2:
+            case ROTATION_180:
                 // 180 degree rotation: flip both axes
                 // left becomes (imageWidth - right), top becomes (imageHeight - bottom), right becomes (imageWidth - left), bottom becomes (imageHeight - top)
                 return new Rect(
@@ -476,7 +537,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         imageWidth - bbox.left,
                         imageHeight - bbox.top
                 );
-            case 3:
+            case ROTATION_270:
                 // 270 degree clockwise rotation: swap x/y and adjust for height
                 // left becomes (imageHeight - bottom), top becomes left, right becomes (imageHeight - top), bottom becomes right
                 return new Rect(
@@ -535,16 +596,18 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
                     for (Word word : line.words) {
                         ComplexBBox bbox = word.bbox;
+                        if(word.decodes.length>0) {
 
-                        if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
-                            float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
+                            if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
+                                float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
 
-                            Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
-                            Rect overlayRect = mapBoundingBoxToOverlay(rect);
-                            String decodedValue = word.decodes[0].content;
-                            rects.add(overlayRect);
-                            decodedStrings.add(decodedValue);
+                                Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
+                                Rect overlayRect = mapBoundingBoxToOverlay(rect);
+                                String decodedValue = word.decodes[0].content;
+                                rects.add(overlayRect);
+                                decodedStrings.add(decodedValue);
 
+                            }
                         }
                     }
                 }
@@ -561,7 +624,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         List<Rect> rects = new ArrayList<>();
         List<String> decodedStrings = new ArrayList<>();
         List<? extends Entity> entities;
-        if(barcodeTracker.getBarcodeDecoder()!=null) {
+        if (barcodeTracker.getBarcodeDecoder() != null) {
             entities = result.getValue(barcodeTracker.getBarcodeDecoder());
         } else {
             entities = null;
@@ -601,20 +664,20 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     // Handles entities for the entity view tracker and updates the graphical overlay
     @Override
     public void handleEntitiesForEntityView(EntityTrackerAnalyzer.Result result) {
-        Log.d(TAG,"Handle View Entity - Result received");
+        Log.d(TAG, "Handle View Entity - Result received");
 
         // Apply any pending resize specs now that the analyzer is ready
         applyPendingResizeSpecs();
 
         List<? extends Entity> entities = null;
-        if(entityBarcodeTracker != null && entityBarcodeTracker.getBarcodeDecoder() != null) {
+        if (entityBarcodeTracker != null && entityBarcodeTracker.getBarcodeDecoder() != null) {
             entities = result.getValue(entityBarcodeTracker.getBarcodeDecoder());
             Log.d(TAG, "EntityBarcodeTracker decoder available, entities count: " + (entities != null ? entities.size() : "null"));
         } else {
             Log.w(TAG, "EntityBarcodeTracker or decoder is null - tracker: " + (entityBarcodeTracker != null) + ", decoder: " + (entityBarcodeTracker != null && entityBarcodeTracker.getBarcodeDecoder() != null));
         }
 
-        if(entityViewGraphic != null) {
+        if (entityViewGraphic != null) {
             entityViewGraphic.clear();
         } else {
             Log.w(TAG, "EntityViewGraphic is null");
@@ -703,7 +766,6 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     Log.i(TAG, "Using Barcode Decoder");
                     executors.execute(() -> {
                         barcodeHandler = new BarcodeHandler(this, this, analysisUseCase);
-
                     });
 
                     break;
@@ -734,6 +796,19 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
 
                     break;
+                case LEGACY_BARCODE_DETECTION:
+                    Log.i(TAG, "Using Legacy Barcode Detection");
+                    executors.execute(() -> {
+                        barcodeLegacySample = new BarcodeSample(this, this, analysisUseCase);
+                    });
+
+                    break;
+                case LEGACY_OCR_DETECTION:
+                    Log.i(TAG, "Using Legacy Text OCR");
+                    executors.execute(() -> {
+                        ocrSample = new OCRSample(this, this, analysisUseCase);
+                    });
+                    break;
                 default:
                     throw new IllegalStateException("Invalid model name");
             }
@@ -760,22 +835,25 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         Preview.Builder builder = new Preview.Builder();
 
         builder.setResolutionSelector(resolutionSelector);
+        int rotation = getWindowManager().getDefaultDisplay().getRotation();
+        builder.setTargetRotation(rotation);
 
         analysisUseCase = new ImageAnalysis.Builder()
                 .setResolutionSelector(resolutionSelector)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setTargetRotation(rotation)
                 .build();
 
         previewUseCase = builder.build();
         binding.previewView.setVisibility(isEntityViewFinder ? View.GONE : View.VISIBLE);
         binding.entityView.setVisibility(isEntityViewFinder ? View.VISIBLE : View.GONE);
-        if(isEntityViewFinder) {
+        if (isEntityViewFinder) {
             previewUseCase.setSurfaceProvider(entityViewController.getSurfaceProvider());
         } else {
             previewUseCase.setSurfaceProvider(binding.previewView.getSurfaceProvider());
         }
         camera = cameraProvider.bindToLifecycle(/* lifecycleOwner= */ this, cameraSelector, previewUseCase, analysisUseCase);
-        if(isEntityViewFinder){
+        if (isEntityViewFinder) {
             entityViewController.setCameraController(camera);
         }
     }
@@ -792,20 +870,20 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         if (currentRotation != initialRotation) {
             Log.d(TAG, "Rotation changed during pause, updating initialRotation from " + initialRotation + " to " + currentRotation);
             initialRotation = currentRotation;
-
-            // check if the device rotation is changes when suspended (0-> 0°, 2 -> 270°)
-            if(initialRotation == 0 || initialRotation == 2 ) {
+            if (analysisUseCase != null) analysisUseCase.setTargetRotation(currentRotation);
+            // check if the device rotation is changes when suspended (0-> 0°, 2 -> 180°)
+            if(initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
                 imageWidth = selectedSize.getHeight();
                 imageHeight = selectedSize.getWidth();
-            }
-            else{
+            } else {
                 imageWidth = selectedSize.getWidth();
                 imageHeight = selectedSize.getHeight();
             }
             Log.d(TAG, "Updated imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
         }
-       if(isSpinnerInitialized) bindAllCameraUseCases();
+        if (isSpinnerInitialized) bindAllCameraUseCases();
     }
+
     public void onPause() {
         super.onPause();
         Log.v(TAG, "onPause called");
@@ -816,9 +894,39 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     @Override
     protected void onDestroy() {
-
+        if (displayManager != null && displayListener != null) {
+            displayManager.unregisterDisplayListener(displayListener);
+        }
         super.onDestroy();
 
+    }
+    private void registerDisplayRotationListener() {
+        if (displayManager == null) return;
+        displayListener = new DisplayManager.DisplayListener() {
+            @Override public void onDisplayAdded(int displayId) {}
+            @Override public void onDisplayRemoved(int displayId) {}
+            @Override
+            public void onDisplayChanged(int displayId) {
+                Display defaultDisplay = getWindowManager().getDefaultDisplay();
+                if (defaultDisplay == null || defaultDisplay.getDisplayId() != displayId) return;
+                final int newRotation = defaultDisplay.getRotation();
+                if (newRotation == initialRotation) return;
+                runOnUiThread(() -> {
+                    initialRotation = newRotation;
+                    if (analysisUseCase != null) analysisUseCase.setTargetRotation(newRotation);
+
+                    if(initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
+                        imageWidth = selectedSize.getHeight();
+                        imageHeight = selectedSize.getWidth();
+                    } else {
+                        imageWidth = selectedSize.getWidth();
+                        imageHeight = selectedSize.getHeight();
+                    }
+                    Log.i(TAG, "Display changed, updated targetRotation and dimensions: rotation=" + newRotation + ", imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
+                });
+            }
+        };
+        displayManager.registerDisplayListener(displayListener, null);
     }
 
     private void unBindCameraX() {
@@ -829,4 +937,71 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         }
     }
 
+    /**
+     * Determines if the current device is a tablet based on screen size configuration.
+     * Useful for adjusting bounding box scaling between normal Android devices and tablets.
+     */
+    public static boolean isTablet(Context context) {
+        return (context.getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK) >= Configuration.SCREENLAYOUT_SIZE_LARGE;
+    }
+
+    /**
+     * Callback method invoked when barcode detection results are available.
+     *
+     * @param barcodes An array of BarcodeDecoder.Result representing detected barcodes.
+     */
+    @Override
+    public void onDetectionResult(BarcodeDecoder.Result[] barcodes) {
+        List<Rect> rects = new ArrayList<>();
+        List<String> decodedStrings = new ArrayList<>();
+
+        runOnUiThread(() -> {
+            binding.graphicOverlay.clear();
+            for (BarcodeDecoder.Result barcode : barcodes) {
+                String decodedString = barcode.value;
+                BBox bbox = barcode.bboxData;
+                Rect rect = new Rect((int) bbox.xmin, (int) bbox.ymin, (int) bbox.xmax, (int) bbox.ymax);
+                Rect overlayRect = mapBoundingBoxToOverlay(rect);
+                rects.add(overlayRect);
+                decodedStrings.add(barcode.value);
+
+                Log.d(TAG, "Symbology Type " + barcode.symbologytype);
+                Log.d(TAG, "Decoded barcode: " + decodedString);
+            }
+            binding.graphicOverlay.add(new BarcodeGraphic(binding.graphicOverlay, rects, decodedStrings));
+        });
+    }
+    /**
+     * Callback method invoked when OCR text detection results are available.
+     *
+     * @param words An array of Word objects representing detected words.
+     */
+    @Override
+    public void onDetectionTextResult(Word[] words) {
+        List<Rect> rects = new ArrayList<>();
+        List<String> decodedStrings = new ArrayList<>();
+        runOnUiThread(() -> {
+            binding.graphicOverlay.clear();
+            for (Word word : words) {
+                // Append each word's content followed by a newline
+                if (word.decodes.length > 0) {
+                    ComplexBBox bbox = word.bbox;
+
+                    if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
+                        float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
+
+                        Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
+                        Rect overlayRect = mapBoundingBoxToOverlay(rect);
+                        String decodedValue = word.decodes[0].content;
+                        rects.add(overlayRect);
+                        decodedStrings.add(decodedValue);
+
+                    }
+                }
+            }
+            binding.graphicOverlay.add(new OCRGraphic(binding.graphicOverlay, rects, decodedStrings));
+
+        });
+
+    }
 }

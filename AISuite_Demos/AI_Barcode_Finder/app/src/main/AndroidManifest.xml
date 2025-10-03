@@ -19,7 +19,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AI_Barcode_Finder">
         <activity
-            android:name=".MainActivity"
+            android:name=".presentation.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:screenOrientation="userPortrait"

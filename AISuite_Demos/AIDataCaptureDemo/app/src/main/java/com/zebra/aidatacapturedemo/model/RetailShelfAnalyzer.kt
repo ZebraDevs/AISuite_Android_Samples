@@ -101,6 +101,12 @@ class RetailShelfAnalyzer(
                         Log.i(TAG, "Localizer init Success")
                     }.exceptionally { e: Throwable ->
                         Log.e(TAG, "Localizer init Failed -> " + e.message)
+                        if (e.message?.contains("Given runtimes are not available") == true) {
+                            viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
+                            viewModel.updateSelectedProcessor(0) //Auto-Select
+                            viewModel.saveSettings()
+                            initialize()
+                        }
                         null
                     }
             } catch (e: IOException) {
@@ -116,10 +122,13 @@ class RetailShelfAnalyzer(
 
             //Swap the values as the presented index is reverse of what model expects
             val processorOrder = when (uiState.value.retailShelfSettings.commonSettings.processorSelectedIndex) {
-                0 -> arrayOf(2)
-                1 -> arrayOf(1)
-                2 -> arrayOf(0)
-                else -> { arrayOf(2) }
+                0 -> arrayOf(2, 0, 1) // AUTO
+                1 -> arrayOf(2) // DSP
+                2 -> arrayOf(1) // GPU
+                3 -> arrayOf(0) //CPU
+                else -> {
+                    arrayOf(2, 0, 1)
+                }
             }
             locSettings.inferencerOptions.runtimeProcessorOrder = processorOrder
 

@@ -1,5 +1,6 @@
 package com.zebra.aidatacapturedemo.ui.view
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -47,8 +48,13 @@ fun DemoStartScreen(
     innerPadding: PaddingValues
 ) {
     val uiState = viewModel.uiState.collectAsState().value
-    viewModel.updateAppBarTitle(stringResource(getDemoTitle(uiState.usecaseSelected)))
+    getDemoTitle(uiState.usecaseSelected)?.let { viewModel.updateAppBarTitle(stringResource(it)) }
 
+
+    uiState.toastMessage?.let {
+        viewModel.toast(it)
+        viewModel.updateToastMessage(message = null)
+    }
     // Intercept back presses on this screen
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
@@ -75,7 +81,7 @@ fun DemoStartScreen(
         ) {
             // Heading:
             val titleStringId = getSettingHeading(uiState.usecaseSelected)
-            if (titleStringId == 0) {
+            if (titleStringId == null) {
                 TextviewBold(info = "")
             } else {
                 TextviewBold(info = stringResource(titleStringId))
@@ -84,24 +90,30 @@ fun DemoStartScreen(
             // Model Input Details:
             Spacer(modifier = Modifier.height(14.dp))
             Row {
-                TextviewBold(info = "\u2022   Model Input:")
-                TextviewNormal(info = "  ${viewModel.getInputSizeSelected()} x ${viewModel.getInputSizeSelected()}")
+                viewModel.getInputSizeSelected()?.let {
+                    TextviewBold(info = "\u2022   Model Input:")
+                    TextviewNormal(info = "  $it x $it")
+                }
             }
 
             // Resolution Details:
             Spacer(modifier = Modifier.height(10.dp))
             Row {
-                TextviewBold(info = "\u2022   Resolution:")
-                val resolution = getSelectedResolution(viewModel.getSelectedResolution())
-                TextviewNormal(info = "  $resolution")
+                viewModel.getSelectedResolution()?.let {
+                    TextviewBold(info = "\u2022   Resolution:")
+                    val resolution = getSelectedResolution(it)
+                    TextviewNormal(info = "  $resolution")
+                }
             }
 
             // Inference Type Details:
             Spacer(modifier = Modifier.height(10.dp))
             Row {
-                TextviewBold(info = "\u2022   Inference (processor) Type:")
-                val inferenceType = getSelectedInferenceType(viewModel.getProcessorSelectedIndex())
-                TextviewNormal(info = "  $inferenceType")
+                viewModel.getProcessorSelectedIndex()?.let {
+                    TextviewBold(info = "\u2022   Inference (processor) Type:")
+                    val inferenceType = getSelectedInferenceType(it)
+                    TextviewNormal(info = "  $inferenceType")
+                }
             }
 
             // Restore Clickable Text:
@@ -137,22 +149,26 @@ fun DemoStartScreen(
     }
 }
 
+@Composable
 private fun getSelectedInferenceType(processorSelectedIndex: Int): String {
     return when (processorSelectedIndex) {
         0 -> {
-            "DSP"
+            stringResource(R.string.processor_auto)
         }
 
         1 -> {
-            "GPU"
+            stringResource(R.string.processor_dsp_short)
         }
 
         2 -> {
-            "CPU"
+            stringResource(R.string.processor_gpu_short)
         }
 
+        3 -> {
+            stringResource(R.string.processor_cpu_short)
+        }
         else -> {
-            TODO("Unknown Inference Type found $processorSelectedIndex")
+            stringResource(R.string.processor_auto)
         }
     }
 }
@@ -211,10 +227,9 @@ fun UsecaseIcon(selectedUsecase: String) {
                 bottom = 13.33333.dp
             )
     ) {
-        val iconId = getIconId(selectedUsecase)
-        if (iconId != 0) {
+        getIconId(selectedUsecase)?.let {
             Image(
-                painter = painterResource(id = iconId),
+                painter = painterResource(id = it),
                 contentDescription = "image description",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier

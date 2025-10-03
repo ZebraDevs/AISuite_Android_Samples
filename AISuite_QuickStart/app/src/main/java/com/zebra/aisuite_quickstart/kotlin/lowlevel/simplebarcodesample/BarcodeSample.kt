@@ -4,6 +4,7 @@ package com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample
 import android.content.Context
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
+import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InferencerOptions
@@ -48,7 +49,7 @@ class BarcodeSample(
     private val context: Context,
     private val callback: BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback,
     private val imageAnalysis: ImageAnalysis
-) : BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback {
+) {
 
     private val TAG = "BarcodeSample"
     private var localizer: Localizer? = null
@@ -75,7 +76,11 @@ class BarcodeSample(
                 val diff = System.currentTimeMillis() - mStart
                 Log.d(TAG, "Barcode Localizer.settings() obj creation time = $diff milli sec")
 
-                val rpo = arrayOf(InferencerOptions.DSP)
+                val rpo = arrayOf(
+                    InferencerOptions.DSP,
+                    InferencerOptions.CPU,
+                    InferencerOptions.GPU
+                )
 
                 locSettings.inferencerOptions.runtimeProcessorOrder = rpo
                 locSettings.inferencerOptions.defaultDims.height = 640
@@ -96,6 +101,8 @@ class BarcodeSample(
                 val mStartDecoder = System.currentTimeMillis()
                 try {
                     barcodeDecoder = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
+                    barcodeAnalyzer = BarcodeSampleAnalyzer(callback, localizer!!, barcodeDecoder!!)
+                    imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), barcodeAnalyzer!!)
                     Log.d(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - mStartDecoder} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
                     Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
@@ -128,17 +135,8 @@ class BarcodeSample(
         return barcodeDecoder
     }
 
-    /**
-     * Callback method invoked when barcode detection results are available.
-     *
-     * @param barcodes An array of BarcodeDecoder.Result representing detected barcodes.
-     */
-    override fun onDetectionResult(barcodes: Array<BarcodeDecoder.Result>) {
-        for (barcode in barcodes) {
-            val decodedString: String? = barcode.value
-
-            Log.d(TAG, "Symbology Type ${barcode.symbologytype}")
-            Log.d(TAG, "Decoded barcode: $decodedString")
-        }
+    fun getBarcodeAnalyzer(): BarcodeSampleAnalyzer? {
+        return barcodeAnalyzer
     }
+
 }

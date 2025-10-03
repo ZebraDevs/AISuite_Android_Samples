@@ -1,8 +1,12 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin
 
+import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.Rect
+import android.hardware.camera2.CameraMetadata
+import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
@@ -23,7 +27,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.google.common.util.concurrent.ListenableFuture
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
 import com.zebra.ai.vision.detector.BBox
 import com.zebra.ai.vision.detector.BarcodeDecoder
@@ -31,6 +34,7 @@ import com.zebra.ai.vision.detector.Recognizer
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
 import com.zebra.ai.vision.entity.ParagraphEntity
+import com.zebra.ai.vision.internal.detector.Word
 import com.zebra.ai.vision.viewfinder.EntityViewController
 import com.zebra.ai.vision.viewfinder.listners.EntityClickListener
 import com.zebra.aisuite_quickstart.CameraXViewModel
@@ -38,17 +42,22 @@ import com.zebra.aisuite_quickstart.R
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding
 import com.zebra.aisuite_quickstart.kotlin.analyzers.barcodetracker.BarcodeTracker
 import com.zebra.aisuite_quickstart.kotlin.analyzers.barcodetracker.BarcodeTrackerGraphic
-import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityBarcodeTracker
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeHandler
-import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRHandler
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.TextOCRAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionGraphic
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionHandler
+import com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample.BarcodeSample
+import com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample.BarcodeSampleAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample.OCRAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample.OCRSample
+import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityBarcodeTracker
+import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
+import com.zebra.aisuite_quickstart.utils.CameraUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
@@ -83,11 +92,11 @@ import kotlin.math.max
  * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
  */
 class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.DetectionCallback,
-    TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, EntityBarcodeTracker.DetectionCallback {
+    TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
+    EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback {
 
     private lateinit var binding: ActivityCameraXlivePreviewBinding
     private val tag = "CameraXLivePreviewActivityKotlin"
-    private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private var camera: Camera? = null
     private var previewUseCase: Preview? = null
     private var analysisUseCase: ImageAnalysis? = null
@@ -95,7 +104,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var imageWidth: Int = 0
     private var imageHeight: Int = 0
     private val SIMILARITY_THRESHOLD = 0.65f
-    private val lensFacing = CameraSelector.LENS_FACING_BACK
     private lateinit var cameraSelector: CameraSelector
 
     private lateinit var resolutionSelector: ResolutionSelector
@@ -103,11 +111,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
     private var barcodeHandler: BarcodeHandler? = null
     private var ocrHandler: OCRHandler? = null
+    private var ocrSample: OCRSample? = null
     private var productRecognitionHandler: ProductRecognitionHandler? = null
     private var barcodeTracker: BarcodeTracker? = null
+    private var barcodeLegacySample: BarcodeSample? = null
     private var entityBarcodeTracker: EntityBarcodeTracker? = null
     private var selectedModel = BARCODE_DETECTION
-    private lateinit var barcodeDecoder: BarcodeDecoder
     private val stateSelectedModel = "selected_model"
     private var previousSelectedModel = ""
     private var isEntityViewFinder = false
@@ -115,12 +124,21 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var entityViewGraphic: EntityViewGraphic? = null
     private var isIconStyleEnable = false
     private var initialRotation = Surface.ROTATION_0
+    private var displayManager: DisplayManager? = null
+    private var displayListener: DisplayManager.DisplayListener? = null
     private var selectedSize: Size = Size(1920, 1080)
     private var isSpinnerInitialized = false
+    // Orientation constants for clarity
+    val ROTATION_0: Int = Surface.ROTATION_0 // 0
+    val ROTATION_90: Int = Surface.ROTATION_90 // 1
+    val ROTATION_180: Int = Surface.ROTATION_180 // 2
+    val ROTATION_270: Int = Surface.ROTATION_270 // 3
 
     // Store pending viewfinder resize data to apply once analyzer is ready
     private var pendingTransformMatrix: android.graphics.Matrix? = null
     private var pendingCropRegion: android.graphics.RectF? = null
+
+    private var isFrontCamera = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,8 +147,20 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
 
         binding = ActivityCameraXlivePreviewBinding.inflate(layoutInflater)
-        cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
+        val cameraFacing = CameraUtil.getPreferredCameraFacing(this)
+        cameraSelector = if (cameraFacing == CameraMetadata.LENS_FACING_BACK) {
+            // Set up the camera to use the back camera
+            isFrontCamera = false
+            CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+        } else {
+            // Set up the camera to use the front camera
+            isFrontCamera = true
+            CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_FRONT).build()
+        }
         setContentView(binding.root)
+
+        displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+        registerDisplayRotationListener()
 
         resolutionSelector = ResolutionSelector.Builder()
             .setAspectRatioStrategy(
@@ -146,8 +176,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 )
             ).build()
 
-        ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))
-            .get(CameraXViewModel::class.java)
+        ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[CameraXViewModel::class.java]
             .processCameraProvider
             .observe(
                 this,
@@ -158,7 +187,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             )
 
         val options = listOf(
-            BARCODE_DETECTION, TEXT_OCR_DETECTION, ENTITY_ANALYZER, PRODUCT_RECOGNITION, ENTITY_VIEW_FINDER
+            BARCODE_DETECTION, TEXT_OCR_DETECTION, ENTITY_ANALYZER, PRODUCT_RECOGNITION, ENTITY_VIEW_FINDER,
+          //  LEGACY_BARCODE_DETECTION, // uncomment to use barcode legacy option
+          //  LEGACY_OCR_DETECTION // uncomment to use ocr legacy option
         )
 
         // Creating adapter for spinner
@@ -183,7 +214,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 }
 
                 initialRotation = window?.decorView?.display?.rotation ?: Surface.ROTATION_0
-                if (initialRotation == 0 || initialRotation == 2) {
+                if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
                     imageWidth = selectedSize.height
                     imageHeight = selectedSize.width
                 } else {
@@ -210,12 +241,10 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
 
         entityViewController = EntityViewController(binding.entityView, this)
-        entityViewController?.registerEntityClickListener(object : EntityClickListener {
-            override fun onEntityClicked(entity: Entity?) {
-                isIconStyleEnable = !isIconStyleEnable
-                entityViewGraphic?.enableIconPen(isIconStyleEnable)
-            }
-        })
+        entityViewController?.registerEntityClickListener {
+            isIconStyleEnable = !isIconStyleEnable
+            entityViewGraphic?.enableIconPen(isIconStyleEnable)
+        }
 
         entityViewController?.registerViewfinderResizeListener { entityViewResizeSpecs ->
             if (entityBarcodeTracker?.getEntityTrackerAnalyzer() != null) {
@@ -292,7 +321,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         var effectiveImageWidth = imageWidth
         var effectiveImageHeight = imageHeight
 
-        if (relativeRotation == 1 || relativeRotation == 3) {
+        if ((isTablet(applicationContext) && (relativeRotation == ROTATION_0 || relativeRotation == ROTATION_180))
+            || relativeRotation == ROTATION_90 || relativeRotation == ROTATION_270) {
             effectiveImageWidth = imageHeight
             effectiveImageHeight = imageWidth
         }
@@ -304,11 +334,23 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         val offsetX: Float = (overlayWidth - effectiveImageWidth * scale) / 2f
         val offsetY: Float = (overlayHeight - effectiveImageHeight * scale) / 2f
 
+        // Handle mirroring for front camera
+        val mirroredBbox = if (isFrontCamera) {
+            Rect(
+                effectiveImageWidth - transformedBbox.right,
+                transformedBbox.top,
+                effectiveImageWidth - transformedBbox.left,
+                transformedBbox.bottom
+            )
+        } else {
+            transformedBbox
+        }
+
         return Rect(
-            (transformedBbox.left * scale + offsetX).toInt(),
-            (transformedBbox.top * scale + offsetY).toInt(),
-            (transformedBbox.right * scale + offsetX).toInt(),
-            (transformedBbox.bottom * scale + offsetY).toInt()
+            (mirroredBbox.left * scale + offsetX).toInt(),
+            (mirroredBbox.top * scale + offsetY).toInt(),
+            (mirroredBbox.right * scale + offsetX).toInt(),
+            (mirroredBbox.bottom * scale + offsetY).toInt()
         )
     }
 
@@ -321,10 +363,10 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         // These values are calculated based on the difference between current and initial device rotation.
         // The transformation is needed to map the bounding box from the image coordinate system to the display coordinate system.
         when (relativeRotation) {
-            0 -> // No transformation needed, image is already aligned
+            ROTATION_0 -> // No transformation needed, image is already aligned
                 return Rect(bbox)
 
-            1 -> // 90 degree clockwise rotation: swap x/y and adjust for width
+            ROTATION_90 -> // 90 degree clockwise rotation: swap x/y and adjust for width
                 // left becomes top, top becomes (imageWidth - right), right becomes bottom, bottom becomes (imageWidth - left)
                 return Rect(
                     bbox.top,
@@ -333,7 +375,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     imageWidth - bbox.left
                 )
 
-            2 -> // 180 degree rotation: flip both axes
+            ROTATION_180 -> // 180 degree rotation: flip both axes
                 // left becomes (imageWidth - right), top becomes (imageHeight - bottom), right becomes (imageWidth - left), bottom becomes (imageHeight - top)
                 return Rect(
                     imageWidth - bbox.right,
@@ -342,7 +384,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     imageHeight - bbox.top
                 )
 
-            3 -> // 270 degree clockwise rotation: swap x/y and adjust for height
+            ROTATION_270 -> // 270 degree clockwise rotation: swap x/y and adjust for height
                 // left becomes (imageHeight - bottom), top becomes left, right becomes (imageHeight - top), bottom becomes right
                 return Rect(
                     imageHeight - bbox.bottom,
@@ -399,19 +441,22 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 val lines = entity.textParagraph.lines
                 for (line in lines) {
                     for (word in line.words) {
-                        val bbox = word.bbox
+                        if (word.decodes.isNotEmpty()) {
+                            val bbox = word.bbox
 
-                        if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
-                            val minX = bbox.x[0]
-                            val maxX = bbox.x[2]
-                            val minY = bbox.y[0]
-                            val maxY = bbox.y[2]
+                            if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
+                                val minX = bbox.x[0]
+                                val maxX = bbox.x[2]
+                                val minY = bbox.y[0]
+                                val maxY = bbox.y[2]
 
-                            val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
-                            val overlayRect = mapBoundingBoxToOverlay(rect)
-                            val decodedValue = word.decodes[0].content
-                            rects.add(overlayRect)
-                            decodedStrings.add(decodedValue)
+                                val rect =
+                                    Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+                                val overlayRect = mapBoundingBoxToOverlay(rect)
+                                val decodedValue = word.decodes[0].content
+                                rects.add(overlayRect)
+                                decodedStrings.add(decodedValue)
+                            }
                         }
                     }
                 }
@@ -479,6 +524,22 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     }
                 }
 
+                LEGACY_BARCODE_DETECTION -> {
+                    Log.i(tag, "Using Legacy Barcode Decoder")
+                    executors.execute {
+                        barcodeLegacySample =
+                            BarcodeSample(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                    }
+                }
+                LEGACY_OCR_DETECTION -> {
+                    Log.i(tag, "Using Legacy Text OCR")
+                    executors.execute {
+                        ocrSample =
+                            OCRSample(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+
+                    }
+                }
+
                 else -> throw IllegalStateException("Invalid model name")
             }
         } catch (e: Exception) {
@@ -495,12 +556,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
         val currentRotation = binding.previewView.display?.rotation ?: Surface.ROTATION_0
         if (currentRotation != initialRotation) {
-            Log.d(tag, "Rotation changed during pause, updating initialRotation from $initialRotation to $currentRotation"
-            )
+            Log.d(tag, "Rotation changed during pause, updating initialRotation from $initialRotation to $currentRotation")
             initialRotation = currentRotation
+            analysisUseCase?.targetRotation = currentRotation
 
-            // check if the device rotation is changes when suspended (0-> 0°, 2 -> 270°)
-            if (initialRotation == 0 || initialRotation == 2) {
+            // check if the device rotation is changes when suspended (0-> 0°, 2 -> 180°)
+            if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
                 imageWidth = selectedSize.height
                 imageHeight = selectedSize.width
             } else {
@@ -509,12 +570,13 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             }
             Log.d(tag, "Updated imageWidth=$imageWidth, imageHeight=$imageHeight")
         }
-       if(isSpinnerInitialized) bindAllCameraUseCases()
+        if (isSpinnerInitialized) bindAllCameraUseCases()
     }
 
     override fun onBackPressed() {
         super.onBackPressed()
     }
+
     public override fun onPause() {
         super.onPause()
         Log.v(tag, "onPause called")
@@ -524,7 +586,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     }
 
     override fun onDestroy() {
-
+        displayListener?.let {
+            displayManager?.unregisterDisplayListener(it)
+        }
         super.onDestroy()
     }
 
@@ -540,20 +604,32 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     Log.i(tag, "Stopping the ocr analyzer")
                     ocrHandler?.getOCRAnalyzer()?.stop()
                 }
-                ENTITY_VIEW_FINDER ->{
+
+                ENTITY_VIEW_FINDER -> {
                     Log.i(tag, "Stopping the entity tracker")
                     entityBarcodeTracker?.stopAnalyzing()
                 }
-                ENTITY_ANALYZER ->{
+
+                ENTITY_ANALYZER -> {
                     Log.i(tag, "Stopping the entity tracker")
                     barcodeTracker?.stopAnalyzing()
                 }
+
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Stopping the recognition analyzer")
                     productRecognitionHandler?.getProductRecognitionAnalyzer()?.stop()
                 }
 
-                else -> Log.e(tag,"Invalid stop analyzer option")
+                LEGACY_BARCODE_DETECTION -> {
+                    Log.i(tag, "Stopping the legacy barcode analyzer")
+                    barcodeLegacySample?.getBarcodeAnalyzer()?.stop()
+                }
+                LEGACY_OCR_DETECTION -> {
+                    Log.i(tag, "Stopping the legacy ocr analyzer")
+                    ocrSample?.getOCRAnalyzer()?.stop()
+                }
+
+                else -> Log.e(tag, "Invalid stop analyzer option")
             }
         } catch (e: java.lang.Exception) {
             Log.e(tag, "Can not stop the analyzer : $previousSelectedModel", e)
@@ -574,7 +650,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         lifecycleScope.launch(Dispatchers.Main) {
             val rects = mutableListOf<Rect>()
             val decodedStrings = mutableListOf<String>()
-            val entities =barcodeTracker?.getBarcodeDecoder()?.let { result.getValue(it) }
+            val entities = barcodeTracker?.getBarcodeDecoder()?.let { result.getValue(it) }
             binding.graphicOverlay.clear()
 
             if (entities != null) {
@@ -734,6 +810,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             )
         }
     }
+
     private fun disposeModels() {
         try {
             when (previousSelectedModel) {
@@ -753,7 +830,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     entityBarcodeTracker = null
                 }
 
-               ENTITY_ANALYZER -> {
+                ENTITY_ANALYZER -> {
                     Log.i(tag, "Disposing the entity tracker analyzer")
                     barcodeTracker?.stop()
                 }
@@ -763,12 +840,22 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     productRecognitionHandler?.stop()
                 }
 
+                LEGACY_BARCODE_DETECTION -> {
+                    Log.i(tag, "Disposing the legacy barcode analyzer")
+                    barcodeLegacySample?.stop()
+                }
+
+                LEGACY_OCR_DETECTION -> {
+                    Log.i(tag, "Disposing the legacy ocr analyzer")
+                    ocrSample?.stop()
+                }
                 else -> Log.e(tag, "Invalid selected option")
             }
         } catch (e: java.lang.Exception) {
             Log.e(tag, "Can not dispose the analyzer : $previousSelectedModel", e)
         }
     }
+
     private fun bindAllCameraUseCases() {
         if (cameraProvider != null) {
             // As required by CameraX API, unbinds all use cases before trying to re-bind any of them.
@@ -777,6 +864,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             bindAnalysisUseCase()
         }
     }
+
     private fun bindPreviewUseCase() {
         if (cameraProvider == null) {
             return
@@ -793,9 +881,13 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
         builder.setResolutionSelector(resolutionSelector)
 
+        val rotation = windowManager.defaultDisplay.rotation
+        builder.setTargetRotation(rotation)
+
         analysisUseCase = ImageAnalysis.Builder()
             .setResolutionSelector(resolutionSelector)
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setTargetRotation(rotation)
             .build()
 
         previewUseCase = builder.build()
@@ -807,10 +899,81 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         } else {
             previewUseCase?.surfaceProvider = binding.previewView.getSurfaceProvider()
         }
-        camera = cameraProvider?.bindToLifecycle( /* lifecycleOwner= */this, cameraSelector, previewUseCase, analysisUseCase)
+        camera = cameraProvider?.bindToLifecycle( /* lifecycleOwner= */this,
+            cameraSelector,
+            previewUseCase,
+            analysisUseCase
+        )
 
         if (isEntityViewFinder) {
             entityViewController?.setCameraController(camera)
+        }
+    }
+
+    /**
+     * Callback method invoked when barcode detection results are available.
+     *
+     * @param barcodes An array of BarcodeDecoder.Result representing detected barcodes.
+     */
+    override fun onDetectionResult(barcodes: Array<BarcodeDecoder.Result>) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            val rects = mutableListOf<Rect>()
+            val decodedStrings = mutableListOf<String>()
+            binding.graphicOverlay.clear()
+            for (barcode in barcodes) {
+                val bbox = barcode.bboxData
+                val rect =
+                    Rect(bbox.xmin.toInt(), bbox.ymin.toInt(), bbox.xmax.toInt(), bbox.ymax.toInt())
+                val overlayRect = mapBoundingBoxToOverlay(rect)
+                rects.add(overlayRect)
+                decodedStrings.add(barcode.value)
+
+            }
+
+            binding.graphicOverlay.add(
+                BarcodeGraphic(
+                    binding.graphicOverlay,
+                    rects,
+                    decodedStrings
+                )
+            )
+
+        }
+    }
+
+    // Handles text OCR detection results and updates the graphical overlay
+    override fun onDetectionTextResult(list: Array<Word>) {
+        // Use lifecycleScope to launch a coroutine
+        lifecycleScope.launch(Dispatchers.Main) {
+            val rects = mutableListOf<Rect>()
+            val decodedStrings = mutableListOf<String>()
+            binding.graphicOverlay.clear()
+            for (word in list) {
+                // Append each word's content followed by a newline
+                if (word.decodes.isNotEmpty()) {
+                    val bbox = word.bbox
+
+                    if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
+                        val minX = bbox.x[0]
+                        val maxX = bbox.x[2]
+                        val minY = bbox.y[0]
+                        val maxY = bbox.y[2]
+
+                        val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+                        val overlayRect = mapBoundingBoxToOverlay(rect)
+                        val decodedValue = word.decodes[0].content
+                        rects.add(overlayRect)
+                        decodedStrings.add(decodedValue)
+                    }
+                }
+            }
+            binding.graphicOverlay.add(
+                OCRGraphic(
+                    binding.graphicOverlay,
+                    rects,
+                    decodedStrings
+                )
+            )
         }
     }
 
@@ -820,5 +983,40 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         private const val ENTITY_ANALYZER = "Tracker"
         private const val PRODUCT_RECOGNITION = "Product Recognition"
         private const val ENTITY_VIEW_FINDER = "Entity Viewfinder"
+        private const val LEGACY_BARCODE_DETECTION = "Legacy Barcode"
+        private const val LEGACY_OCR_DETECTION = "Legacy OCR"
+    }
+    private fun registerDisplayRotationListener() {
+        displayListener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) {}
+            override fun onDisplayRemoved(displayId: Int) {}
+            override fun onDisplayChanged(displayId: Int) {
+                val defaultDisplay = windowManager.defaultDisplay
+                if (defaultDisplay == null || defaultDisplay.displayId != displayId) return
+                val newRotation = defaultDisplay.rotation
+                if (newRotation == initialRotation) return
+                runOnUiThread {
+                    initialRotation = newRotation
+                    analysisUseCase?.targetRotation = newRotation
+                    if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
+                        imageWidth = selectedSize.height
+                        imageHeight = selectedSize.width
+                    } else {
+                        imageWidth = selectedSize.width
+                        imageHeight = selectedSize.height
+                    }
+                    Log.i(tag, "Display changed, updated targetRotation and dimensions: rotation=$newRotation, imageWidth=$imageWidth, imageHeight=$imageHeight")
+                }
+            }
+        }
+        displayManager!!.registerDisplayListener(displayListener, null)
+    }
+
+    /**
+     * Determines if the current device is a tablet based on screen size configuration.
+     * Useful for adjusting bounding box scaling between normal Android devices and tablets.
+     */
+    fun isTablet(context: Context): Boolean {
+        return (context.resources.configuration.screenLayout and Configuration.SCREENLAYOUT_SIZE_MASK) >= Configuration.SCREENLAYOUT_SIZE_LARGE
     }
 }

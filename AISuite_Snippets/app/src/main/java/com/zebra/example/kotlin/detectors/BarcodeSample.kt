@@ -52,8 +52,13 @@ class BarcodeSample {
         val decoderSettings = BarcodeDecoder.Settings("barcode-localizer").apply {
             Symbology.CODE39.enable(true)
             Symbology.CODE128.enable(true)
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
             detectorSetting.inferencerOptions.apply {
-                runtimeProcessorOrder = arrayOf(InferencerOptions.DSP)
+                runtimeProcessorOrder = rpo
                 defaultDims.height = 640
                 defaultDims.width = 640
             }

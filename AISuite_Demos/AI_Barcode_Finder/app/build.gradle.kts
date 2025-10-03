@@ -37,7 +37,7 @@ android {
 
     defaultConfig {
         applicationId = "com.zebra.ai.barcodefinder"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName

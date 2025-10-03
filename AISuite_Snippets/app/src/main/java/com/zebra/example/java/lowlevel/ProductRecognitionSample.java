@@ -79,7 +79,10 @@ public class ProductRecognitionSample {
             FeatureExtractor.Settings feSettings = new FeatureExtractor.Settings(mavenModelName);
 
             // Runtime processor order configuration
-            Integer[] rpo = new Integer[]{InferencerOptions.DSP};
+            Integer[] rpo = new Integer[3];
+            rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
             feSettings.inferencerOptions.runtimeProcessorOrder = rpo;
             locSettings.inferencerOptions.runtimeProcessorOrder = rpo;
             locSettings.inferencerOptions.defaultDims.height = 640;

@@ -10,7 +10,6 @@ import androidx.core.content.ContextCompat;
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.TextOCR;
-import com.zebra.ai.vision.internal.detector.Word;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,13 +41,14 @@ import java.util.concurrent.Executors;
  * Note: Ensure that the appropriate permissions and dependencies are configured
  * in the AndroidManifest and build files to utilize camera and image processing capabilities.
  */
-public class OCRSample implements OCRAnalyzer.DetectionCallback {
+public class OCRSample {
     private static final String TAG = "OCRSample";
     private TextOCR textOCR;
     private final ExecutorService executor;
     private final Context context;
     private final OCRAnalyzer.DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
+    private OCRAnalyzer ocrAnalyzer;
     private final String mavenModelName = "text-ocr-recognizer";
 
     /**
@@ -73,8 +73,10 @@ public class OCRSample implements OCRAnalyzer.DetectionCallback {
     private void initializeTextOCR() {
         try {
             TextOCR.Settings textOCRSettings = new TextOCR.Settings(mavenModelName);
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = rpo;
             textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
@@ -84,7 +86,7 @@ public class OCRSample implements OCRAnalyzer.DetectionCallback {
             long m_Start = System.currentTimeMillis();
             TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
                 textOCR = OCRInstance;
-                OCRAnalyzer ocrAnalyzer = new OCRAnalyzer(callback, textOCR);
+                 ocrAnalyzer = new OCRAnalyzer(callback, textOCR);
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer);
 
                 Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
@@ -113,26 +115,12 @@ public class OCRSample implements OCRAnalyzer.DetectionCallback {
     }
 
     /**
-     * Retrieves the current instance of the TextOCR engine.
+     * Retrieves the current instance of the TextOCRAnalyzer.
      *
-     * @return The TextOCR instance, or null if not yet initialized.
+     * @return The TextOCRAnalyzer instance, or null if not yet initialized.
      */
-    public TextOCR getTextOCR() {
-        return textOCR;
+    public OCRAnalyzer getOCRAnalyzer() {
+        return ocrAnalyzer;
     }
 
-    /**
-     * Callback method invoked when OCR text detection results are available.
-     *
-     * @param words An array of Word objects representing detected words.
-     */
-    @Override
-    public void onDetectionTextResult(Word[] words) {
-        for (Word word : words) {
-            // Append each word's content followed by a newline
-            if (word.decodes.length > 0) {
-                Log.d(TAG, "Detected word: " + word.decodes[0]);
-            }
-        }
-    }
 }

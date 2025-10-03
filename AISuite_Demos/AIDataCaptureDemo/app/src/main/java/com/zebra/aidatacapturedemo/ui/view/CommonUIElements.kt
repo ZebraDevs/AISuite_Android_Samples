@@ -53,7 +53,7 @@ import com.zebra.aidatacapturedemo.ui.view.Variables.mainPrimary
 
 data class RadioButtonData(
     val title: String,
-    val description: String,
+    val description: Int?,
     val index: Int,
     val onItemSelected: (itemId: Int) -> Unit // A callback with a String parameter
 )
@@ -97,16 +97,19 @@ fun ListOfRadioButtonOptions(currentSelection: Int, radioOptions: List<RadioButt
                             color = Variables.mainDefault,
                         )
                     )
-                    Text(
-                        text = item.description,
-                        style = TextStyle(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                            fontWeight = FontWeight(400),
-                            color = Variables.mainDefault,
+                    item.description?.let {
+                        Text(
+                            text = stringResource(it),
+                            style = TextStyle(
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                                fontWeight = FontWeight(400),
+                                color = Variables.mainDefault,
+                            )
                         )
-                    )
+                    }
+
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 RadioButton(

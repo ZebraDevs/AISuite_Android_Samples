@@ -13,11 +13,13 @@ import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InvalidInputException;
 import com.zebra.ai.vision.detector.Localizer;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * The BarcodeSampleAnalyzer class implements the ImageAnalysis.Analyzer interface and is
@@ -64,6 +66,7 @@ public class BarcodeSampleAnalyzer implements ImageAnalysis.Analyzer {
     private BBox[] detections;
     private Localizer localizer;
     private final ExecutorService executorService;
+    private volatile boolean isStopped = false;
 
     /**
      * Constructs a new BarcodeSampleAnalyzer with the specified callback, localizer, and barcode decoder.
@@ -87,15 +90,15 @@ public class BarcodeSampleAnalyzer implements ImageAnalysis.Analyzer {
      */
     @Override
     public void analyze(@NonNull ImageProxy image) {
-        if (!isAnalyzing) {
+        if (!isAnalyzing || isStopped) {
             image.close();
             return;
         }
         isAnalyzing = false; // Prevent re-entry
 
-        executorService.submit(() -> {
+        Future<?> future = executorService.submit(() -> {
             try {
-                Bitmap bitmap = image.toBitmap();
+                Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
                 CompletableFuture<BBox[]> futureResult = localizer.detect(bitmap, executorService);
                 Log.d(TAG, "Starting image analysis");
                 futureResult.thenCompose(bBoxes -> {
@@ -123,5 +126,17 @@ public class BarcodeSampleAnalyzer implements ImageAnalysis.Analyzer {
                 image.close();
             }
         });
+        // Cancel the task if the analyzer is stopped
+        if (isStopped) {
+            future.cancel(true);
+        }
+    }
+    /**
+     * Stops the analysis process and terminates any ongoing tasks. This method should be
+     * called to release resources and halt image analysis when it is no longer required.
+     */
+    public void stopAnalyzing() {
+        isStopped = true;
+        executorService.shutdownNow(); // Attempt to cancel ongoing tasks
     }
 }

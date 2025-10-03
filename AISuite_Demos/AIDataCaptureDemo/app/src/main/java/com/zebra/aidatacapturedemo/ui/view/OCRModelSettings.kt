@@ -192,7 +192,7 @@ fun AddOCRDetectionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.heatmap_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.heatmapThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.heatmapThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -200,7 +200,7 @@ fun AddOCRDetectionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.box_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.boxThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.boxThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -208,7 +208,7 @@ fun AddOCRDetectionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.min_box_area,
-                currentUIState.ocrFindSettings.advancedOCRSetting.minBoxArea.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.minBoxArea.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -216,7 +216,7 @@ fun AddOCRDetectionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.min_box_size,
-                currentUIState.ocrFindSettings.advancedOCRSetting.minBoxSize.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.minBoxSize.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -224,7 +224,7 @@ fun AddOCRDetectionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.unclip_ratio,
-                currentUIState.ocrFindSettings.advancedOCRSetting.unclipRatio.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.unclipRatio.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -232,7 +232,7 @@ fun AddOCRDetectionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.min_ratio_for_rotation,
-                currentUIState.ocrFindSettings.advancedOCRSetting.minRatioForRotation.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.minRatioForRotation.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -254,7 +254,7 @@ fun AddOCRRecognitionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.max_word_combinations,
-                currentUIState.ocrFindSettings.advancedOCRSetting.maxWordCombinations.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.maxWordCombinations.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -262,7 +262,7 @@ fun AddOCRRecognitionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.topk_ignore_cutoff,
-                currentUIState.ocrFindSettings.advancedOCRSetting.topkIgnoreCutoff.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.topkIgnoreCutoff.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -270,7 +270,7 @@ fun AddOCRRecognitionOptions(viewModel: AIDataCaptureDemoViewModel) {
         TextInputOption(
             TextInputData(
                 R.string.total_probability_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.totalProbabilityThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.totalProbabilityThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 })
@@ -282,7 +282,7 @@ fun AddOCRRecognitionOptions(viewModel: AIDataCaptureDemoViewModel) {
             thickness = 2.dp
         )
         SwitchOption(
-            currentUIState.ocrFindSettings.advancedOCRSetting.enableTiling,
+            currentUIState.textOCRSettings.advancedOCRSetting.enableTiling,
             SwitchOptionData(R.string.enable_tiling, onItemSelected = { title, enabled ->
                 tiling = enabled
                 viewModel.updateOCRSwitchOptions(title, enabled)
@@ -305,7 +305,7 @@ fun AddOCRTilingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolean)
         TextInputOption(
             TextInputData(
                 R.string.top_correlation_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.topCorrelationThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.topCorrelationThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -313,7 +313,7 @@ fun AddOCRTilingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolean)
         TextInputOption(
             TextInputData(
                 R.string.merge_points_cutoff,
-                currentUIState.ocrFindSettings.advancedOCRSetting.mergePointsCutoff.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.mergePointsCutoff.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -321,7 +321,7 @@ fun AddOCRTilingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolean)
         TextInputOption(
             TextInputData(
                 R.string.split_margin_factor,
-                currentUIState.ocrFindSettings.advancedOCRSetting.splitMarginFactor.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.splitMarginFactor.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -329,7 +329,7 @@ fun AddOCRTilingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolean)
         TextInputOption(
             TextInputData(
                 R.string.aspect_ratio_lower_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.aspectRatioLowerThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.aspectRatioLowerThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -337,7 +337,7 @@ fun AddOCRTilingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolean)
         TextInputOption(
             TextInputData(
                 R.string.aspect_ratio_upper_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.aspectRatioUpperThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.aspectRatioUpperThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -345,7 +345,7 @@ fun AddOCRTilingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolean)
         TextInputOption(
             TextInputData(
                 R.string.topK_merged_predictions,
-                currentUIState.ocrFindSettings.advancedOCRSetting.topKMergedPredictions.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.topKMergedPredictions.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -365,7 +365,7 @@ fun AddEnableOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel) {
             .wrapContentHeight()
     ) {
         SwitchOption(
-            currentUIState.ocrFindSettings.advancedOCRSetting.enableGrouping,
+            currentUIState.textOCRSettings.advancedOCRSetting.enableGrouping,
             SwitchOptionData(R.string.enable_grouping, onItemSelected = { title, enabled ->
                 grouping = enabled
                 viewModel.updateOCRSwitchOptions(title, enabled)
@@ -388,7 +388,7 @@ fun AddOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolea
         TextInputOption(
             TextInputData(
                 R.string.width_distance_ratio,
-                currentUIState.ocrFindSettings.advancedOCRSetting.widthDistanceRatio.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.widthDistanceRatio.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -396,7 +396,7 @@ fun AddOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolea
         TextInputOption(
             TextInputData(
                 R.string.height_distance_ratio,
-                currentUIState.ocrFindSettings.advancedOCRSetting.heightDistanceRatio.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.heightDistanceRatio.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -404,7 +404,7 @@ fun AddOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolea
         TextInputOption(
             TextInputData(
                 R.string.center_distance_ratio,
-                currentUIState.ocrFindSettings.advancedOCRSetting.centerDistanceRatio.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.centerDistanceRatio.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -412,7 +412,7 @@ fun AddOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolea
         TextInputOption(
             TextInputData(
                 R.string.paragraph_height_distance,
-                currentUIState.ocrFindSettings.advancedOCRSetting.paragraphHeightDistance.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.paragraphHeightDistance.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled
@@ -420,7 +420,7 @@ fun AddOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolea
         TextInputOption(
             TextInputData(
                 R.string.paragraph_height_ratio_threshold,
-                currentUIState.ocrFindSettings.advancedOCRSetting.paragraphHeightRatioThreshold.toString(),
+                currentUIState.textOCRSettings.advancedOCRSetting.paragraphHeightRatioThreshold.toString(),
                 onItemSelected = { title, value ->
                     viewModel.updateOCRTextFieldValues(title, value)
                 }), enabled

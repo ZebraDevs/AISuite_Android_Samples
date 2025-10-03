@@ -88,8 +88,10 @@ public class BarcodeTracker {
     public void initializeBarcodeDecoder() {
         try {
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             decoderSettings.Symbology.CODE39.enable(true);
             decoderSettings.Symbology.CODE128.enable(true);

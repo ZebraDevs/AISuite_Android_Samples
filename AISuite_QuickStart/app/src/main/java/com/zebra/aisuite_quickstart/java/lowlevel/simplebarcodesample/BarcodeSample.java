@@ -44,7 +44,7 @@ import java.util.concurrent.Executors;
  * Note: Ensure that the appropriate permissions and dependencies are configured
  * in the AndroidManifest and build files to utilize camera and image processing capabilities.
  */
-public class BarcodeSample implements BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback {
+public class BarcodeSample {
     private static final String TAG = "BarcodeSample";
     private Localizer localizer;
     private BarcodeDecoder barcodeDecoder;
@@ -82,8 +82,10 @@ public class BarcodeSample implements BarcodeSampleAnalyzer.SampleBarcodeDetecti
             long diff = System.currentTimeMillis() - mStart;
             Log.d(TAG, "Barcode Localizer.settings() obj creation time =" + diff + " milli sec");
 
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             locSettings.inferencerOptions.runtimeProcessorOrder = rpo;
             locSettings.inferencerOptions.defaultDims.height = 640;
@@ -144,19 +146,9 @@ public class BarcodeSample implements BarcodeSampleAnalyzer.SampleBarcodeDetecti
         return barcodeDecoder;
     }
 
-    /**
-     * Callback method invoked when barcode detection results are available.
-     *
-     * @param barcodes An array of BarcodeDecoder.Result representing detected barcodes.
-     */
-    @Override
-    public void onDetectionResult(BarcodeDecoder.Result[] barcodes) {
-        for (BarcodeDecoder.Result barcode : barcodes) {
-            String decodedString = barcode.value;
-
-            Log.d(TAG, "Symbology Type " + barcode.symbologytype);
-            Log.d(TAG, "Decoded barcode: " + decodedString);
-        }
+    public BarcodeSampleAnalyzer getBarcodeAnalyzer(){
+        return barcodeAnalyzer;
     }
+
 }
 

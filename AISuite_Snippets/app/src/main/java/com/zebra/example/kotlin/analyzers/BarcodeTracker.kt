@@ -48,8 +48,11 @@ class BarcodeTracker {
             val decoderSettings = BarcodeDecoder.Settings(mavenModelName)
 
             // Define runtime processor order
-            val rpo = arrayOfNulls<Int>(1)
-            rpo[0] = InferencerOptions.DSP
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
 
             // Enable specific symbologies for barcode decoding
             decoderSettings.Symbology.CODE39.enable(true)

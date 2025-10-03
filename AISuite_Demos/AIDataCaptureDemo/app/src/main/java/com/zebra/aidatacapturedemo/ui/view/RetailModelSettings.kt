@@ -42,7 +42,7 @@ fun AddImportDatabaseOptions(viewModel: AIDataCaptureDemoViewModel) {
         }
 
     fun productLauncherFunc() {
-        productLauncher.launch(arrayOf("*/db"))
+        productLauncher.launch(arrayOf("*/*"))
     }
 
     Column(

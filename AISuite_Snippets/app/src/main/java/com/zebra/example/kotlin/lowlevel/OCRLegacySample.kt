@@ -49,7 +49,11 @@ class OCRLegacySample {
     private fun initializeTextOCR() {
         // Create settings for the text OCR using the apply scope function
         val textOCRSettings = TextOCR.Settings(mavenModelName).apply {
-            val rpo = arrayOf(InferencerOptions.DSP)
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
 
             detectionInferencerOptions.runtimeProcessorOrder = rpo
             recognitionInferencerOptions.runtimeProcessorOrder = rpo

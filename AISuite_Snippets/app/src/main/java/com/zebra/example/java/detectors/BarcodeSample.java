@@ -51,8 +51,10 @@ public class BarcodeSample {
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
 
             // Define runtime processor order
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             // Enable specific symbologies for barcode decoding
             decoderSettings.Symbology.CODE39.enable(true);

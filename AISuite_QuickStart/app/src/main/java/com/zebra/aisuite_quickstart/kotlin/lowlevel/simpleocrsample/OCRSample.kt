@@ -9,8 +9,6 @@ import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.TextOCR
 import com.zebra.ai.vision.internal.detector.Word
-import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
-import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.TextOCRAnalyzer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -48,7 +46,7 @@ import java.util.concurrent.Executors
  */
 class OCRSample(
     private val context: Context,
-    private val callback: CameraXLivePreviewActivity,
+    private val callback: OCRAnalyzer.DetectionCallback,
     private val imageAnalysis: ImageAnalysis
 ) : OCRAnalyzer.DetectionCallback {
 
@@ -56,6 +54,8 @@ class OCRSample(
     private var textOCR: TextOCR? = null
     private val executor = Executors.newSingleThreadExecutor()
     private val mavenModelName = "text-ocr-recognizer"
+
+    private var ocrAnalyzer: OCRAnalyzer? =null
 
     init {
         initializeTextOCR()
@@ -67,7 +67,11 @@ class OCRSample(
      */
     private fun initializeTextOCR() {
         val textOCRSettings = TextOCR.Settings(mavenModelName).apply {
-            val rpo = arrayOf(InferencerOptions.DSP)
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
 
             detectionInferencerOptions.runtimeProcessorOrder = rpo
             recognitionInferencerOptions.runtimeProcessorOrder = rpo
@@ -83,8 +87,8 @@ class OCRSample(
             try {
                 val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
                 textOCR = ocrInstance
-                val ocrAnalyzer = TextOCRAnalyzer(callback, ocrInstance)
-                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer)
+                ocrAnalyzer = OCRAnalyzer(callback, ocrInstance)
+                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer!!)
 
                 Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
             }
@@ -109,12 +113,12 @@ class OCRSample(
     }
 
     /**
-     * Retrieves the current instance of the TextOCR engine.
+     * Retrieves the current instance of the TextOCRAnalyzer.
      *
-     * @return The TextOCR instance, or null if not yet initialized.
+     * @return The TextOCRAnalyzer instance.
      */
-    fun getTextOCR(): TextOCR? {
-        return textOCR
+    fun getOCRAnalyzer(): OCRAnalyzer? {
+        return ocrAnalyzer
     }
 
     /**

@@ -205,10 +205,13 @@ class ProductEnrollmentRecognition(
 
         //Swap the values as the presented index is reverse of what model expects
         val processorOrder = when (uiState.value.productRecognitionSettings.commonSettings.processorSelectedIndex) {
-            0 -> arrayOf(2)
-            1 -> arrayOf(1)
-            2 -> arrayOf(0)
-            else -> { arrayOf(2) }
+            0 -> arrayOf(2, 0, 1) // AUTO
+            1 -> arrayOf(2) // DSP
+            2 -> arrayOf(1) // GPU
+            3 -> arrayOf(0) //CPU
+            else -> {
+                arrayOf(2, 0, 1)
+            }
         }
 
         locSettings.inferencerOptions.runtimeProcessorOrder = processorOrder
@@ -224,6 +227,12 @@ class ProductEnrollmentRecognition(
                     Log.i(TAG, "Localizer init Success")
                 }.exceptionally { e: Throwable ->
                     Log.e(TAG, "Localizer init Failed -> " + e.message)
+                    if (e.message?.contains("Given runtimes are not available") == true) {
+                        viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
+                        viewModel.updateSelectedProcessor(0) //Auto-Select
+                        viewModel.saveSettings()
+                        initializeLocalizer()
+                    }
                     null
                 }
         } catch (e: IOException) {
@@ -245,10 +254,13 @@ class ProductEnrollmentRecognition(
 
         //Swap the values as the presented index is reverse of what model expects
         val processorOrder = when (uiState.value.productRecognitionSettings.commonSettings.processorSelectedIndex) {
-            0 -> arrayOf(2)
-            1 -> arrayOf(1)
-            2 -> arrayOf(0)
-            else -> { arrayOf(2) }
+            0 -> arrayOf(2, 0, 1) // AUTO
+            1 -> arrayOf(2) // DSP
+            2 -> arrayOf(1) // GPU
+            3 -> arrayOf(0) //CPU
+            else -> {
+                arrayOf(2, 0, 1)
+            }
         }
         extractorSettings.inferencerOptions.runtimeProcessorOrder = processorOrder
 
@@ -260,6 +272,11 @@ class ProductEnrollmentRecognition(
                     Log.i(TAG, "Feature Extractor init Success")
                 }.exceptionally { e: Throwable ->
                     Log.e(TAG, "Feature Extractor init Failed -> " + e.message)
+                    if (e.message?.contains("Given runtimes are not available") == true) {
+                        viewModel.updateSelectedProcessor(0) //Auto-Select
+                        viewModel.saveSettings()
+                        initFeatureExtractor()
+                    }
                     null
                 }
         } catch (e: IOException) {
@@ -304,7 +321,7 @@ class ProductEnrollmentRecognition(
     /** To initialize the Recognizer, we need to set the database file path
      *  and index dimensions
      */
-    private fun initProductRecognition() {
+    private fun initProductRecognition(isEnrollmentRequested: Boolean = false) {
         Log.i(TAG, "initProductEnrollmentRecognition")
         recognizer?.dispose()
         recognizer = null
@@ -318,7 +335,11 @@ class ProductEnrollmentRecognition(
             Recognizer.getRecognizer(recognizerSettings, executorService)
                 .thenAccept { recognizerInstance: Recognizer ->
                     recognizer = recognizerInstance
-                    checkUpdateModelDemoReady(true)
+                    if (isEnrollmentRequested) {
+                        updateProductEnrollmentState(state = true)
+                    } else {
+                        checkUpdateModelDemoReady(true)
+                    }
                     Log.i(TAG, "Recognizer init Success")
                 }.exceptionally { e: Throwable ->
                     Log.e(TAG, "Recognizer init Failed -> " + e.message)
@@ -368,14 +389,16 @@ class ProductEnrollmentRecognition(
             return
         }
         Log.i(TAG, "Num Products - ${productDataList.size}")
-        for (product in productDataList) {
-            if (product.text.isNotEmpty()) {
-                val arrayOfDescriptor =
-                    extractor?.generateSingleDescriptor(product.crop, executorService)?.get()
-                featureStorage!!.addDescriptors(product.text, arrayOfDescriptor, true)
+        scope.launch {
+            for (product in productDataList) {
+                if (product.text.isNotEmpty()) {
+                    val arrayOfDescriptor =
+                        extractor?.generateSingleDescriptor(product.crop, executorService)?.get()
+                    featureStorage!!.addDescriptors(product.text, arrayOfDescriptor, true)
+                }
             }
+            initProductRecognition(isEnrollmentRequested = true)
         }
-        initProductRecognition()
     }
 
     /**
@@ -450,6 +473,10 @@ class ProductEnrollmentRecognition(
 
     fun updateProductResults(results: MutableList<ProductData>) {
         viewModel.updateProductRecognitionResult(results = results)
+    }
+
+    fun updateProductEnrollmentState(state: Boolean) {
+        viewModel.updateProductEnrollmentState(state = state)
     }
 
     fun updateCaptureBitmap(bitmap: Bitmap) {

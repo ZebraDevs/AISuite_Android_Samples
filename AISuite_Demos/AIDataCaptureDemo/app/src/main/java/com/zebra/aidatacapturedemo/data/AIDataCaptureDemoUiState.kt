@@ -89,8 +89,7 @@ data class BarcodeSettings(
 }
 
 data class OcrFindSettings(
-    var commonSettings: CommonSettings = CommonSettings(),
-    var advancedOCRSetting: AdvancedOCRSetting = AdvancedOCRSetting()
+    var commonSettings: CommonSettings = CommonSettings()
 )
 
 data class AdvancedOCRSetting(
@@ -126,10 +125,8 @@ data class AdvancedOCRSetting(
 
 data class TextOcrSettings(
     var commonSettings: CommonSettings = CommonSettings(),
-    val advancedOCRSetting: AdvancedOCRSetting = AdvancedOCRSetting(),
-) {
-
-}
+    var advancedOCRSetting: AdvancedOCRSetting = AdvancedOCRSetting()
+)
 
 data class RetailShelfSettings(
     var commonSettings: CommonSettings = CommonSettings(),
@@ -147,6 +144,7 @@ data class AIDataCaptureDemoUiState(
     var activeScreen: Screen = Screen.Start,
     var zoomLevel: Float = 1.0f,
     val appBarTitle: String = "",
+    val toastMessage: String? = null,
 
     // Settings
     var barcodeSettings : BarcodeSettings = FileUtils.loadBarcodeSettings(),
@@ -157,6 +155,7 @@ data class AIDataCaptureDemoUiState(
 
     // Model --> UI
     var modelDemoReady: Boolean = false,
+    var isProductEnrollmentCompleted: Boolean = false,
     var currentBitmap: Bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888),
     var captureBitmap: Bitmap? = null,
     var bboxes: Array<BBox?> = arrayOf(),

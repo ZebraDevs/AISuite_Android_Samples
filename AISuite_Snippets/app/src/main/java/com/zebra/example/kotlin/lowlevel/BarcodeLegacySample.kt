@@ -53,8 +53,11 @@ class BarcodeLegacySample {
             Log.d(TAG, "Barcode Localizer.settings() obj creation time = $diff milli sec")
 
             // Define runtime processor order
-            val rpo = arrayOfNulls<Int>(1)
-            rpo[0] = InferencerOptions.DSP
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
 
             locSettings.inferencerOptions.runtimeProcessorOrder = rpo
             locSettings.inferencerOptions.defaultDims.height = 640

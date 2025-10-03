@@ -56,8 +56,10 @@ public class OCRSample {
             TextOCR.Settings textOCRSettings = new TextOCR.Settings(mavenModelName);
 
             // Define runtime processor order
-            Integer[] rpo = new Integer[1];
+            Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
+            rpo[1] = InferencerOptions.CPU;
+            rpo[2] = InferencerOptions.GPU;
 
             // Apply runtime processor order and default dimensions to detection and recognition settings
             textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = rpo;

@@ -1,6 +1,7 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
+import android.util.Log
 import android.util.Size
 import androidx.activity.compose.BackHandler
 import androidx.camera.view.PreviewView
@@ -569,13 +570,15 @@ fun showBottomBar(
                     )
                 }
                 if (uiState.usecaseSelected == UsecaseState.Product.value) {
+                    var isClickable = remember { mutableStateOf(true) }
                     Icon(
                         imageVector = ImageVector.Companion.vectorResource(R.drawable.shutter_button),
                         contentDescription = "Capture Image",
                         modifier = Modifier
                             .size(70.dp)
                             .padding(4.dp)
-                            .clickable {
+                            .clickable(enabled = isClickable.value) {
+                                isClickable.value = false
                                 viewModel.viewModelScope.launch {
                                     // Stop analysing the Preview Frames
                                     viewModel.stopPreviewAnalysis()
