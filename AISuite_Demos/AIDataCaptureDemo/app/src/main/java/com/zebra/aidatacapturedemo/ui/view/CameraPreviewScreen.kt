@@ -438,8 +438,23 @@ fun DrawBarcodeResult(
                 text = barcodeData.text,
                 selectedDemo = UsecaseState.Barcode.value
             )
+
+            val value = barcodeData.text
+            val count = uiState.barcodeCountMap.get(value) ?: 0
+            uiState.barcodeCountMap.put(value, count+1)
         }
     }
+
+    val list = uiState.barcodeCountMap.map { (key, value) -> "$key($value)" }
+    val result = list.joinToString(separator = "\n")
+    drawBbox(
+        0.dp,
+        0.dp,
+        Variables.cameraPreviewViewSize.width.dp,
+        100.dp,
+        result,
+        selectedDemo = UsecaseState.Barcode.value)
+    uiState.barcodeCountMap.clear()
 }
 
 @Composable

@@ -145,6 +145,7 @@ data class AIDataCaptureDemoUiState(
     var zoomLevel: Float = 1.0f,
     val appBarTitle: String = "",
     val toastMessage: String? = null,
+    val barcodeCountMap: MutableMap<String, Int> = mutableMapOf<String, Int>(),
 
     // Settings
     var barcodeSettings : BarcodeSettings = FileUtils.loadBarcodeSettings(),
