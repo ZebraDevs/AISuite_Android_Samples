@@ -6,6 +6,8 @@ import android.graphics.Matrix;
 import androidx.camera.core.ImageProxy;
 
 public class CommonUtils {
+    public static final String PREFS_NAME ="FilterPreferences";
+    public static final String PREFS_NAME_KOTLIN ="FilterPreferencesKotlin";
     /**
      * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
      *

@@ -167,6 +167,7 @@ public class EntityBarcodeTracker {
         if (barcodeDecoder != null) {
             barcodeDecoder.dispose();
             Log.d(TAG, "Barcode decoder is disposed");
+            barcodeDecoder = null;
         }
     }
 

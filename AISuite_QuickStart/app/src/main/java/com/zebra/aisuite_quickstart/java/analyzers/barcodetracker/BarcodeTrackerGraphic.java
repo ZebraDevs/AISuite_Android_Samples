@@ -53,7 +53,7 @@ public class BarcodeTrackerGraphic extends GraphicOverlay.Graphic {
      */
     public BarcodeTrackerGraphic(GraphicOverlay overlay, List<Rect> boxes, List<String> decodedStrings) {
         super(overlay);
-        overlay.clear();
+       // overlay.clear();
 
         // Initialize the paint for drawing bounding boxes
         boxPaint = new Paint();

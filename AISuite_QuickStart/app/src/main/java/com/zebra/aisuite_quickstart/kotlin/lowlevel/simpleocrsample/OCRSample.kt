@@ -8,7 +8,7 @@ import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.TextOCR
-import com.zebra.ai.vision.internal.detector.Word
+import com.zebra.ai.vision.detector.Word
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -109,6 +109,7 @@ class OCRSample(
         textOCR?.let {
             it.dispose()
             Log.d(TAG, "OCR is disposed")
+            textOCR = null
         }
     }
 

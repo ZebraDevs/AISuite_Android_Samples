@@ -1,13 +1,20 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java;
 
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.Size;
 import android.view.Display;
@@ -37,13 +44,18 @@ import com.zebra.ai.vision.detector.ComplexBBox;
 import com.zebra.ai.vision.detector.Recognizer;
 import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.Entity;
+import com.zebra.ai.vision.entity.LineEntity;
 import com.zebra.ai.vision.entity.ParagraphEntity;
-import com.zebra.ai.vision.internal.detector.Line;
-import com.zebra.ai.vision.internal.detector.Word;
+import com.zebra.ai.vision.detector.Line;
+import com.zebra.ai.vision.detector.Word;
+import com.zebra.ai.vision.entity.WordEntity;
 import com.zebra.ai.vision.viewfinder.EntityViewController;
 import com.zebra.aisuite_quickstart.CameraXViewModel;
 import com.zebra.aisuite_quickstart.R;
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding;
+import com.zebra.aisuite_quickstart.filtertracker.FilterDialog;
+import com.zebra.aisuite_quickstart.filtertracker.FilterItem;
+import com.zebra.aisuite_quickstart.filtertracker.FilterType;
 import com.zebra.aisuite_quickstart.java.analyzers.barcodetracker.BarcodeTracker;
 import com.zebra.aisuite_quickstart.java.analyzers.barcodetracker.BarcodeTrackerGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeAnalyzer;
@@ -62,10 +74,14 @@ import com.zebra.aisuite_quickstart.java.lowlevel.simpleocrsample.OCRSample;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityBarcodeTracker;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityViewGraphic;
 import com.zebra.aisuite_quickstart.utils.CameraUtil;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -142,13 +158,22 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private DisplayManager.DisplayListener displayListener;
 
     // Store pending viewfinder resize data to apply once analyzer is ready
-    private android.graphics.Matrix pendingTransformMatrix = null;
-    private android.graphics.RectF pendingCropRegion = null;
+    private Matrix pendingTransformMatrix = null;
+    private RectF pendingCropRegion = null;
     // Orientation constants for clarity
     private static final int ROTATION_0 = Surface.ROTATION_0;     // 0
     private static final int ROTATION_90 = Surface.ROTATION_90;   // 1
     private static final int ROTATION_180 = Surface.ROTATION_180; // 2
     private static final int ROTATION_270 = Surface.ROTATION_270; // 3
+
+    private SharedPreferences sharedPreferences;
+    private ArrayList<FilterItem> filterItems = new ArrayList<>();
+
+    private boolean isBarcodeChecked = true;
+    private boolean isOCRChecked = false;
+    // Create a Set to hold unique barcode values
+    Set<String> uniqueBarcodeValues = new HashSet<>();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -158,6 +183,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         }
 
         binding = ActivityCameraXlivePreviewBinding.inflate(getLayoutInflater());
+        sharedPreferences = getSharedPreferences(CommonUtils.PREFS_NAME, MODE_PRIVATE);
         int cameraFacing = CameraUtil.getPreferredCameraFacing(this);
         if (cameraFacing == CameraMetadata.LENS_FACING_BACK) {
             // Set up the camera to use the back camera
@@ -205,6 +231,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
                 Log.e(TAG, "selected option is " + selectedModel);
 
+                binding.trackerFilter.setVisibility(TextUtils.equals(selectedModel, ENTITY_ANALYZER) ? VISIBLE : GONE);
+
                 // Lock orientation when Entity Viewfinder is selected
                 if (isEntityViewFinder) {
                     setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
@@ -215,7 +243,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 }
 
                 initialRotation = getWindow().getDecorView().getDisplay().getRotation();
-                if(initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
+                if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
                     imageWidth = selectedSize.getHeight();
                     imageHeight = selectedSize.getWidth();
                 } else {
@@ -244,6 +272,26 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             }
         });
 
+        binding.trackerFilter.setOnClickListener(v -> {
+            FilterDialog dialog = new FilterDialog(CameraXLivePreviewActivity.this);
+            dialog.setCallback(Option -> {
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                isBarcodeChecked = Option.get(0).isChecked();
+                isOCRChecked = Option.get(1).isChecked();
+                for (FilterItem option : Option) {
+                    editor.putBoolean(option.getTitle(), option.isChecked());
+                }
+                editor.apply();
+                binding.graphicOverlay.clear();
+                stopAnalyzing();
+                unBindCameraX();
+                disposeModels();
+                bindPreviewUseCase();
+                bindAnalysisUseCase();
+            });
+            dialog.show();
+        });
+
         initEntityView();
     }
 
@@ -268,8 +316,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 // Analyzer not ready yet, extract and store the actual VALUES
 
                 try {
-                    pendingTransformMatrix = new android.graphics.Matrix(entityViewResizeSpecs.getSensorToViewMatrix());
-                    pendingCropRegion = new android.graphics.RectF(entityViewResizeSpecs.getViewfinderFOVCropRegion());
+                    pendingTransformMatrix = new Matrix(entityViewResizeSpecs.getSensorToViewMatrix());
+                    pendingCropRegion = new RectF(entityViewResizeSpecs.getViewfinderFOVCropRegion());
                     Log.d(TAG, "Stored pending viewfinder resize data for later application");
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to extract resize spec values", e);
@@ -441,7 +489,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         options.add(PRODUCT_RECOGNITION);
         options.add(ENTITY_VIEW_FINDER);
         //options.add(LEGACY_BARCODE_DETECTION); // uncomment to use barcode legacy option
-       // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option
+        // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option
 
         // Creating adapter for spinner
         ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
@@ -590,20 +638,29 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         List<String> decodedStrings = new ArrayList<>();
         runOnUiThread(() -> {
             binding.graphicOverlay.clear();
-            for (ParagraphEntity entity : list) {
-                Line[] lines = entity.getTextParagraph().lines;
-                for (Line line : lines) {
-
-                    for (Word word : line.words) {
-                        ComplexBBox bbox = word.bbox;
-                        if(word.decodes.length>0) {
+            for (ParagraphEntity paragraphEntity : list) {
+                List<LineEntity> lineEntities = paragraphEntity.getLines();
+                for (LineEntity lineEntity : lineEntities) {
+                    for (WordEntity wordEntity : lineEntity.getWords()) {
+                        ComplexBBox bbox = wordEntity.getComplexBBox();
+                        if(!wordEntity.getText().isEmpty()) {
 
                             if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
                                 float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
+                                if(minX > maxX){
+                                    float temp = minX;
+                                    minX = maxX;
+                                    maxX = temp;
+                                }
+                                if(minY > maxY){
+                                    float temp = minY;
+                                    minY = maxY;
+                                    maxY = temp;
+                                }
 
                                 Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
                                 Rect overlayRect = mapBoundingBoxToOverlay(rect);
-                                String decodedValue = word.decodes[0].content;
+                                String decodedValue = wordEntity.getText();
                                 rects.add(overlayRect);
                                 decodedStrings.add(decodedValue);
 
@@ -620,27 +677,36 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     // Handles entity tracking results and updates the graphical overlay
     @Override
-    public void handleEntities(EntityTrackerAnalyzer.Result result) {
-        List<Rect> rects = new ArrayList<>();
-        List<String> decodedStrings = new ArrayList<>();
-        List<? extends Entity> entities;
+    public synchronized void handleEntities(EntityTrackerAnalyzer.Result result) {
+        List<Rect> barcodeRects = new ArrayList<>();
+        List<String> barcodeStrings = new ArrayList<>();
+        List<Rect> ocrRects = new ArrayList<>();
+        List<String> ocrStrings = new ArrayList<>();
+        List<? extends Entity> barcodeEntities;
+        List<? extends Entity> ocrEntities;
         if (barcodeTracker.getBarcodeDecoder() != null) {
-            entities = result.getValue(barcodeTracker.getBarcodeDecoder());
+            barcodeEntities = result.getValue(barcodeTracker.getBarcodeDecoder());
         } else {
-            entities = null;
+            barcodeEntities = null;
+        }
+
+        if (barcodeTracker.getTextOCR() != null) {
+            ocrEntities = result.getValue(barcodeTracker.getTextOCR());
+        } else {
+            ocrEntities = null;
         }
 
         runOnUiThread(() -> {
             binding.graphicOverlay.clear();
-            if (entities != null) {
-                for (Entity entity : entities) {
+            if (barcodeEntities != null) {
+                for (Entity entity : barcodeEntities) {
                     if (entity instanceof BarcodeEntity) {
                         BarcodeEntity bEntity = (BarcodeEntity) entity;
                         Rect rect = bEntity.getBoundingBox();
                         if (rect != null) {
                             Rect overlayRect = mapBoundingBoxToOverlay(rect);
 
-                            rects.add(overlayRect);
+                            barcodeRects.add(overlayRect);
                             String hashCode = String.valueOf(bEntity.hashCode());
                             // Ensure the string has at least 4 characters
                             if (hashCode.length() >= 4) {
@@ -648,16 +714,50 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                                 hashCode = hashCode.substring(hashCode.length() - 4);
 
                             }
-                            decodedStrings.add(hashCode + ":" + bEntity.getValue());
-                            Log.d(TAG, "Tracker UUID: " + hashCode + " Tracker Detected entity - Value: " + bEntity.getValue());
+                            String decodedValue =bEntity.getValue();
+                            barcodeStrings.add(hashCode + ":" + decodedValue);
+                            // Add the unique value to the Set
+                            if(!decodedValue.isEmpty()) uniqueBarcodeValues.add(decodedValue);
+                            Log.d(TAG, "Tracker UUID: " + hashCode + " Tracker Detected entity - Value: " + decodedValue);
                         }
                     }
 
-                    //currently using same BarcodeGraphic as there are no much difference in UI
-                    binding.graphicOverlay.add(new BarcodeTrackerGraphic(binding.graphicOverlay, rects, decodedStrings));
                 }
             }
+            if (ocrEntities != null) {
+                for (Entity entity : ocrEntities) {
+                    //count.getAndIncrement();
+                    if (entity instanceof ParagraphEntity) {
+                        ParagraphEntity pEntity = (ParagraphEntity) entity;
+                        Log.i(TAG,"Paragraph Entity detected" +pEntity);
+                        List<LineEntity> lineEntities = pEntity.getLines();
+                        Log.i(TAG,"Lines detected" +lineEntities.size());
+//
+                        for (LineEntity lineEntity : lineEntities) {
 
+                            for (WordEntity wordEntity : lineEntity.getWords()) {
+                                ComplexBBox bbox = wordEntity.getComplexBBox();
+
+                                if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
+                                    float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
+
+                                    Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
+                                    Rect overlayRect = mapBoundingBoxToOverlay(rect);
+                                    String decodedValue = wordEntity.getText();
+                                    ocrRects.add(overlayRect);
+//
+                                    ocrStrings.add(decodedValue);
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+            if (!barcodeRects.isEmpty())
+                binding.graphicOverlay.add(new BarcodeTrackerGraphic(binding.graphicOverlay, barcodeRects, barcodeStrings));
+            if (!ocrRects.isEmpty())
+                binding.graphicOverlay.add(new OCRGraphic(binding.graphicOverlay, ocrRects, ocrStrings));
         });
     }
 
@@ -759,6 +859,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             return;
         }
         previousSelectedModel = selectedModel;
+        isBarcodeChecked =sharedPreferences.getBoolean(FilterDialog.BARCODE_TRACKER, true);
+        isOCRChecked =sharedPreferences.getBoolean(FilterDialog.OCR_TRACKER, false);
 
         try {
             switch (selectedModel) {
@@ -785,7 +887,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 case ENTITY_ANALYZER:
                     Log.i(TAG, "Using Entity Analyzer");
                     executors.execute(() -> {
-                        barcodeTracker = new BarcodeTracker(this, this, analysisUseCase);
+                        barcodeTracker = new BarcodeTracker(this, this, analysisUseCase, FilterType.getFilterType(isBarcodeChecked, isOCRChecked));
                     });
 
                     break;
@@ -845,8 +947,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 .build();
 
         previewUseCase = builder.build();
-        binding.previewView.setVisibility(isEntityViewFinder ? View.GONE : View.VISIBLE);
-        binding.entityView.setVisibility(isEntityViewFinder ? View.VISIBLE : View.GONE);
+        binding.previewView.setVisibility(isEntityViewFinder ? GONE : VISIBLE);
+        binding.entityView.setVisibility(isEntityViewFinder ? VISIBLE : GONE);
         if (isEntityViewFinder) {
             previewUseCase.setSurfaceProvider(entityViewController.getSurfaceProvider());
         } else {
@@ -872,7 +974,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             initialRotation = currentRotation;
             if (analysisUseCase != null) analysisUseCase.setTargetRotation(currentRotation);
             // check if the device rotation is changes when suspended (0-> 0°, 2 -> 180°)
-            if(initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
+            if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
                 imageWidth = selectedSize.getHeight();
                 imageHeight = selectedSize.getWidth();
             } else {
@@ -897,14 +999,26 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         if (displayManager != null && displayListener != null) {
             displayManager.unregisterDisplayListener(displayListener);
         }
+        // Iterate through the uniqueBarcodeValues Set and log each value
+        Log.d(TAG, "Total barcodes size " + uniqueBarcodeValues.size());
+        for (String value : uniqueBarcodeValues) {
+            Log.d(TAG, "Unique Barcode Value: " + value);
+        }
         super.onDestroy();
 
     }
+
     private void registerDisplayRotationListener() {
         if (displayManager == null) return;
         displayListener = new DisplayManager.DisplayListener() {
-            @Override public void onDisplayAdded(int displayId) {}
-            @Override public void onDisplayRemoved(int displayId) {}
+            @Override
+            public void onDisplayAdded(int displayId) {
+            }
+
+            @Override
+            public void onDisplayRemoved(int displayId) {
+            }
+
             @Override
             public void onDisplayChanged(int displayId) {
                 Display defaultDisplay = getWindowManager().getDefaultDisplay();
@@ -915,7 +1029,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     initialRotation = newRotation;
                     if (analysisUseCase != null) analysisUseCase.setTargetRotation(newRotation);
 
-                    if(initialRotation == ROTATION_0 || initialRotation == ROTATION_180 ) {
+                    if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
                         imageWidth = selectedSize.getHeight();
                         imageHeight = selectedSize.getWidth();
                     } else {
@@ -971,6 +1085,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             binding.graphicOverlay.add(new BarcodeGraphic(binding.graphicOverlay, rects, decodedStrings));
         });
     }
+
     /**
      * Callback method invoked when OCR text detection results are available.
      *

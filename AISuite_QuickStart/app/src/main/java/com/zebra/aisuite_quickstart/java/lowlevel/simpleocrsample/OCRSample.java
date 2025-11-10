@@ -111,6 +111,7 @@ public class OCRSample {
         if (textOCR != null) {
             textOCR.dispose();
             Log.d(TAG, "OCR is disposed");
+            textOCR = null;
         }
     }
 

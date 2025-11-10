@@ -50,7 +50,7 @@ public class OCRGraphic extends GraphicOverlay.Graphic {
      */
     public OCRGraphic(GraphicOverlay overlay, List<Rect> boxes, List<String> decodedStrings) {
         super(overlay);
-        overlay.clear();
+     //   overlay.clear();
 
         // Initialize the paint for drawing bounding boxes
         boxPaint = new Paint();

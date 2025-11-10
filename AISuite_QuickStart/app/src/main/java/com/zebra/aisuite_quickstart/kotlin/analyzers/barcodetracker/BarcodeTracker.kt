@@ -9,7 +9,8 @@ import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InferencerOptions
-import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
+import com.zebra.ai.vision.detector.TextOCR
+import com.zebra.aisuite_quickstart.filtertracker.FilterType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -48,8 +49,9 @@ import java.util.concurrent.Executors
  */
 class BarcodeTracker(
     private val context: Context,
-    private val callback: CameraXLivePreviewActivity,
-    private val imageAnalysis: ImageAnalysis
+    private val callback: DetectionCallback,
+    private val imageAnalysis: ImageAnalysis,
+    filterType: FilterType
 ) {
 
     /**
@@ -62,12 +64,90 @@ class BarcodeTracker(
 
     private val TAG = "EntityTrackerHandler"
     private var barcodeDecoder: BarcodeDecoder? = null
+
+    private var textOCR: TextOCR? = null
     private val executor = Executors.newSingleThreadExecutor()
     private var entityTrackerAnalyzer: EntityTrackerAnalyzer? = null
     private val mavenModelName = "barcode-localizer"
+    private val mavenOCRModelName = "text-ocr-recognizer"
+    private var barcodeInitialized = false
+    private var ocrInitialized = false
 
     init {
-        initializeBarcodeDecoder()
+        if (filterType == FilterType.BOTH) initializeBarcodeDecoderOCR()
+        if (filterType == FilterType.BARCODE) initializeBarcodeDecoder()
+        if (filterType == FilterType.OCR) initializeTextOCR()
+    }
+
+    /**
+     * Initializes the BarcodeDecoder with predefined settings for barcode symbologies
+     * and detection parameters. This method sets up the necessary components for analyzing
+     * and decoding barcodes from image data asynchronously using coroutines.
+     */
+    private fun initializeBarcodeDecoderOCR() {
+        val rpo = arrayOf(
+            InferencerOptions.DSP,
+            InferencerOptions.CPU,
+            InferencerOptions.GPU
+        )
+        val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
+
+            Symbology.CODE39.enable(true)
+            Symbology.CODE128.enable(true)
+
+            detectorSetting.inferencerOptions.apply {
+                runtimeProcessorOrder = rpo
+                defaultDims.height = 640
+                defaultDims.width = 640
+            }
+        }
+        val textOCRSettings = TextOCR.Settings(mavenOCRModelName).apply {
+
+            detectionInferencerOptions.runtimeProcessorOrder = rpo
+            recognitionInferencerOptions.runtimeProcessorOrder = rpo
+            detectionInferencerOptions.defaultDims.apply {
+                height = 640
+                width = 640
+            }
+        }
+
+        val start_Time = System.currentTimeMillis()
+
+        CoroutineScope(executor.asCoroutineDispatcher()).launch {
+            try {
+                val decoderInstance = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
+                barcodeDecoder = decoderInstance
+                barcodeInitialized = true
+                setupTrackerIfReady()
+
+                Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - start_Time} milli sec")
+            }
+            catch (e: AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
+            }
+            catch (e: Exception) {
+                Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
+            }
+        }
+
+        val startTime = System.currentTimeMillis()
+
+        CoroutineScope(executor.asCoroutineDispatcher()).launch {
+            try {
+                val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
+                textOCR = ocrInstance
+                ocrInitialized = true
+                setupTrackerIfReady()
+
+                Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
+            }
+            catch (e: AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
+            }
+            catch (e: Exception) {
+                Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
+            }
+        }
     }
 
     /**
@@ -77,14 +157,13 @@ class BarcodeTracker(
      */
     private fun initializeBarcodeDecoder() {
         val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
+            Symbology.CODE39.enable(true)
+            Symbology.CODE128.enable(true)
             val rpo = arrayOf(
                 InferencerOptions.DSP,
                 InferencerOptions.CPU,
                 InferencerOptions.GPU
             )
-
-            Symbology.CODE39.enable(true)
-            Symbology.CODE128.enable(true)
 
             detectorSetting.inferencerOptions.apply {
                 runtimeProcessorOrder = rpo
@@ -100,14 +179,14 @@ class BarcodeTracker(
                 val decoderInstance = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
                 barcodeDecoder = decoderInstance
                 entityTrackerAnalyzer = EntityTrackerAnalyzer(
-                    listOf(decoderInstance),
+                    listOf(barcodeDecoder),
                     ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL,
                     executor,
                     ::handleEntities
                 )
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer!!)
 
-                Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} milli sec")
+                Log.d(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} milli sec")
             }
             catch (e: AIVisionSDKLicenseException) {
                 Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
@@ -119,7 +198,69 @@ class BarcodeTracker(
     }
 
     /**
-     * Handles the results of the barcode detection by invoking the callback with the result.
+     * Initializes the TextOCR with predefined settings for text detection and recognition.
+     * This method sets up the necessary components for analyzing and recognizing text from
+     * image data asynchronously using coroutines.
+     */
+    private fun initializeTextOCR() {
+        val textOCRSettings = TextOCR.Settings(mavenOCRModelName).apply {
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
+
+            detectionInferencerOptions.runtimeProcessorOrder = rpo
+            recognitionInferencerOptions.runtimeProcessorOrder = rpo
+            detectionInferencerOptions.defaultDims.apply {
+                height = 640
+                width = 640
+            }
+        }
+
+        val startTime = System.currentTimeMillis()
+
+        CoroutineScope(executor.asCoroutineDispatcher()).launch {
+            try {
+                val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
+                textOCR = ocrInstance
+                entityTrackerAnalyzer = EntityTrackerAnalyzer(
+                    listOf(textOCR),
+                    ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL,
+                    executor,
+                    ::handleEntities
+                )
+                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer!!)
+
+                Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
+            }
+            catch (e: AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
+            }
+            catch (e: Exception) {
+                Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Sets up the Tracker if all components (localizer, feature extractor, recognizer) are initialized.
+     */
+    private fun setupTrackerIfReady() {
+        if (barcodeInitialized && ocrInitialized) {
+            entityTrackerAnalyzer = EntityTrackerAnalyzer(
+                listOf(barcodeDecoder, textOCR),
+                ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL,
+                executor,
+                ::handleEntities
+            )
+            imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer!!)
+        }
+    }
+
+
+    /**
+     * Handles the results of the tracker detection by invoking the callback with the result.
      *
      * @param result The result of the barcode detection process.
      */
@@ -128,12 +269,20 @@ class BarcodeTracker(
     }
 
     /**
-     * Stops and disposes of the BarcodeDecoder, releasing any resources held.
-     * This method should be called when barcode detection is no longer needed.
+     * Stops and disposes of the BarcodeDecoder and textOCR, releasing any resources held.
+     * This method should be called when tracker is no longer needed.
      */
     fun stop() {
-        barcodeDecoder?.dispose()
-        Log.d(TAG, "Barcode decoder is disposed")
+        barcodeDecoder?.let {
+            it.dispose()
+            Log.d(TAG, "Barcode decoder is disposed")
+            barcodeDecoder = null
+        }
+        textOCR?.let {
+            it.dispose()
+            Log.v(TAG, "OCR is disposed")
+            textOCR = null
+        }
     }
 
     /**
@@ -143,6 +292,15 @@ class BarcodeTracker(
      */
     fun getBarcodeDecoder(): BarcodeDecoder? {
         return barcodeDecoder
+    }
+
+    /**
+     * Retrieves the current instance of the TextOCR.
+     *
+     * @return The TextOCR instance, or null if not yet initialized.
+     */
+    fun getTextOCR(): TextOCR? {
+        return textOCR
     }
 
     /**

@@ -48,6 +48,15 @@
             android:visibility="visible"
             android:layout_height="wrap_content"
             android:layout_gravity="center" />
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_gravity="center"
+            android:scaleType="centerInside"
+            android:id="@+id/tracker_filter"
+            android:src="@drawable/filter_icon"
+            />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

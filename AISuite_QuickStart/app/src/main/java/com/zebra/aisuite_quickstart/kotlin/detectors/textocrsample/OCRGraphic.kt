@@ -51,7 +51,6 @@ class OCRGraphic(
     private val decodedValues: MutableList<String> = mutableListOf()
 
     init {
-        overlay.clear()
 
         boxes?.let { boundingBoxes.addAll(it) }
         decodedStrings?.let { decodedValues.addAll(it) }

@@ -140,8 +140,11 @@ class EntityBarcodeTracker(
      * This method should be called when barcode detection is no longer needed.
      */
     fun stop() {
-        barcodeDecoder?.dispose()
-        Log.d(TAG, "Barcode decoder is disposed")
+        barcodeDecoder?.let {
+            it.dispose()
+            Log.v(TAG, "Barcode decoder is disposed")
+            barcodeDecoder = null
+        }
     }
 
     /**

@@ -59,7 +59,7 @@ class BarcodeTrackerGraphic(
     private val contentPadding = 25
 
     init {
-        overlay.clear()
+       // overlay.clear()
 
         boxes?.let { boundingBoxes.addAll(it) }
         decodedStrings?.let { decodedValues.addAll(it) }

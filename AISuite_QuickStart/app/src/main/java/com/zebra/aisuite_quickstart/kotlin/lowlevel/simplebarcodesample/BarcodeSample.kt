@@ -123,6 +123,7 @@ class BarcodeSample(
         barcodeDecoder?.let {
             it.dispose()
             Log.v(TAG, "Barcode decoder is disposed")
+            barcodeDecoder = null
         }
     }
 

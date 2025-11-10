@@ -2,12 +2,14 @@
 package com.zebra.aisuite_quickstart.kotlin
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.hardware.camera2.CameraMetadata
 import android.hardware.display.DisplayManager
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.Log
 import android.util.Size
 import android.view.Surface
@@ -24,6 +26,7 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.view.isVisible
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -32,14 +35,15 @@ import com.zebra.ai.vision.detector.BBox
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.Recognizer
 import com.zebra.ai.vision.entity.BarcodeEntity
-import com.zebra.ai.vision.entity.Entity
 import com.zebra.ai.vision.entity.ParagraphEntity
-import com.zebra.ai.vision.internal.detector.Word
+import com.zebra.ai.vision.detector.Word
 import com.zebra.ai.vision.viewfinder.EntityViewController
-import com.zebra.ai.vision.viewfinder.listners.EntityClickListener
 import com.zebra.aisuite_quickstart.CameraXViewModel
 import com.zebra.aisuite_quickstart.R
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding
+import com.zebra.aisuite_quickstart.filtertracker.FilterDialog
+import com.zebra.aisuite_quickstart.filtertracker.FilterItem
+import com.zebra.aisuite_quickstart.filtertracker.FilterType
 import com.zebra.aisuite_quickstart.kotlin.analyzers.barcodetracker.BarcodeTracker
 import com.zebra.aisuite_quickstart.kotlin.analyzers.barcodetracker.BarcodeTrackerGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeAnalyzer
@@ -58,6 +62,7 @@ import com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample.OCRSample
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityBarcodeTracker
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 import com.zebra.aisuite_quickstart.utils.CameraUtil
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
@@ -92,7 +97,7 @@ import kotlin.math.max
  * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
  */
 class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.DetectionCallback,
-    TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
+    TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, BarcodeTracker.DetectionCallback,
     EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback {
 
     private lateinit var binding: ActivityCameraXlivePreviewBinding
@@ -139,6 +144,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var pendingCropRegion: android.graphics.RectF? = null
 
     private var isFrontCamera = false
+    private var sharedPreferences: SharedPreferences?=null
+    private var isBarcodeChecked = true;
+    private var isOCRChecked = false;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -147,6 +155,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
 
         binding = ActivityCameraXlivePreviewBinding.inflate(layoutInflater)
+        sharedPreferences = getSharedPreferences(CommonUtils.PREFS_NAME_KOTLIN, MODE_PRIVATE);
         val cameraFacing = CameraUtil.getPreferredCameraFacing(this)
         cameraSelector = if (cameraFacing == CameraMetadata.LENS_FACING_BACK) {
             // Set up the camera to use the back camera
@@ -203,6 +212,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 selectedModel = adapterView.getItemAtPosition(pos).toString()
                 isEntityViewFinder = selectedModel == ENTITY_VIEW_FINDER
                 Log.e(tag, "selected option is $selectedModel")
+                binding.trackerFilter.isVisible = TextUtils.equals(selectedModel, ENTITY_ANALYZER)
 
                 // Lock orientation when Entity Viewfinder is selected
                 if (isEntityViewFinder) {
@@ -272,6 +282,25 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
         entityViewController?.let { controller ->
             entityViewGraphic = EntityViewGraphic(controller)
+        }
+         binding.trackerFilter.setOnClickListener{
+            val dialog = FilterDialog(this@CameraXLivePreviewActivity)
+            dialog.setCallback{ filters ->
+                val editor = sharedPreferences?.edit()
+                isBarcodeChecked = filters[0].isChecked
+                isOCRChecked = filters[1].isChecked
+                for (option in filters) {
+                    editor?.putBoolean(option.title, option.isChecked)
+                }
+                editor?.apply()
+                binding.graphicOverlay.clear()
+                stopAnalyzing()
+                unBindCameraX()
+                disposeModels()
+                bindPreviewUseCase()
+                bindAnalysisUseCase()
+            }
+            dialog.show()
         }
     }
 
@@ -438,22 +467,32 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             val decodedStrings = mutableListOf<String>()
             binding.graphicOverlay.clear()
             for (entity in list) {
-                val lines = entity.textParagraph.lines
+                val lines = entity.lines
                 for (line in lines) {
                     for (word in line.words) {
-                        if (word.decodes.isNotEmpty()) {
-                            val bbox = word.bbox
+                        if (word.text.isNotEmpty()) {
+                            val bbox = word.complexBBox
 
                             if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
-                                val minX = bbox.x[0]
-                                val maxX = bbox.x[2]
-                                val minY = bbox.y[0]
-                                val maxY = bbox.y[2]
+                                var minX = bbox.x[0]
+                                var maxX = bbox.x[2]
+                                var minY = bbox.y[0]
+                                var maxY = bbox.y[2]
+                                if (minX > maxX) {
+                                    val temp = minX
+                                    minX = maxX
+                                    maxX = temp
+                                }
+                                if (minY > maxY) {
+                                    val temp = minY
+                                    minY = maxY
+                                    maxY = temp
+                                }
 
                                 val rect =
                                     Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
                                 val overlayRect = mapBoundingBoxToOverlay(rect)
-                                val decodedValue = word.decodes[0].content
+                                val decodedValue = word.text
                                 rects.add(overlayRect)
                                 decodedStrings.add(decodedValue)
                             }
@@ -479,6 +518,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
 
         previousSelectedModel = selectedModel
+        isBarcodeChecked = sharedPreferences!!.getBoolean(FilterDialog.BARCODE_TRACKER, true)
+        isOCRChecked = sharedPreferences!!.getBoolean(FilterDialog.OCR_TRACKER, false)
 
         try {
             when (selectedModel) {
@@ -511,7 +552,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 ENTITY_ANALYZER -> {
                     Log.i(tag, "Using Entity Analyzer")
                     executors.execute {
-                        analysisUseCase?.let { barcodeTracker = BarcodeTracker(this, this, it) }
+                        analysisUseCase?.let { barcodeTracker = BarcodeTracker(this, this, it, FilterType.getFilterType(isBarcodeChecked, isOCRChecked)) }
                     }
                 }
 
@@ -645,22 +686,31 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     }
 
     // Handles entity tracking results and updates the graphical overlay
-    fun handleEntities(result: EntityTrackerAnalyzer.Result) {
+    override fun handleEntities(result: EntityTrackerAnalyzer.Result) {
         // Use lifecycleScope to launch a coroutine
         lifecycleScope.launch(Dispatchers.Main) {
-            val rects = mutableListOf<Rect>()
-            val decodedStrings = mutableListOf<String>()
-            val entities = barcodeTracker?.getBarcodeDecoder()?.let { result.getValue(it) }
+            val barcodeRects = mutableListOf<Rect>()
+            val barcodeStrings = mutableListOf<String>()
+            val ocrRects = mutableListOf<Rect>()
+            val ocrStrings = mutableListOf<String>()
+
+            // Get barcode entities
+            val barcodeEntities = barcodeTracker?.getBarcodeDecoder()?.let { result.getValue(it) }
+
+            // Get OCR entities
+            val ocrEntities = barcodeTracker?.getTextOCR()?.let { result.getValue(it) }
+
             binding.graphicOverlay.clear()
 
-            if (entities != null) {
-                for (entity in entities) {
+            // Process barcode entities
+            if (barcodeEntities != null) {
+                for (entity in barcodeEntities) {
                     if (entity is BarcodeEntity) {
                         val bEntity = entity
                         val rect = bEntity.boundingBox
                         if (rect != null) {
                             val overlayRect = mapBoundingBoxToOverlay(rect)
-                            rects.add(overlayRect)
+                            barcodeRects.add(overlayRect)
                             var hashCode = bEntity.hashCode().toString()
 
                             // Ensure the string has at least 4 characters
@@ -668,22 +718,63 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                                 // Get the last four digits
                                 hashCode = hashCode.substring(hashCode.length - 4)
                             }
-                            decodedStrings.add("$hashCode:${bEntity.value}")
+                            barcodeStrings.add("$hashCode:${bEntity.value}")
                         }
 
-                        Log.d(tag, "Detected entity - Value: ${bEntity.value}")
+                        Log.d(tag, "Detected barcode entity - Value: ${bEntity.value}")
                     }
                 }
             }
 
+            // Process OCR entities
+            if (ocrEntities != null) {
+                for (entity in ocrEntities) {
+                    if (entity is ParagraphEntity) {
+                        val lines = entity.lines
+                        for (line in lines) {
+                            for (word in line.words) {
+                                val bbox = word.complexBBox
 
-            binding.graphicOverlay.add(
-                BarcodeTrackerGraphic(
-                    binding.graphicOverlay,
-                    rects,
-                    decodedStrings
+                                if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
+                                    val minX = bbox.x[0]
+                                    val maxX = bbox.x[2]
+                                    val minY = bbox.y[0]
+                                    val maxY = bbox.y[2]
+
+                                    val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+                                    val overlayRect = mapBoundingBoxToOverlay(rect)
+                                    val decodedValue = word.text
+                                    ocrRects.add(overlayRect)
+                                    ocrStrings.add(decodedValue)
+                                }
+                            }
+                        }
+                        Log.d(tag, "Detected OCR entity - Text: ${entity.text}")
+                    }
+                }
+            }
+
+            // Add graphics for barcodes
+            if (barcodeRects.isNotEmpty()) {
+                binding.graphicOverlay.add(
+                    BarcodeTrackerGraphic(
+                        binding.graphicOverlay,
+                        barcodeRects,
+                        barcodeStrings
+                    )
                 )
-            )
+            }
+
+            // Add graphics for OCR
+            if (ocrRects.isNotEmpty()) {
+                binding.graphicOverlay.add(
+                    OCRGraphic(
+                        binding.graphicOverlay,
+                        ocrRects,
+                        ocrStrings
+                    )
+                )
+            }
         }
     }
 

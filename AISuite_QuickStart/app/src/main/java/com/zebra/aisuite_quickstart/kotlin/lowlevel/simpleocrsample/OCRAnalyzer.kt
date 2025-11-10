@@ -6,7 +6,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.ai.vision.detector.TextOCR
-import com.zebra.ai.vision.internal.detector.Word
+import com.zebra.ai.vision.detector.Word
 import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
