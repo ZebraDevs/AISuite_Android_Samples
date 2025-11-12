@@ -150,11 +150,15 @@ class ProductEnrollmentRecognition(
      * the best fitting product from the database.
      * We use only products with greater than 0.8 confidence from product recognition.
      */
-    fun execute(bitmap: Bitmap) {
+    fun execute(bitmap: Bitmap, isCapturedUseCase: Boolean = false) {
         if (bitmap != null) {
             val bboxes = executeRetailShelfLocalization(bitmap)
             if (bboxes != null) {
-                executeProductRecognition(bitmap, bboxes)
+                executeProductRecognition(
+                    bitmap = bitmap,
+                    bboxes = bboxes,
+                    isCapturedUseCase = isCapturedUseCase
+                )
             }
         }
     }
@@ -427,9 +431,19 @@ class ProductEnrollmentRecognition(
      * from the database.
      * We use only products with greater than 0.8 confidence from product recognition.
      */
-    private fun executeProductRecognition(bitmap: Bitmap?, bboxes: Array<BBox>) {
+    private fun executeProductRecognition(
+        bitmap: Bitmap?,
+        bboxes: Array<BBox>,
+        isCapturedUseCase: Boolean
+    ) {
         Log.i(TAG, "executeProductRecognition")
         if (recognizer == null) {
+
+            // When no Product Database is found, the recognizer won't execute, resulted in empty productResultsList.
+            // hence let's create a productResultsList assuming product SKU as empty
+            if (isCapturedUseCase) {
+                updateProductResults(prepareProductDataList(bBoxes = bboxes, bitmap = bitmap!!))
+            }
             return
         } // empty db
 
@@ -439,26 +453,57 @@ class ProductEnrollmentRecognition(
         val products: Array<BBox> = bboxes.filter { it.cls == 1 }.toTypedArray()
         Log.i(TAG, "Products - ${products.size}")
 
-        val descriptors = extractor?.generateDescriptors(products, bitmap, executorService)?.get()
+        if (products.isNotEmpty()) {
+            try {
+                val descriptors =
+                    extractor?.generateDescriptors(products, bitmap, executorService)?.get()
 
-        val elapsed = timeSource.markNow() - mark
-        Log.d(TAG, "Extractor - ${elapsed}")
-        descriptors?.let {
-            val mark2 = timeSource.markNow()
-            val recognitions = recognizer?.findRecognitions(descriptors, executorService)?.get()
-            Log.i(TAG, "Recognitions - ${recognitions?.size}")
+                val elapsed = timeSource.markNow() - mark
+                Log.d(TAG, "Extractor - ${elapsed}")
+                descriptors?.let {
+                    val mark2 = timeSource.markNow()
+                    val recognitions =
+                        recognizer?.findRecognitions(descriptors, executorService)?.get()
+                    Log.i(TAG, "Recognitions - ${recognitions?.size}")
 
-            recognitions?.let { it1 ->
-                toProductData(
-                    bitmap!!, products,
-                    it1
-                )
-            }?.let { it2 ->
-                updateProductResults(it2)
+                    recognitions?.let { it1 ->
+                        toProductData(
+                            bitmap!!, products,
+                            it1
+                        )
+                    }?.let { it2 ->
+                        updateProductResults(it2)
+                    }
+                    val elapsed2 = timeSource.markNow() - mark2
+                    Log.d(TAG, "Recognizer - ${elapsed2}")
+                }
+            } catch (e: InvalidInputException) {
+                Log.e(TAG, "Exception = ${e.message}")
             }
-            val elapsed2 = timeSource.markNow() - mark2
-            Log.d(TAG, "Recognizer - ${elapsed2}")
+        } else {
+            updateProductResults(null)
         }
+    }
+
+    private fun prepareProductDataList(bBoxes : Array<BBox>, bitmap: Bitmap): MutableList<ProductData> {
+        val productDataList = mutableListOf<ProductData>()
+        bBoxes.filter { it.cls == 1 }.forEach { productBbox ->
+            productDataList.add(
+                ProductData(
+                    bBox = productBbox,
+                    text = "",
+                    crop =
+                        Bitmap.createBitmap(
+                            bitmap,
+                            productBbox.xmin.toInt(),
+                            productBbox.ymin.toInt(),
+                            (productBbox.xmax - productBbox.xmin).toInt(),
+                            (productBbox.ymax - productBbox.ymin).toInt()
+                        )
+                )
+            )
+        }
+        return productDataList
     }
 
     private fun checkUpdateModelDemoReady(ready: Boolean) {
@@ -471,7 +516,7 @@ class ProductEnrollmentRecognition(
         }
     }
 
-    fun updateProductResults(results: MutableList<ProductData>) {
+    fun updateProductResults(results: MutableList<ProductData>?) {
         viewModel.updateProductRecognitionResult(results = results)
     }
 
@@ -494,7 +539,7 @@ class ProductEnrollmentRecognition(
     fun executeHighRes(highResBitmap: Bitmap) {
         while (!isAnalyzing) {
         }
-        execute(bitmap = highResBitmap)
+        execute(bitmap = highResBitmap, isCapturedUseCase = true)
     }
 
     fun startPreviewAnalysis() {

@@ -2,20 +2,12 @@
 
 package com.zebra.aidatacapturedemo.model
 
-import android.graphics.Rect
 import android.util.Log
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import com.zebra.ai.vision.detector.AIVisionSDKException
-import com.zebra.ai.vision.detector.ImageData
-import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.ai.vision.detector.TextOCR
-import com.zebra.ai.vision.entity.ParagraphEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.OCRFilterData
 import com.zebra.aidatacapturedemo.data.OCRFilterType
 import com.zebra.aidatacapturedemo.data.PROFILING
-import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -32,101 +24,20 @@ import java.util.concurrent.Executors
 class TextOCRAnalyzer(
     val uiState: StateFlow<AIDataCaptureDemoUiState>,
     val viewModel: AIDataCaptureDemoViewModel
-) :
-    ImageAnalysis.Analyzer {
-
-    private lateinit var mOCRFilterTypeData: OCRFilterData
+) {
     private val TAG = "TextOCRAnalyzer"
 
     private var textOCR: TextOCR? = null
     private val textOCRSettings = TextOCR.Settings("text-ocr-recognizer")
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
-    private var isAnalyzing = true
+
 
     init {
-        mOCRFilterTypeData = if (uiState.value.usecaseSelected == UsecaseState.OCR.value) {
-            OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
-        } else {
-            when (uiState.value.selectedOcrFilterType) {
-                OCRFilterType.SHOW_ALL -> {
-                    OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
-                }
-
-                OCRFilterType.NUMERIC_CHARACTERS_ONLY -> {
-                    OCRFilterData(
-                        ocrFilterType = OCRFilterType.NUMERIC_CHARACTERS_ONLY,
-                        charLengthMin = uiState.value.selectedNumericCharSliderValues.start.toInt(),
-                        charLengthMax = uiState.value.selectedNumericCharSliderValues.endInclusive.toInt()
-                    )
-                }
-
-                OCRFilterType.ALPHA_CHARACTERS_ONLY -> {
-                    OCRFilterData(
-                        ocrFilterType = OCRFilterType.ALPHA_CHARACTERS_ONLY,
-                        charLengthMin = uiState.value.selectedAlphaCharSliderValues.start.toInt(),
-                        charLengthMax = uiState.value.selectedAlphaCharSliderValues.endInclusive.toInt()
-                    )
-                }
-
-                OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY -> {
-                    OCRFilterData(
-                        ocrFilterType = OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY,
-                        charLengthMin = uiState.value.selectedAlphaNumericCharSliderValues.start.toInt(),
-                        charLengthMax = uiState.value.selectedAlphaNumericCharSliderValues.endInclusive.toInt()
-                    )
-                }
-
-                OCRFilterType.EXACT_MATCH -> {
-                    OCRFilterData(
-                        ocrFilterType = OCRFilterType.EXACT_MATCH,
-                        exactMatchString = uiState.value.selectedExactMatchString
-                    )
-                }
-            }
+        // When user select OCR Recognizer Use case, always choose SHOW_ALL OCR filter
+        if (uiState.value.usecaseSelected == UsecaseState.OCR.value){
+            uiState.value.selectedOCRFilterData = OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
         }
     }
-
-    override fun analyze(image: ImageProxy) {
-        if (textOCR == null) {
-            Log.e(TAG, "OCR is null")
-            image.close()
-            return
-        }
-        if (!isAnalyzing) {
-            image.close()
-            return
-        }
-
-        isAnalyzing = false // Set to false to prevent re-entry
-
-        executorService.submit {
-            try {
-                Log.d(TAG, "Starting image analysis")
-                textOCR?.process(ImageData.fromImageProxy(image))
-                    ?.thenAccept { result ->
-                        onDetectionTextResult(result)
-                        image.close()
-                    }
-            } catch (e: InvalidInputException) {
-                Log.e(TAG, e.message ?: "InvalidInputException occurred")
-                image.close()
-            } catch (e: AIVisionSDKException) {
-                Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
-                image.close()
-            } finally {
-                isAnalyzing = true
-            }
-        }
-    }
-
-    fun startAnalyzing() {
-        isAnalyzing = true
-    }
-
-    fun stopAnalyzing() {
-        isAnalyzing = false
-    }
-
     fun initialize() {
         try {
             textOCR?.dispose()
@@ -164,6 +75,10 @@ class TextOCRAnalyzer(
         textOCR = null
     }
 
+    fun getDetector() : TextOCR? {
+        return textOCR
+    }
+
     private fun configure() {
         try {
             if (uiState.value.usecaseSelected == UsecaseState.OCRFind.value) {
@@ -179,6 +94,7 @@ class TextOCRAnalyzer(
                         }
                     }
                 textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = processorOrder
+                textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = processorOrder
 
                 textOCRSettings.decodingTotalProbThreshold = 0F
 
@@ -199,6 +115,7 @@ class TextOCRAnalyzer(
                         }
                     }
                 textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = processorOrder
+                textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = processorOrder
 
                 textOCRSettings.decodingTotalProbThreshold = 0F
 
@@ -269,56 +186,6 @@ class TextOCRAnalyzer(
         } catch (e: Exception) {
             Log.e(TAG, "Fatal error: configure failed - ${e.message}")
         }
-    }
-
-    private fun onDetectionTextResult(list: List<ParagraphEntity>) {
-        val outputOCRResultData = mutableListOf<ResultData>()
-        for (entity in list) {
-            val lines = entity.textParagraph.lines
-            for (line in lines) {
-                for (word in line.words) {
-                    val bbox = word.bbox
-
-                    if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
-                        val minX = bbox.x[0]
-                        val maxX = bbox.x[2]
-                        val minY = bbox.y[0]
-                        val maxY = bbox.y[2]
-
-                        val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
-                        val decodedValue = word.decodes[0].content
-                        outputOCRResultData.add(
-                            ResultData(
-                                boundingBox = rect,
-                                text = decodedValue
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        updateOcrResultData(
-            results = TextOCRUtils.toFilteredByType(
-                ocrFilterTypeData = mOCRFilterTypeData,
-                outputOCRResultData = outputOCRResultData
-            )
-        )
-    }
-
-    fun updateOcrResultData(results: List<ResultData>) {
-        viewModel.updateOcrResultData(results = results)
-    }
-
-    /**
-     * Setter Function to communicate any runtime FilterType option changes.
-     *
-     * @param ocrFilterTypeData - Selected OCRFilterData option
-     *
-     * @return null
-     */
-    fun setOCRFilterType(ocrFilterTypeData: OCRFilterData) {
-        mOCRFilterTypeData = ocrFilterTypeData
     }
 
     private fun updateModelDemoReady(isReady: Boolean) {

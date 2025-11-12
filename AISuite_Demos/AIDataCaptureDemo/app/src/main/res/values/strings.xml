@@ -104,6 +104,8 @@
     <string name="instruction_enrolling_into_db">Enrolling into active Database. Please wait</string>
     <string name="instruction_3">These settings should only be modified by power users</string>
     <string name="instruction_4">Visit Techdocs for information on the advanced settings ></string>
+    <string name="instruction_5">No products found. Please recapture the image</string>
+    <string name="instruction_6">Camera Start Failed, lower resolution settings or restore defaults</string>
 
     <string name="importdb_description">Allows you to select and load a previously saved database of enrolled products from a file, allowing you to start recognizing products without the need to enroll them. </string>
     <string name="exportdb_description">Saves your current enrolled products as a file to your device’s “Download” directory or SD card, making it easy to backup or share your Active Database.</string>
@@ -191,4 +193,7 @@
     <string name="ocr_alphacharacters">Alpha Characters</string>
     <string name="ocr_alphanumericcharacters">Alpha Numeric Characters</string>
     <string name="ocr_exactmatch">Exact Match</string>
+    <string name="ocr_starts_with">Starts With</string>
+    <string name="ocr_contains">Contains</string>
+    <string name="ocr_regex">Regex</string>
 </resources>

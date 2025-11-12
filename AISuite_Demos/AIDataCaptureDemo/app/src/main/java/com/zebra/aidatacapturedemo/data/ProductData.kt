@@ -13,7 +13,7 @@ import com.zebra.ai.vision.detector.Recognizer.Recognition
  * @param bBox: BBox
  * @param crop: Bitmap
  */
-class ProductData(var point: Point, var text: String, var bBox: BBox, var crop : Bitmap) {}
+class ProductData(var text: String, var bBox: BBox, var crop : Bitmap)
 
 /**
  * toProductData function used to convert input bitmap, products and recognitions to product data
@@ -29,7 +29,6 @@ fun toProductData(inputBitmap:Bitmap, products: Array<BBox>, recognitions: Array
             (products[i].ymin.toInt() + (products[i].ymax - products[i].ymin).toInt() < inputBitmap.height)) {
             if (recognitions[i].similarity.first() > 0.80) {
                 ProductData += ProductData(
-                    Point(products[i].xmin.toInt(), products[i].ymin.toInt()),
                     recognitions[i].sku.first(),
                     products[i],
                     Bitmap.createBitmap(
@@ -42,7 +41,6 @@ fun toProductData(inputBitmap:Bitmap, products: Array<BBox>, recognitions: Array
                 )
             } else {
                 ProductData += ProductData(
-                    Point(products[i].xmin.toInt(), products[i].ymin.toInt()),
                     "",
                     products[i],
                     Bitmap.createBitmap(

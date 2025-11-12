@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.util.Log
 import android.util.Size
@@ -16,13 +18,13 @@ import android.widget.Toast
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.CameraSelector.DEFAULT_BACK_CAMERA
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
-import androidx.camera.core.SurfaceRequest
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
@@ -47,6 +49,7 @@ import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
 import com.zebra.aidatacapturedemo.data.CommonSettings
 import com.zebra.aidatacapturedemo.data.OCRFilterData
+import com.zebra.aidatacapturedemo.data.OCRFilterType
 import com.zebra.aidatacapturedemo.data.OcrFindSettings
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
@@ -54,15 +57,15 @@ import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.RetailShelfSettings
 import com.zebra.aidatacapturedemo.data.TextOcrSettings
 import com.zebra.aidatacapturedemo.data.UsecaseState
-import com.zebra.aidatacapturedemo.model.BarcodeEntityTrackerAnalyzer
+import com.zebra.aidatacapturedemo.model.BarcodeAnalyzer
 import com.zebra.aidatacapturedemo.model.FileUtils
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.databaseFile
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.mCacheDir
+import com.zebra.aidatacapturedemo.model.GenericEntityTrackerAnalyzer
 import com.zebra.aidatacapturedemo.model.ProductEnrollmentRecognition
 import com.zebra.aidatacapturedemo.model.RetailShelfAnalyzer
 import com.zebra.aidatacapturedemo.model.TextOCRAnalyzer
 import com.zebra.aidatacapturedemo.ui.view.Screen
-import com.zebra.aidatacapturedemo.ui.view.Variables.highResolutionCaptureImageSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -82,6 +85,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 private const val TAG = "AIDataCaptureDemoViewModel"
+private const val CAMERA_TAG = "AIDCDemo_CameraProp"
 
 /**
  * ViewModel class for the AIDataCaptureDemo
@@ -99,21 +103,17 @@ class AIDataCaptureDemoViewModel(
 
     private var executor: Executor? = null
 
-    // Used to set up a link between the Camera and UI View.
-    private val _surfaceRequest = MutableStateFlow<SurfaceRequest?>(null)
-    val surfaceRequest: StateFlow<SurfaceRequest?> = _surfaceRequest
-
-    private lateinit var resolutionSelector: ResolutionSelector
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
     private var analysisUseCase: ImageAnalysis? = null
     private lateinit var imageCaptureResolutionSelector: ResolutionSelector
-    private var imageCapture : ImageCapture? = null
+    private var imageCapture: ImageCapture? = null
 
     private var ocrAnalyzer: TextOCRAnalyzer? = null
     private var retailShelfAnalyzer: RetailShelfAnalyzer? = null
-    private var barcodeEntityTrackerAnalyzer: BarcodeEntityTrackerAnalyzer? = null
+    private var barcodeAnalyzer: BarcodeAnalyzer? = null
+    private var genericEntityTrackerAnalyzer : GenericEntityTrackerAnalyzer? = null
     private var productEnrollmentRecognition: ProductEnrollmentRecognition? = null
 
     companion object {
@@ -147,13 +147,18 @@ class AIDataCaptureDemoViewModel(
     fun initModel() {
         CoroutineScope(executor!!.asCoroutineDispatcher()).launch {
 
+            if(genericEntityTrackerAnalyzer == null) {
+                genericEntityTrackerAnalyzer =
+                    GenericEntityTrackerAnalyzer(uiState, viewModel = this@AIDataCaptureDemoViewModel)
+            }
+
             when (uiState.value.usecaseSelected) {
                 UsecaseState.Barcode.value -> {
-                    barcodeEntityTrackerAnalyzer = BarcodeEntityTrackerAnalyzer(
+                    barcodeAnalyzer = BarcodeAnalyzer(
                         uiState = uiState,
                         viewModel = this@AIDataCaptureDemoViewModel
                     )
-                    barcodeEntityTrackerAnalyzer?.initialize()
+                    barcodeAnalyzer?.initialize()
                 }
 
                 UsecaseState.Retail.value -> {
@@ -192,8 +197,8 @@ class AIDataCaptureDemoViewModel(
     fun deinitModel() {
         when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
-                barcodeEntityTrackerAnalyzer?.deinitialize()
-                barcodeEntityTrackerAnalyzer = null
+                barcodeAnalyzer?.deinitialize()
+                barcodeAnalyzer = null
             }
 
             UsecaseState.Retail.value -> {
@@ -212,6 +217,7 @@ class AIDataCaptureDemoViewModel(
                 ocrAnalyzer = null
             }
         }
+        genericEntityTrackerAnalyzer = null
     }
 
     /**
@@ -233,7 +239,7 @@ class AIDataCaptureDemoViewModel(
 
             UsecaseState.OCRFind.value,
             UsecaseState.OCR.value -> {
-                ocrAnalyzer?.startAnalyzing()
+
             }
         }
     }
@@ -257,7 +263,7 @@ class AIDataCaptureDemoViewModel(
 
             UsecaseState.OCRFind.value,
             UsecaseState.OCR.value -> {
-                ocrAnalyzer?.stopAnalyzing()
+
             }
         }
     }
@@ -265,7 +271,7 @@ class AIDataCaptureDemoViewModel(
     @SuppressLint("ClickableViewAccessibility")
     public fun setupCameraController(
         previewView: PreviewView,
-        cameraPreviewResolution: Size,
+        analysisUseCaseCameraResolution: Size,
         lifecycleOwner: LifecycleOwner,
         activityLifecycle: Lifecycle
     ) {
@@ -274,11 +280,36 @@ class AIDataCaptureDemoViewModel(
             try {
                 cameraProvider = cameraProviderFuture.get()
 
+                printCameraSupportedResolution()
+                val isBackCameraAvailable = hasBackCamera(cameraProvider = cameraProvider!!)
+                Log.d(TAG, "isBackCameraAvailable = $isBackCameraAvailable")
+
+                val selectedCameraLensFacing = if (isBackCameraAvailable) {
+                    CameraSelector.LENS_FACING_BACK
+                } else {
+                    CameraSelector.LENS_FACING_FRONT
+                }
+
                 val cameraSelector = CameraSelector.Builder()
-                    .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                    .requireLensFacing(selectedCameraLensFacing)
                     .build()
 
-                resolutionSelector = ResolutionSelector.Builder()
+                // PREVIEW USE CASE
+                val previewUsecaseResolutionSelector = ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                        AspectRatioStrategy(
+                            AspectRatio.RATIO_16_9,
+                            AspectRatioStrategy.FALLBACK_RULE_NONE
+                        )
+                    )
+                    .build()
+
+                val previewUsecase =
+                    Preview.Builder().setResolutionSelector(previewUsecaseResolutionSelector)
+                        .build()
+
+                // ANALYSIS USE CASE
+                val analysisUsecaseResolutionSelector = ResolutionSelector.Builder()
                     .setAspectRatioStrategy(
                         AspectRatioStrategy(
                             AspectRatio.RATIO_16_9,
@@ -287,50 +318,64 @@ class AIDataCaptureDemoViewModel(
                     )
                     .setResolutionStrategy(
                         ResolutionStrategy(
-                            cameraPreviewResolution,
+                            analysisUseCaseCameraResolution,
                             ResolutionStrategy.FALLBACK_RULE_NONE
                         )
                     ).build()
-
-                imageCaptureResolutionSelector = ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(
-                        AspectRatioStrategy(
-                            AspectRatio.RATIO_16_9,
-                            AspectRatioStrategy.FALLBACK_RULE_NONE
-                        )
-                    )
-                    .setResolutionStrategy(
-                        ResolutionStrategy(
-                            Size(
-                                highResolutionCaptureImageSize.width,
-                                highResolutionCaptureImageSize.height
-                            ),
-                            ResolutionStrategy.FALLBACK_RULE_NONE
-                        )
-                    ).build()
-
-                imageCapture = ImageCapture.Builder()
-                    .setResolutionSelector(imageCaptureResolutionSelector)
-                    .setCaptureMode(CAPTURE_MODE_MAXIMIZE_QUALITY).build()
 
                 analysisUseCase = ImageAnalysis.Builder()
-                    .setResolutionSelector(resolutionSelector)
+                    .setResolutionSelector(analysisUsecaseResolutionSelector)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-
-                val previewUsecase = Preview.Builder().build()
 
                 // Set the appropriate analyzer based on the selectedUsecase
                 setAnalyzer(activityLifecycle)
                 cameraProvider?.unbindAll()
-                camera = cameraProvider?.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    previewUsecase,
-                    imageCapture,
-                    analysisUseCase
-                )
+
+                // Bind an additional Capture Use Case only for Product Recognition UsecaseState
+                camera = if (uiState.value.usecaseSelected == UsecaseState.Product.value) {
+                    // HIGH-RES CAPTURE CASE
+                    imageCaptureResolutionSelector = ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(
+                            AspectRatioStrategy(
+                                AspectRatio.RATIO_16_9,
+                                AspectRatioStrategy.FALLBACK_RULE_NONE
+                            )
+                        )
+                        .build()
+
+                    imageCapture = ImageCapture.Builder()
+                        .setResolutionSelector(imageCaptureResolutionSelector)
+                        .setCaptureMode(CAPTURE_MODE_MAXIMIZE_QUALITY).build()
+
+                    cameraProvider?.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        previewUsecase,
+                        imageCapture,
+                        analysisUseCase
+                    )
+                } else {
+                    cameraProvider?.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        previewUsecase,
+                        analysisUseCase
+                    )
+                }
                 previewUsecase.setSurfaceProvider(previewView.surfaceProvider)
+
+                updateCameraReady(true)
+
+                val previewUseCaseSize = previewUsecase.attachedSurfaceResolution ?: Size(0, 0)
+                Log.d(TAG, "Attached PreviewUsecase Resolution = $previewUseCaseSize")
+
+                val analysisUseCaseSize = analysisUseCase?.attachedSurfaceResolution ?: Size(0, 0)
+                Log.d(TAG, "Attached analysisUsecase Resolution = $analysisUseCaseSize")
+
+                val imageCaptureUseCaseSize = imageCapture?.attachedSurfaceResolution ?: Size(0, 0)
+                Log.d(TAG, "Attached imageCaptureUsecase Resolution = $imageCaptureUseCaseSize")
+
 
                 //Pinch to Zoom handling
                 val scaleGestureDetector = ScaleGestureDetector(
@@ -361,10 +406,128 @@ class AIDataCaptureDemoViewModel(
                     true // Indicate that the event was consumed
                 }
 
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "IllegalArgumentException while setting up the camera. Exception = ${e.message}")
+                e.message?.let {
+                    if (it.contains("May be attempting to bind too many use cases") ||
+                        it.contains("No available output size is found")
+                    ) {
+                        val errorMessage = getString(context, R.string.instruction_6)
+                        toast(toastString = errorMessage)
+                        updateCameraErrorMessage(errorMessage = errorMessage)
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, " Exception while setting up the camera : ${e.message}")
             }
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    private fun printCameraSupportedResolution() {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
+        Log.d(CAMERA_TAG, "Printing Camera's supported Resolutions:")
+        cameraManager.cameraIdList.forEach { cameraId ->
+            cameraId?.let { it ->
+
+
+                Log.d(CAMERA_TAG, "cameraId = $it")
+                val characteristics = cameraManager.getCameraCharacteristics(it)
+
+                val facing = characteristics.get<Int?>(CameraCharacteristics.LENS_FACING)
+
+                if (facing != null) {
+                    when (facing) {
+                        CameraCharacteristics.LENS_FACING_FRONT -> {
+                            Log.d(CAMERA_TAG, "Camera facing = front-facing camera")
+                        }
+
+                        CameraCharacteristics.LENS_FACING_BACK -> {
+                            Log.d(CAMERA_TAG, "Camera facing = back-facing camera")
+                        }
+
+                        CameraCharacteristics.LENS_FACING_EXTERNAL -> {
+                            Log.d(CAMERA_TAG, "Camera facing = external camera")
+                        }
+                    }
+                }
+                val configMap =
+                    characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+
+                android.graphics.ImageFormat.PRIVATE
+                configMap?.outputFormats?.forEach { format ->
+
+                    val formatName = when (format) {
+                        1144402265 -> "DEPTH16"
+                        1768253795 -> "DEPTH_JPEG"
+                        257 -> "DEPTH_POINT_CLOUD"
+                        42 -> "FLEX_RGBA_8888"
+                        41 -> "FLEX_RGB_888"
+                        1212500294 -> "HEIC"
+                        4102 -> "HEIC_ULTRAHDR"
+                        256 -> "JPEG"
+                        4101 -> "JPEG_R"
+                        16 -> "NV16"
+                        17 -> "NV21"
+                        34 -> "PRIVATE"
+                        37 -> "RAW10"
+                        38 -> "RAW12"
+                        36 -> "RAW_PRIVATE"
+                        32 -> "RAW_SENSOR"
+                        4 -> "RGB_565"
+                        0 -> "UNKNOWN"
+                        538982489 -> "Y8"
+                        54 -> "YCBCR_P010"
+                        60 -> "YCBCR_P210"
+                        35 -> "YUV_420_888"
+                        39 -> "YUV_422_888"
+                        40 -> "YUV_444_888"
+                        20 -> "YUY2"
+                        842094169 -> "YV12"
+                        else -> "N/A"
+                    }
+                    Log.d(CAMERA_TAG, "Format = $formatName")
+                    Log.d(CAMERA_TAG, "Supported Preview Size:")
+                    val previewSizes: Array<Size>? = configMap?.getOutputSizes(format)
+                    previewSizes?.forEach { size ->
+                        val aspectRatio = size.width.toFloat() / size.height.toFloat()
+                        val mp = (size.width.toFloat() * size.height.toFloat()) / 1000000
+                        Log.d(
+                            CAMERA_TAG,
+                            "${size.width}x${size.height}, Ratio : ${aspectRatio}, MP : $mp"
+                        )
+                    }
+
+                    Log.d(CAMERA_TAG, "Supported HigRes Size:")
+                    val highResSizes: Array<Size>? = configMap?.getHighResolutionOutputSizes(format)
+                    highResSizes?.forEach { size ->
+                        val aspectRatio = size.width.toFloat() / size.height.toFloat()
+                        val mp = (size.width.toFloat() * size.height.toFloat()) / 1000000
+                        Log.d(
+                            CAMERA_TAG,
+                            "${size.width}x${size.height}, Ratio : ${aspectRatio}, MP : $mp"
+                        )
+                    }
+                }
+
+                // Get supported high-resolution capture sizes
+                val captureSizes: Array<Size>? =
+                    configMap?.getHighResolutionOutputSizes(android.graphics.ImageFormat.JPEG)
+                Log.d(CAMERA_TAG, "Supported High-Resolution Capture Sizes:")
+                captureSizes?.forEach { size ->
+                    Log.d(CAMERA_TAG, "Capture resolution: ${size.width}x${size.height}")
+                }
+            }
+        }
+    }
+
+    private fun hasBackCamera(cameraProvider: ProcessCameraProvider): Boolean {
+        return try {
+            cameraProvider.hasCamera(DEFAULT_BACK_CAMERA)
+        } catch (e: Exception) {
+            // A camera may not be available for the requested selector
+            false
+        }
     }
 
     /**
@@ -408,13 +571,16 @@ class AIDataCaptureDemoViewModel(
                 val currentProcessorSelectedIndex = _uiState.value.barcodeSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
+
             UsecaseState.Retail.value -> {
-                val currentProcessorSelectedIndex = _uiState.value.retailShelfSettings.commonSettings
+                val currentProcessorSelectedIndex =
+                    _uiState.value.retailShelfSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
 
             UsecaseState.Product.value -> {
-                val currentProcessorSelectedIndex = _uiState.value.productRecognitionSettings.commonSettings
+                val currentProcessorSelectedIndex =
+                    _uiState.value.productRecognitionSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
 
@@ -422,20 +588,31 @@ class AIDataCaptureDemoViewModel(
                 val currentProcessorSelectedIndex = _uiState.value.ocrFindSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
+
             UsecaseState.OCR.value -> {
                 val currentProcessorSelectedIndex = _uiState.value.textOCRSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
+
             else -> {
                 0
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings = updatedSelectedProcessorIndex as CommonSettings
-            UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings = updatedSelectedProcessorIndex as CommonSettings
-            UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings = updatedSelectedProcessorIndex as CommonSettings
-            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings = updatedSelectedProcessorIndex as CommonSettings
-            UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings = updatedSelectedProcessorIndex as CommonSettings
+            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+                updatedSelectedProcessorIndex as CommonSettings
+
+            UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
+                updatedSelectedProcessorIndex as CommonSettings
+
+            UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings =
+                updatedSelectedProcessorIndex as CommonSettings
+
+            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings =
+                updatedSelectedProcessorIndex as CommonSettings
+
+            UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings =
+                updatedSelectedProcessorIndex as CommonSettings
         }
         if ((uiState.value.usecaseSelected == UsecaseState.OCRFind.value) || (uiState.value.usecaseSelected == UsecaseState.OCR.value)) {
             updateSelectedDimensions(0)
@@ -461,40 +638,53 @@ class AIDataCaptureDemoViewModel(
                 val currentInputSizeSelected = _uiState.value.barcodeSettings.commonSettings
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
+
             UsecaseState.Retail.value -> {
                 val currentInputSizeSelected = _uiState.value.retailShelfSettings.commonSettings
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
 
             UsecaseState.Product.value -> {
-                val currentInputSizeSelected = _uiState.value.productRecognitionSettings.commonSettings
+                val currentInputSizeSelected =
+                    _uiState.value.productRecognitionSettings.commonSettings
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
 
             UsecaseState.OCRFind.value -> {
                 val currentInputSizeSelected = _uiState.value.ocrFindSettings.commonSettings
-                if(currentInputSizeSelected.processorSelectedIndex == 2){
+                if (currentInputSizeSelected.processorSelectedIndex == 2) {
                     dimension = 640
                 }
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
+
             UsecaseState.OCR.value -> {
                 val currentInputSizeSelected = _uiState.value.textOCRSettings.commonSettings
-                if(currentInputSizeSelected.processorSelectedIndex == 2){
+                if (currentInputSizeSelected.processorSelectedIndex == 2) {
                     dimension = 640
                 }
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
+
             else -> {
                 1280
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings = updatedInputSize as CommonSettings
-            UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings = updatedInputSize as CommonSettings
-            UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings = updatedInputSize as CommonSettings
-            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings = updatedInputSize as CommonSettings
-            UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings = updatedInputSize as CommonSettings
+            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+                updatedInputSize as CommonSettings
+
+            UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
+                updatedInputSize as CommonSettings
+
+            UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings =
+                updatedInputSize as CommonSettings
+
+            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings =
+                updatedInputSize as CommonSettings
+
+            UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings =
+                updatedInputSize as CommonSettings
         }
     }
 
@@ -504,13 +694,16 @@ class AIDataCaptureDemoViewModel(
                 val currentResolutionSelectedIndex = _uiState.value.barcodeSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
+
             UsecaseState.Retail.value -> {
-                val currentResolutionSelectedIndex = _uiState.value.retailShelfSettings.commonSettings
+                val currentResolutionSelectedIndex =
+                    _uiState.value.retailShelfSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
 
             UsecaseState.Product.value -> {
-                val currentResolutionSelectedIndex = _uiState.value.productRecognitionSettings.commonSettings
+                val currentResolutionSelectedIndex =
+                    _uiState.value.productRecognitionSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
 
@@ -518,28 +711,40 @@ class AIDataCaptureDemoViewModel(
                 val currentResolutionSelectedIndex = _uiState.value.ocrFindSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
+
             UsecaseState.OCR.value -> {
                 val currentResolutionSelectedIndex = _uiState.value.textOCRSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
+
             else -> {
                 1
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings = updatedResolution as CommonSettings
-            UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings = updatedResolution as CommonSettings
-            UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings = updatedResolution as CommonSettings
-            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings = updatedResolution as CommonSettings
-            UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings = updatedResolution as CommonSettings
+            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+                updatedResolution as CommonSettings
+
+            UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
+                updatedResolution as CommonSettings
+
+            UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings =
+                updatedResolution as CommonSettings
+
+            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings =
+                updatedResolution as CommonSettings
+
+            UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings =
+                updatedResolution as CommonSettings
         }
     }
 
-    fun getSelectedResolution() : Int? {
+    fun getSelectedResolution(): Int? {
         val currentResolutionSelectedIndex = when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 _uiState.value.barcodeSettings.commonSettings.resolutionSelectedIndex
             }
+
             UsecaseState.Retail.value -> {
                 _uiState.value.retailShelfSettings.commonSettings.resolutionSelectedIndex
             }
@@ -551,20 +756,24 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.OCRFind.value -> {
                 _uiState.value.ocrFindSettings.commonSettings.resolutionSelectedIndex
             }
+
             UsecaseState.OCR.value -> {
                 _uiState.value.textOCRSettings.commonSettings.resolutionSelectedIndex
             }
+
             else -> {
                 null
             }
         }
         return currentResolutionSelectedIndex
     }
-    fun getProcessorSelectedIndex() : Int? {
+
+    fun getProcessorSelectedIndex(): Int? {
         val currentProcessorSelectedIndex = when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 _uiState.value.barcodeSettings.commonSettings.processorSelectedIndex
             }
+
             UsecaseState.Retail.value -> {
                 _uiState.value.retailShelfSettings.commonSettings.processorSelectedIndex
             }
@@ -576,9 +785,11 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.OCRFind.value -> {
                 _uiState.value.ocrFindSettings.commonSettings.processorSelectedIndex
             }
+
             UsecaseState.OCR.value -> {
                 _uiState.value.textOCRSettings.commonSettings.processorSelectedIndex
             }
+
             else -> {
                 null
             }
@@ -586,11 +797,12 @@ class AIDataCaptureDemoViewModel(
         return currentProcessorSelectedIndex
     }
 
-    fun getInputSizeSelected() : Int? {
+    fun getInputSizeSelected(): Int? {
         val currentInputSizeSelected = when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 _uiState.value.barcodeSettings.commonSettings.inputSizeSelected
             }
+
             UsecaseState.Retail.value -> {
                 _uiState.value.retailShelfSettings.commonSettings.inputSizeSelected
             }
@@ -602,9 +814,11 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.OCRFind.value -> {
                 _uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
             }
+
             UsecaseState.OCR.value -> {
                 _uiState.value.textOCRSettings.commonSettings.inputSizeSelected
             }
+
             else -> {
                 null
             }
@@ -612,13 +826,59 @@ class AIDataCaptureDemoViewModel(
         return currentInputSizeSelected
     }
 
+//    fun getOCRFilterTypeData() : OCRFilterData {
+//        val ocrFilterTypeData = if (uiState.value.usecaseSelected == UsecaseState.OCR.value) {
+//            OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
+//        } else {
+//            when (uiState.value.selectedOcrFilterType) {
+//                OCRFilterType.SHOW_ALL -> {
+//                    OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
+//                }
+//
+//                OCRFilterType.NUMERIC_CHARACTERS_ONLY -> {
+//                    OCRFilterData(
+//                        ocrFilterType = OCRFilterType.NUMERIC_CHARACTERS_ONLY,
+//                        charLengthMin = uiState.value.selectedNumericCharSliderValues.start.toInt(),
+//                        charLengthMax = uiState.value.selectedNumericCharSliderValues.endInclusive.toInt()
+//                    )
+//                }
+//
+//                OCRFilterType.ALPHA_CHARACTERS_ONLY -> {
+//                    OCRFilterData(
+//                        ocrFilterType = OCRFilterType.ALPHA_CHARACTERS_ONLY,
+//                        charLengthMin = uiState.value.selectedAlphaCharSliderValues.start.toInt(),
+//                        charLengthMax = uiState.value.selectedAlphaCharSliderValues.endInclusive.toInt()
+//                    )
+//                }
+//
+//                OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY -> {
+//                    OCRFilterData(
+//                        ocrFilterType = OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY,
+//                        charLengthMin = uiState.value.selectedAlphaNumericCharSliderValues.start.toInt(),
+//                        charLengthMax = uiState.value.selectedAlphaNumericCharSliderValues.endInclusive.toInt()
+//                    )
+//                }
+//
+//                OCRFilterType.EXACT_MATCH -> {
+//                    OCRFilterData(
+//                        ocrFilterType = OCRFilterType.EXACT_MATCH,
+//                        exactMatchString = uiState.value.selectedExactMatchString
+//                    )
+//                }
+//            }
+//        }
+//        return ocrFilterTypeData
+//    }
+
     /**
      * Update the barcode symbologies
      */
     fun updateBarcodeSymbology(name: String, enabled: Boolean) {
         val currentSymbology = _uiState.value.barcodeSettings.barcodeSymbology
         val updatedSymbology = when (name) {
-            getString(context, R.string.australian_postal) -> currentSymbology.copy( australian_postal = enabled)
+            getString(context, R.string.australian_postal) -> currentSymbology.copy(
+                australian_postal = enabled
+            )
 
 
             getString(context, R.string.aztec) -> {
@@ -1022,9 +1282,10 @@ class AIDataCaptureDemoViewModel(
     private fun setAnalyzer(activityLifecycle: Lifecycle) {
         when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
-                barcodeEntityTrackerAnalyzer?.let {
-                    val analyzer = it.setupEntityTrackerAnalyzer(activityLifecycle)
-                    analysisUseCase?.setAnalyzer(executor!!, analyzer)
+                barcodeAnalyzer?.let {
+                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                    val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
+                    analysisUseCase?.setAnalyzer(executor!!, analyzer!!)
                 }
             }
 
@@ -1043,14 +1304,12 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.OCRFind.value,
             UsecaseState.OCR.value -> {
                 ocrAnalyzer?.let {
-                    analysisUseCase?.setAnalyzer(executor!!, it)
+                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                    val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
+                    analysisUseCase?.setAnalyzer(executor!!, analyzer!!)
                 }
             }
         }
-    }
-
-    fun setOCRFilterType(ocrFilterTypeData: OCRFilterData) {
-        ocrAnalyzer?.setOCRFilterType(ocrFilterTypeData = ocrFilterTypeData)
     }
 
     fun updateAppBarTitle(title: String) {
@@ -1064,143 +1323,143 @@ class AIDataCaptureDemoViewModel(
     fun updateOCRTextFieldValues(name: String, value: String) {
         val advancedOCRSetting = _uiState.value.textOCRSettings.advancedOCRSetting
         val updatedOCRSetting =
-        when (name) {
-            getString(context, R.string.heatmap_threshold) -> {
-                advancedOCRSetting.copy(
+            when (name) {
+                getString(context, R.string.heatmap_threshold) -> {
+                    advancedOCRSetting.copy(
                         heatmapThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.box_threshold) -> {
+                getString(context, R.string.box_threshold) -> {
                     advancedOCRSetting.copy(
                         boxThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.min_box_area) -> {
+                getString(context, R.string.min_box_area) -> {
                     advancedOCRSetting.copy(
                         minBoxArea = value
                     )
-            }
+                }
 
-            getString(context, R.string.min_box_size) -> {
+                getString(context, R.string.min_box_size) -> {
                     advancedOCRSetting.copy(
                         minBoxSize = value
                     )
-            }
+                }
 
-            getString(context, R.string.unclip_ratio) -> {
+                getString(context, R.string.unclip_ratio) -> {
                     advancedOCRSetting.copy(
                         unclipRatio = value
                     )
-            }
+                }
 
-            getString(context, R.string.min_ratio_for_rotation) -> {
+                getString(context, R.string.min_ratio_for_rotation) -> {
                     advancedOCRSetting.copy(
                         minRatioForRotation = value
                     )
-            }
+                }
 
-            getString(context, R.string.character_confidence_threshold) -> {
+                getString(context, R.string.character_confidence_threshold) -> {
                     advancedOCRSetting.copy(
                         maxWordCombinations = value
                     )
-            }
+                }
 
-            getString(context, R.string.max_word_combinations) -> {
+                getString(context, R.string.max_word_combinations) -> {
                     advancedOCRSetting.copy(
                         maxWordCombinations = value
                     )
-            }
+                }
 
-            getString(context, R.string.topk_ignore_cutoff) -> {
+                getString(context, R.string.topk_ignore_cutoff) -> {
                     advancedOCRSetting.copy(
                         topkIgnoreCutoff = value
                     )
-            }
+                }
 
-            getString(context, R.string.topk_ignore_cutoff) -> {
+                getString(context, R.string.topk_ignore_cutoff) -> {
                     advancedOCRSetting.copy(
                         topkIgnoreCutoff = value
                     )
-            }
+                }
 
-            getString(context, R.string.total_probability_threshold) -> {
+                getString(context, R.string.total_probability_threshold) -> {
                     advancedOCRSetting.copy(
                         totalProbabilityThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.width_distance_ratio) -> {
+                getString(context, R.string.width_distance_ratio) -> {
                     advancedOCRSetting.copy(
                         widthDistanceRatio = value
                     )
-            }
+                }
 
-            getString(context, R.string.height_distance_ratio) -> {
+                getString(context, R.string.height_distance_ratio) -> {
                     advancedOCRSetting.copy(
                         heightDistanceRatio = value
                     )
-            }
+                }
 
-            getString(context, R.string.center_distance_ratio) -> {
+                getString(context, R.string.center_distance_ratio) -> {
                     advancedOCRSetting.copy(
                         centerDistanceRatio = value
                     )
-            }
+                }
 
-            getString(context, R.string.paragraph_height_distance) -> {
+                getString(context, R.string.paragraph_height_distance) -> {
                     advancedOCRSetting.copy(
                         paragraphHeightDistance = value
                     )
-            }
+                }
 
-            getString(context, R.string.paragraph_height_ratio_threshold) -> {
+                getString(context, R.string.paragraph_height_ratio_threshold) -> {
                     advancedOCRSetting.copy(
                         paragraphHeightRatioThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.top_correlation_threshold) -> {
+                getString(context, R.string.top_correlation_threshold) -> {
                     advancedOCRSetting.copy(
                         topCorrelationThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.merge_points_cutoff) -> {
+                getString(context, R.string.merge_points_cutoff) -> {
                     advancedOCRSetting.copy(
                         mergePointsCutoff = value
                     )
-            }
+                }
 
-            getString(context, R.string.split_margin_factor) -> {
+                getString(context, R.string.split_margin_factor) -> {
                     advancedOCRSetting.copy(
                         splitMarginFactor = value
                     )
-            }
+                }
 
-            getString(context, R.string.aspect_ratio_lower_threshold) -> {
+                getString(context, R.string.aspect_ratio_lower_threshold) -> {
                     advancedOCRSetting.copy(
                         aspectRatioLowerThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.aspect_ratio_upper_threshold) -> {
+                getString(context, R.string.aspect_ratio_upper_threshold) -> {
                     advancedOCRSetting.copy(
                         aspectRatioUpperThreshold = value
                     )
-            }
+                }
 
-            getString(context, R.string.topK_merged_predictions) -> {
+                getString(context, R.string.topK_merged_predictions) -> {
                     advancedOCRSetting.copy(
                         topKMergedPredictions = value
                     )
-            }
+                }
 
-            else -> {
-                advancedOCRSetting
+                else -> {
+                    advancedOCRSetting
+                }
             }
-        }
         _uiState.value.textOCRSettings.advancedOCRSetting = updatedOCRSetting
     }
 
@@ -1208,21 +1467,22 @@ class AIDataCaptureDemoViewModel(
         val advancedOCRSetting = _uiState.value.textOCRSettings.advancedOCRSetting
         val updatedOCRSetting =
             when (name) {
-            getString(context, R.string.enable_tiling) -> {
-                advancedOCRSetting.copy(
+                getString(context, R.string.enable_tiling) -> {
+                    advancedOCRSetting.copy(
                         enableTiling = enabled
                     )
-            }
+                }
 
-            getString(context, R.string.enable_grouping) -> {
-                advancedOCRSetting.copy(
+                getString(context, R.string.enable_grouping) -> {
+                    advancedOCRSetting.copy(
                         enableGrouping = enabled
                     )
+                }
+
+                else -> {
+                    advancedOCRSetting
+                }
             }
-            else -> {
-                advancedOCRSetting
-            }
-        }
         _uiState.value.textOCRSettings.advancedOCRSetting = updatedOCRSetting
     }
 
@@ -1241,6 +1501,7 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.Retail.value -> {
                 FileUtils.saveRetailShelfSettings(uiState.value.retailShelfSettings)
             }
+
             UsecaseState.Product.value -> {
                 FileUtils.saveProductRecognitionSettings(uiState.value.productRecognitionSettings)
             }
@@ -1248,6 +1509,7 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.OCRFind.value -> {
                 FileUtils.saveOCRFindSettings(uiState.value.ocrFindSettings)
             }
+
             UsecaseState.OCR.value -> {
                 FileUtils.saveOCRSettings(uiState.value.textOCRSettings)
             }
@@ -1257,6 +1519,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
     }
+
     fun restoreDefaultSettings() {
         when (_uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
@@ -1266,6 +1529,7 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.Retail.value -> {
                 _uiState.value.retailShelfSettings = RetailShelfSettings()
             }
+
             UsecaseState.Product.value -> {
                 _uiState.value.productRecognitionSettings = ProductRecognitionSettings()
             }
@@ -1273,6 +1537,7 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.OCRFind.value -> {
                 _uiState.value.ocrFindSettings = OcrFindSettings()
             }
+
             UsecaseState.OCR.value -> {
                 _uiState.value.textOCRSettings = TextOcrSettings()
             }
@@ -1369,7 +1634,6 @@ class AIDataCaptureDemoViewModel(
 
     fun updateOcrResultData(results: List<ResultData>?) {
         val ocrResults = results ?: listOf()
-//        _uiState.value.ocrResults.clear()
         _uiState.update { textResults ->
             textResults.copy(
                 ocrResults = ocrResults
@@ -1377,6 +1641,22 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+//    fun updateExactMatchString(exactMatchString: String) {
+//        _uiState.update { selectedExactMatchString ->
+//            selectedExactMatchString.copy(
+//                selectedExactMatchString = exactMatchString
+//            )
+//        }
+//    }
+
+    fun updateOcrFilterData(ocrFilterData: OCRFilterData) {
+        _uiState.update { selectedOcrFilterData ->
+            selectedOcrFilterData.copy(
+                selectedOCRFilterData = ocrFilterData
+            )
+        }
+    }
+    
     fun loadInputStreamFromAsset(fileName: String): String {
         try {
             val inputStream = assetManager.open(fileName)
@@ -1405,6 +1685,9 @@ class AIDataCaptureDemoViewModel(
             updateAppBarTitle(context.getString(R.string.app_name))
         } else if (currentScreen == Screen.DemoSetting) {
             applySettings()
+        } else if (currentScreen == Screen.Preview) {
+            updateCameraReady(isReady = false)
+            updateCameraErrorMessage(errorMessage = null)
         } else if (currentScreen == Screen.Capture) {
             if (uiState.value.usecaseSelected == UsecaseState.Product.value) {
                 // clear all the previous results
@@ -1447,6 +1730,22 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { uiStateData ->
             uiStateData.copy(
                 toastMessage = message
+            )
+        }
+    }
+
+    fun updateCameraReady(isReady: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isCameraReady = isReady
+            )
+        }
+    }
+
+    fun updateCameraErrorMessage(errorMessage: String?) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                cameraError = errorMessage
             )
         }
     }

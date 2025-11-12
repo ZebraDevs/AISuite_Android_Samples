@@ -36,7 +36,7 @@ fun NavigationStack(
         }
         composable(route = Screen.DemoStart.route) {
             viewModel.updateActiveScreenData(activeScreen = Screen.DemoStart)
-            DemoStartScreen(viewModel, navController = navController, innerPadding)
+            DemoStartScreen(viewModel, navController = navController, innerPadding, context = context)
         }
         composable(route = Screen.DemoSetting.route) {
             viewModel.updateActiveScreenData(activeScreen = Screen.DemoSetting)
@@ -67,7 +67,7 @@ fun NavigationStack(
                 viewModel,
                 navController = navController,
                 innerPadding,
-                activityInnerPadding = activityInnerPadding
+                context = context
             )
         }
     }

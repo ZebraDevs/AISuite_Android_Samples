@@ -1,5 +1,6 @@
 package com.zebra.aidatacapturedemo.ui.view
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,12 +44,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zebra.aidatacapturedemo.R
-import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.OCRFilterData
 import com.zebra.aidatacapturedemo.data.OCRFilterType
+import com.zebra.aidatacapturedemo.model.TextOCRUtils
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainPrimary
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OCRFilterScreen(
     isOCRFilterAlertDialogShown: () -> Unit,
@@ -56,17 +58,25 @@ fun OCRFilterScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    var ocrFilterType by remember { mutableStateOf(uiState.selectedOcrFilterType) }
-    var exactMatchString by remember { mutableStateOf(uiState.selectedExactMatchString) }
-    var numericCharSliderValues by remember { mutableStateOf(uiState.selectedNumericCharSliderValues) }
-    var alphaCharSliderValues by remember { mutableStateOf(uiState.selectedAlphaCharSliderValues) }
-    var alphaNumericCharSliderValues by remember { mutableStateOf(uiState.selectedAlphaNumericCharSliderValues) }
+    var ocrFilterType by remember { mutableStateOf(uiState.selectedOCRFilterData.ocrFilterType) }
+    var exactMatchString by remember { mutableStateOf(uiState.selectedOCRFilterData.exactMatchStringList.joinToString()) } // Default separator is a comma
+    var startsWithString by remember { mutableStateOf(uiState.selectedOCRFilterData.startsWithString) }
+    var containsString by remember { mutableStateOf(uiState.selectedOCRFilterData.containsString) }
+    var regexString by remember { mutableStateOf(uiState.selectedOCRFilterData.regexString) }
+    var numericCharLengthRange by remember { mutableStateOf(uiState.selectedOCRFilterData.numericCharLengthRange) }
+    var alphaCharLengthRange by remember { mutableStateOf(uiState.selectedOCRFilterData.alphaCharLengthRange) }
+    var alphaNumericCharLengthRange by remember { mutableStateOf(uiState.selectedOCRFilterData.alphaNumericCharLengthRange) }
+
+    uiState.toastMessage?.let {
+        viewModel.toast(it)
+        viewModel.updateToastMessage(message = null)
+    }
 
     AlertDialog(
         onDismissRequest = isOCRFilterAlertDialogShown,
         confirmButton = {
 
-            val ocrFilterTypeData = when (ocrFilterType) {
+            val ocrFilterData = when (ocrFilterType) {
                 OCRFilterType.SHOW_ALL -> {
                     OCRFilterData(
                         ocrFilterType = OCRFilterType.SHOW_ALL
@@ -74,60 +84,69 @@ fun OCRFilterScreen(
                 }
 
                 OCRFilterType.NUMERIC_CHARACTERS_ONLY -> {
-                    updateNumericCharSliderValues(
-                        numericCharSliderValues = numericCharSliderValues,
-                        uiState = uiState
-                    )
                     OCRFilterData(
                         ocrFilterType = OCRFilterType.NUMERIC_CHARACTERS_ONLY,
-                        charLengthMin = numericCharSliderValues.start.toInt(),
-                        charLengthMax = numericCharSliderValues.endInclusive.toInt()
+                        numericCharLengthRange = numericCharLengthRange
                     )
                 }
 
                 OCRFilterType.ALPHA_CHARACTERS_ONLY -> {
-                    updateAlphaCharSliderValues(
-                        alphaCharSliderValues = alphaCharSliderValues,
-                        uiState = uiState
-                    )
                     OCRFilterData(
                         ocrFilterType = OCRFilterType.ALPHA_CHARACTERS_ONLY,
-                        charLengthMin = alphaCharSliderValues.start.toInt(),
-                        charLengthMax = alphaCharSliderValues.endInclusive.toInt()
+                        alphaCharLengthRange = alphaCharLengthRange
                     )
                 }
 
                 OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY -> {
-                    updateAlphaNumericCharSliderValues(
-                        alphaNumericCharSliderValues = alphaNumericCharSliderValues,
-                        uiState = uiState
-                    )
                     OCRFilterData(
                         ocrFilterType = OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY,
-                        charLengthMin = alphaNumericCharSliderValues.start.toInt(),
-                        charLengthMax = alphaNumericCharSliderValues.endInclusive.toInt()
+                        alphaNumericCharLengthRange = alphaNumericCharLengthRange
                     )
                 }
 
                 OCRFilterType.EXACT_MATCH -> {
-                    updateExactMatchString(
-                        exactMatchString = exactMatchString,
-                        uiState = uiState
-                    )
+                    val exactMatchStringList = exactMatchString.split(",").map { it.trim() }
                     OCRFilterData(
                         ocrFilterType = OCRFilterType.EXACT_MATCH,
-                        exactMatchString = exactMatchString
+                        exactMatchStringList = exactMatchStringList
+                    )
+                }
+
+                OCRFilterType.STARTS_WITH -> {
+                    OCRFilterData(
+                        ocrFilterType = OCRFilterType.STARTS_WITH,
+                        startsWithString = startsWithString
+                    )
+                }
+
+                OCRFilterType.CONTAINS -> {
+                    OCRFilterData(
+                        ocrFilterType = OCRFilterType.CONTAINS,
+                        containsString = containsString
+                    )
+                }
+
+                OCRFilterType.REGEX -> {
+                    OCRFilterData(
+                        ocrFilterType = OCRFilterType.REGEX,
+                        regexString = regexString
                     )
                 }
             }
-            updateOcrFilterType(
-                ocrFilterTypeData = ocrFilterType,
-                uiState = uiState
-            )
-            viewModel.setOCRFilterType(ocrFilterTypeData = ocrFilterTypeData)
+            viewModel.updateOcrFilterData(ocrFilterData = ocrFilterData)
 
             Button(
-                onClick = isOCRFilterAlertDialogShown,
+                onClick = {
+                    if (ocrFilterType == OCRFilterType.REGEX) { // validate the user input regex string
+                        if (TextOCRUtils.validateRegexSyntax(regexString) != null) {
+                            isOCRFilterAlertDialogShown.invoke() // valid regex found
+                        } else {
+                            viewModel.updateToastMessage(message = "Incorrect Regex Syntax")
+                        }
+                    } else {
+                        isOCRFilterAlertDialogShown.invoke()
+                    }
+                },
                 modifier = Modifier
                     .wrapContentHeight()
                     .wrapContentWidth(),
@@ -181,7 +200,7 @@ fun OCRFilterScreen(
                     .padding(start = 20.dp, top = 20.dp, end = 20.dp)
             ) {
                 Text(
-                    text = "Viewfinder Settings",
+                    text = "OCR Finder Settings",
                     style = TextStyle(
                         fontSize = 20.sp,
                         lineHeight = 28.sp,
@@ -288,14 +307,14 @@ fun OCRFilterScreen(
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = numericCharSliderValues.start.toInt()
+                            text = numericCharLengthRange.start.toInt()
                                 .toString(), modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         RangeSlider(
-                            value = numericCharSliderValues,
+                            value = numericCharLengthRange,
                             onValueChange = {
-                                numericCharSliderValues = it
+                                numericCharLengthRange = it
                             },
                             valueRange = 2f..15f,
                             modifier = Modifier.weight(8f),
@@ -309,7 +328,7 @@ fun OCRFilterScreen(
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = numericCharSliderValues.endInclusive.toInt()
+                            text = numericCharLengthRange.endInclusive.toInt()
                                 .toString(), modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.weight(1f))
@@ -372,14 +391,14 @@ fun OCRFilterScreen(
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = alphaCharSliderValues.start.toInt()
+                            text = alphaCharLengthRange.start.toInt()
                                 .toString(), modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         RangeSlider(
-                            value = alphaCharSliderValues,
+                            value = alphaCharLengthRange,
                             onValueChange = {
-                                alphaCharSliderValues = it
+                                alphaCharLengthRange = it
                             },
                             valueRange = 2f..15f,
                             modifier = Modifier.weight(8f),
@@ -393,7 +412,7 @@ fun OCRFilterScreen(
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = alphaCharSliderValues.endInclusive.toInt()
+                            text = alphaCharLengthRange.endInclusive.toInt()
                                 .toString(), modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.weight(1f))
@@ -456,14 +475,14 @@ fun OCRFilterScreen(
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = alphaNumericCharSliderValues.start.toInt()
+                            text = alphaNumericCharLengthRange.start.toInt()
                                 .toString(), modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         RangeSlider(
-                            value = alphaNumericCharSliderValues,
+                            value = alphaNumericCharLengthRange,
                             onValueChange = {
-                                alphaNumericCharSliderValues = it
+                                alphaNumericCharLengthRange = it
                             },
                             valueRange = 2f..15f,
                             modifier = Modifier.weight(8f),
@@ -477,7 +496,7 @@ fun OCRFilterScreen(
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = alphaNumericCharSliderValues.endInclusive.toInt()
+                            text = alphaNumericCharLengthRange.endInclusive.toInt()
                                 .toString(), modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.weight(1f))
@@ -517,7 +536,6 @@ fun OCRFilterScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (ocrFilterType == OCRFilterType.EXACT_MATCH) {
-                    Spacer(modifier = Modifier.height(16.dp))
                     TextField(
                         value = exactMatchString,
                         onValueChange = {
@@ -548,41 +566,207 @@ fun OCRFilterScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // START_WITH
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ocrFilterType = OCRFilterType.STARTS_WITH
+                        }
+                        .padding(vertical = 5.dp)
+                ) {
+                    RadioButton(
+                        selected = (ocrFilterType == OCRFilterType.STARTS_WITH),
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = Variables.mainPrimary,
+                            unselectedColor = Variables.mainDefault
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.ocr_starts_with),
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp,
+                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                            fontWeight = FontWeight(400),
+                            color = Variables.mainDefault,
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (ocrFilterType == OCRFilterType.STARTS_WITH) {
+                    TextField(
+                        value = startsWithString,
+                        onValueChange = {
+                            startsWithString = it
+                        },
+                        label = {
+                            Text(
+                                text = "Starts with keyword",
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    lineHeight = 24.sp,
+                                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                                    fontWeight = FontWeight(400),
+                                    color = Variables.mainDisabled,
+                                )
+                            )
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Variables.mainInverse,
+                            unfocusedContainerColor = Variables.mainInverse,
+                            cursorColor = Variables.mainPrimary,
+                            focusedIndicatorColor = Variables.mainPrimary,
+                            unfocusedIndicatorColor = Variables.mainPrimary,
+                            selectionColors = TextSelectionColors(
+                                handleColor = mainPrimary,
+                                backgroundColor = mainPrimary
+                            )
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Contains
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ocrFilterType = OCRFilterType.CONTAINS
+                        }
+                        .padding(vertical = 5.dp)
+                ) {
+                    RadioButton(
+                        selected = (ocrFilterType == OCRFilterType.CONTAINS),
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = Variables.mainPrimary,
+                            unselectedColor = Variables.mainDefault
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.ocr_contains),
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp,
+                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                            fontWeight = FontWeight(400),
+                            color = Variables.mainDefault,
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (ocrFilterType == OCRFilterType.CONTAINS) {
+                    TextField(
+                        value = containsString,
+                        onValueChange = {
+                            containsString = it
+                        },
+                        label = {
+                            Text(
+                                text = "Contains keyword",
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    lineHeight = 24.sp,
+                                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                                    fontWeight = FontWeight(400),
+                                    color = Variables.mainDisabled,
+                                )
+                            )
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Variables.mainInverse,
+                            unfocusedContainerColor = Variables.mainInverse,
+                            cursorColor = Variables.mainPrimary,
+                            focusedIndicatorColor = Variables.mainPrimary,
+                            unfocusedIndicatorColor = Variables.mainPrimary,
+                            selectionColors = TextSelectionColors(
+                                handleColor = mainPrimary,
+                                backgroundColor = mainPrimary
+                            )
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Regex
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ocrFilterType = OCRFilterType.REGEX
+                        }
+                        .padding(vertical = 5.dp)
+                ) {
+                    RadioButton(
+                        selected = (ocrFilterType == OCRFilterType.REGEX),
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = Variables.mainPrimary,
+                            unselectedColor = Variables.mainDefault
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.ocr_regex),
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp,
+                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                            fontWeight = FontWeight(400),
+                            color = Variables.mainDefault,
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (ocrFilterType == OCRFilterType.REGEX) {
+                    TextField(
+                        value = regexString,
+                        onValueChange = {
+                            regexString = it
+                        },
+                        label = {
+                            Text(
+                                text = "Regex keyword",
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    lineHeight = 24.sp,
+                                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                                    fontWeight = FontWeight(400),
+                                    color = Variables.mainDisabled,
+                                )
+                            )
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Variables.mainInverse,
+                            unfocusedContainerColor = Variables.mainInverse,
+                            cursorColor = Variables.mainPrimary,
+                            focusedIndicatorColor = Variables.mainPrimary,
+                            unfocusedIndicatorColor = Variables.mainPrimary,
+                            selectionColors = TextSelectionColors(
+                                handleColor = mainPrimary,
+                                backgroundColor = mainPrimary
+                            )
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         },
         containerColor = Variables.surfaceDefault
     )
-}
-
-private fun updateOcrFilterType(
-    ocrFilterTypeData: OCRFilterType,
-    uiState: AIDataCaptureDemoUiState
-) {
-    uiState.selectedOcrFilterType = ocrFilterTypeData
-}
-
-private fun updateExactMatchString(exactMatchString: String, uiState: AIDataCaptureDemoUiState) {
-    uiState.selectedExactMatchString = exactMatchString
-}
-
-private fun updateNumericCharSliderValues(
-    numericCharSliderValues: ClosedFloatingPointRange<Float>,
-    uiState: AIDataCaptureDemoUiState
-) {
-    uiState.selectedNumericCharSliderValues = numericCharSliderValues
-}
-
-private fun updateAlphaCharSliderValues(
-    alphaCharSliderValues: ClosedFloatingPointRange<Float>,
-    uiState: AIDataCaptureDemoUiState
-) {
-    uiState.selectedAlphaCharSliderValues = alphaCharSliderValues
-}
-
-private fun updateAlphaNumericCharSliderValues(
-    alphaNumericCharSliderValues: ClosedFloatingPointRange<Float>,
-    uiState: AIDataCaptureDemoUiState
-) {
-    uiState.selectedAlphaNumericCharSliderValues = alphaNumericCharSliderValues
 }

@@ -137,6 +137,20 @@ fun AIDataCaptureDemoAppBar(
                     )
                 }
 
+                if (uiState.activeScreen == Screen.Preview) {
+                    IconButton(onClick = {
+                        if (FeedbackUtils.micStatePressed == false) {
+                            FeedbackUtils.micStatePressed = true
+                            FeedbackUtils.startListening()
+                        }
+                    }) {
+                        Icon(
+                            ImageVector.Companion.vectorResource(R.drawable.mic_icon),
+                            contentDescription = "Microphone"
+                        )
+                    }
+                }
+
                 if (isOCRFilterAlertDialogShown) {
                     OCRFilterScreen(
                         isOCRFilterAlertDialogShown = { isOCRFilterAlertDialogShown = false },

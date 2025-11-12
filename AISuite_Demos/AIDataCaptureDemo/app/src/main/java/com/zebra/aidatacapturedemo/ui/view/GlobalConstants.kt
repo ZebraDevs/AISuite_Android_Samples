@@ -42,9 +42,6 @@ object Variables {
     val mainLight: Color = Color(0xFFE0E3E9)
     val inverseDefault: Color = Color(0xFFFFFFFF)
     val textSubtle: Color = Color(0xFF646A78)
-
-    val cameraPreviewViewSize = Size(1920, 1080)
-    val highResolutionCaptureImageSize = Size(3840, 2160) // 8MP
 }
 
 fun getIconMainColor(demo: String): Color {

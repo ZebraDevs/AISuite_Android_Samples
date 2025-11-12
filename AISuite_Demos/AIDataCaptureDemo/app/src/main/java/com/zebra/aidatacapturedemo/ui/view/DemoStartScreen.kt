@@ -1,6 +1,9 @@
 package com.zebra.aidatacapturedemo.ui.view
 
+import android.content.Context
 import android.util.Log
+import android.view.WindowManager
+import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.NavController
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.aidatacapturedemo.R
@@ -45,7 +49,8 @@ import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 fun DemoStartScreen(
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavController,
-    innerPadding: PaddingValues
+    innerPadding: PaddingValues,
+    context : Context
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     getDemoTitle(uiState.usecaseSelected)?.let { viewModel.updateAppBarTitle(stringResource(it)) }
@@ -71,7 +76,15 @@ fun DemoStartScreen(
 
         // Icon
         Spacer(Modifier.height(30.dp))
-        UsecaseIcon(selectedUsecase = uiState.usecaseSelected)
+
+        val windowManager = getSystemService(context, WindowManager::class.java)
+        val windowMetrics: WindowMetrics = windowManager.currentWindowMetrics
+        // draw smaller icon if device display height is 800px or less
+        if (windowMetrics.bounds.height() <= 800) {
+            UsecaseIconSmaller(selectedUsecase = uiState.usecaseSelected)
+        } else {
+            UsecaseIcon(selectedUsecase = uiState.usecaseSelected)
+        }
 
         Spacer(Modifier.height(30.dp))
         Column(
@@ -236,6 +249,49 @@ fun UsecaseIcon(selectedUsecase: String) {
                     .padding(2.66667.dp)
                     .width(60.dp)
                     .height(60.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun UsecaseIconSmaller(selectedUsecase: String) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .width(51.dp)
+            .height(51.dp)
+            .background(
+                shape = RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = 16.dp,
+                    bottomEnd = 16.dp
+                ),
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        getIconMainColor(selectedUsecase),
+                        getIconSecondaryColor(selectedUsecase)
+                    )
+                )
+            )
+            .padding(
+                start = 6.66665.dp,
+                top = 6.66665.dp,
+                end = 6.66665.dp,
+                bottom = 6.66665.dp
+            )
+    ) {
+        getIconId(selectedUsecase)?.let {
+            Image(
+                painter = painterResource(id = it),
+                contentDescription = "image description",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .padding(1.333335.dp)
+                    .width(30.dp)
+                    .height(30.dp)
             )
         }
     }

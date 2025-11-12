@@ -1,5 +1,5 @@
 [versions]
-appVersion = "1.0.5"
+appVersion = "1.0.10"
 agp = "8.11.1"
 gson = "2.13.1"
 kotlin = "2.0.21"
@@ -16,8 +16,9 @@ jsoup = "1.17.2"
 cameraCore = "1.4.2"
 cameraCamera2 = "1.4.2"
 cameraExtensions = "1.4.2"
+accompanistpermissions = "0.37.3"
 constraintlayout = "2.2.1"
-zebraAIVisionSdk = "3.0.5"
+zebraAIVisionSdk = "3.1.4"
 barcodeLocalizer = "5.0.1"
 textOcrRecognizer = "2.7.3"
 productAndShelfRecognizer = "3.4.2"
@@ -57,6 +58,7 @@ text-ocr-recognizer = { group = "com.zebra.ai.models", name = "text-ocr-recogniz
 zebra-ai-vision-sdk = { group = "com.zebra.ai.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
 androidx-navigation-compose-android = { group = "androidx.navigation", name = "navigation-compose-android", version.ref = "navigationComposeAndroid" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
+runtime-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistpermissions" }
 
 
 [plugins]

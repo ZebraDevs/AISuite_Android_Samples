@@ -1,8 +1,10 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
-import android.util.Log
+import android.graphics.drawable.Drawable
 import android.util.Size
+import android.view.WindowManager
+import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -16,14 +18,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,7 +48,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -54,16 +61,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.data.OCRFilterType
 import com.zebra.aidatacapturedemo.data.UsecaseState
-import com.zebra.aidatacapturedemo.ui.view.Variables.cameraPreviewViewSize
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.launch
+import kotlin.math.min
 
 
 @Composable
@@ -77,15 +86,47 @@ fun CameraPreviewScreen(
     val uiState = viewModel.uiState.collectAsState().value
     val lifecycleOwner = LocalLifecycleOwner.current
     var showInfo = remember { mutableStateOf(true) }
-    val cameraPreviewResolution = when (viewModel.getSelectedResolution()) {
-        0 -> android.util.Size(1280, 720)
-        1 -> android.util.Size(1920, 1080)
-        2 -> android.util.Size(2688, 1512)
-        3 -> android.util.Size(3840, 2160)
-        else -> throw InvalidInputException(
-            "Invalid video dimension selection"
-        )
+    val analysisUseCaseCameraResolution = when (viewModel.getSelectedResolution()) {
+        0 -> Size(1280, 720)
+        1 -> Size(1920, 1080)
+        2 -> Size(2688, 1512)
+        3 -> Size(3840, 2160)
+        else -> Size(1920, 1080)
     }
+
+    // GET DEVICE RESOLUTION:
+    val displayMetrics = LocalContext.current.resources.displayMetrics
+    val displayMetricsDensity = displayMetrics.density
+
+    val windowManager = getSystemService(context, WindowManager::class.java)
+    val windowMetrics: WindowMetrics = windowManager.currentWindowMetrics
+
+    val displayTotalWidthInPx = windowMetrics.bounds.width()
+    val displayTotalHeightInPx = windowMetrics.bounds.height()
+
+    // TOP STATUS BAR
+    val displayStatusBarPaddingValues = WindowInsets.statusBars.asPaddingValues()
+    val displayStatusBarHeightInDp = displayStatusBarPaddingValues.calculateTopPadding()
+    val displayStatusBarHeightInPx = displayStatusBarHeightInDp.value * displayMetricsDensity
+
+    // BOTTOM NAVIGATION BAR
+    val displayNavigationBarPaddingValues = WindowInsets.navigationBars.asPaddingValues()
+    val displayNavigationBarHeightInDp = displayNavigationBarPaddingValues.calculateBottomPadding()
+    val displayNavigationBarHeightInPx =
+        displayNavigationBarHeightInDp.value * displayMetricsDensity
+
+    val availableHeightInPx =
+        displayTotalHeightInPx.toFloat() - displayStatusBarHeightInPx - displayNavigationBarHeightInPx
+
+    // The following computed values are used for drawing Bbox overlay on the preview
+    val scaler = min(
+        displayTotalWidthInPx.toFloat() / analysisUseCaseCameraResolution.height.toFloat(),
+        availableHeightInPx / analysisUseCaseCameraResolution.width.toFloat()
+    )
+    val scaledWidth = scaler * analysisUseCaseCameraResolution.height.toFloat()
+    val scaledHeight = scaler * analysisUseCaseCameraResolution.width.toFloat()
+    val gapX = (displayTotalWidthInPx - scaledWidth) / 2f
+    val gapY = (availableHeightInPx - scaledHeight) / 2f
 
     val previewView = remember { PreviewView(context) }
 
@@ -118,129 +159,259 @@ fun CameraPreviewScreen(
 
     LaunchedEffect(lifecycleOwner) {
         viewModel.setupCameraController(
-            previewView,
-            cameraPreviewResolution,
-            lifecycleOwner,
-            activityLifecycle
+            previewView = previewView,
+            analysisUseCaseCameraResolution = analysisUseCaseCameraResolution,
+            lifecycleOwner = lifecycleOwner,
+            activityLifecycle = activityLifecycle
         )
     }
-    val density = LocalDensity.current
-    val widthInDp: Dp = with(density) { cameraPreviewViewSize.height.toDp() }
-    val heightInDp: Dp = with(density) { cameraPreviewViewSize.width.toDp() }
 
-    AndroidView(
-        { previewView },
+    previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+    Box( // Bottom layer
         modifier = Modifier
-            .size(widthInDp, heightInDp)
-            .offset(0.dp, activityInnerPadding.calculateTopPadding().value.dp)
-    )
-
-    when (val selectedDemo = uiState.usecaseSelected) {
-        UsecaseState.OCRFind.value,
-        UsecaseState.OCR.value -> {
-
-            DrawOCRResult(
-                uiState = uiState,
-                activityInnerPadding = activityInnerPadding,
-                cameraPreviewResolution = cameraPreviewResolution,
-                cameraPreviewViewSize = cameraPreviewViewSize
+            .fillMaxSize()
+            .padding(
+                top = displayStatusBarHeightInDp,
+                bottom = displayNavigationBarHeightInDp
             )
-        }
+    ) {
+        AndroidView( // 2 layer
+            { previewView }
+        )
 
-        UsecaseState.Barcode.value -> {
-            DrawBarcodeResult(
-                uiState = uiState,
-                activityInnerPadding = activityInnerPadding,
-                cameraPreviewResolution = cameraPreviewResolution,
-                cameraPreviewViewSize = cameraPreviewViewSize
-            )
+        when (val selectedDemo = uiState.usecaseSelected) {
+            UsecaseState.OCRFind.value -> {
 
-        }
+                if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.EXACT_MATCH) {
+                    val checkIconDrawable = ContextCompat.getDrawable(
+                        context,
+                        R.drawable.ic_check
+                    )
+                    DrawOCRResultWithCheckMark(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity,
+                        checkIconDrawable = checkIconDrawable
+                    )
+                    if (uiState.ocrResults.isNotEmpty()) {
+                        FeedbackUtils.vibrate()
+                        FeedbackUtils.beep()
+                    }
+                    showInformationBox(
+                        info = "Looking for: ${uiState.selectedOCRFilterData.exactMatchStringList}",
+                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                    )
+                } else if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.STARTS_WITH) {
+                    val checkIconDrawable = ContextCompat.getDrawable(
+                        context,
+                        R.drawable.ic_check
+                    )
+                    DrawOCRResultWithCheckMark(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity,
+                        checkIconDrawable = checkIconDrawable
+                    )
+                    if (uiState.ocrResults.isNotEmpty()) {
+                        FeedbackUtils.vibrate()
+                        FeedbackUtils.beep()
+                    }
+                    showInformationBox(
+                        info = "Looking for Starts with: ${uiState.selectedOCRFilterData.startsWithString}",
+                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                    )
+                } else if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.CONTAINS) {
+                    val checkIconDrawable = ContextCompat.getDrawable(
+                        context,
+                        R.drawable.ic_check
+                    )
+                    DrawOCRResultWithCheckMark(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity,
+                        checkIconDrawable = checkIconDrawable
+                    )
+                    if (uiState.ocrResults.isNotEmpty()) {
+                        FeedbackUtils.vibrate()
+                        FeedbackUtils.beep()
+                    }
+                    showInformationBox(
+                        info = "Looking for Contains: ${uiState.selectedOCRFilterData.containsString}",
+                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                    )
+                } else if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.REGEX) {
+                    val checkIconDrawable = ContextCompat.getDrawable(
+                        context,
+                        R.drawable.ic_check
+                    )
+                    DrawOCRResultWithCheckMark(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity,
+                        checkIconDrawable = checkIconDrawable
+                    )
+                    if (uiState.ocrResults.isNotEmpty()) {
+                        FeedbackUtils.vibrate()
+                        FeedbackUtils.beep()
+                    }
+                    showInformationBox(
+                        info = "Looking for Regex: ${uiState.selectedOCRFilterData.regexString}",
+                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                    )
+                }else {
+                    DrawOCRResult(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity
+                    )
+                }
+            }
 
-        UsecaseState.Retail.value -> {
-            DrawRetailShelfResult(
-                uiState = uiState,
-                activityInnerPadding = activityInnerPadding,
-                cameraPreviewResolution = cameraPreviewResolution,
-                cameraPreviewViewSize = cameraPreviewViewSize
-            )
-        }
+            UsecaseState.OCR.value -> {
 
-        UsecaseState.Product.value -> {
-            DrawRetailShelfResult(
-                uiState = uiState,
-                activityInnerPadding = activityInnerPadding,
-                cameraPreviewResolution = cameraPreviewResolution,
-                cameraPreviewViewSize = cameraPreviewViewSize
-            )
-            DrawProductRecognitionResult(
-                uiState = uiState,
-                activityInnerPadding = activityInnerPadding,
-                cameraPreviewResolution = cameraPreviewResolution,
-                cameraPreviewViewSize = cameraPreviewViewSize
-            )
-            if (showInfo.value) {
-                HandleTopInfo(
-                    activityInnerPadding = activityInnerPadding,
-                    R.drawable.camera_icon,
-                    stringResource(R.string.instruction_1),
-                    showInfo
+                DrawOCRResult(
+                    uiState = uiState,
+                    scaler = scaler,
+                    gapX = gapX,
+                    gapY = gapY,
+                    displayMetricsDensity = displayMetricsDensity
                 )
             }
-        }
 
-        UsecaseState.Main.value -> {
+            UsecaseState.Barcode.value -> {
+                DrawBarcodeResult(
+                    uiState = uiState,
+                    scaler = scaler,
+                    gapX = gapX,
+                    gapY = gapY,
+                    displayMetricsDensity = displayMetricsDensity
+                )
+            }
 
-        }
+            UsecaseState.Retail.value -> {
+                DrawRetailShelfResult(
+                    uiState = uiState,
+                    scaler = scaler,
+                    gapX = gapX,
+                    gapY = gapY,
+                    displayMetricsDensity = displayMetricsDensity
+                )
+            }
 
-        else -> {
-            TODO("Unhandled usecaseState received = $selectedDemo")
+            UsecaseState.Product.value -> {
+                DrawRetailShelfResult(
+                    uiState = uiState,
+                    scaler = scaler,
+                    gapX = gapX,
+                    gapY = gapY,
+                    displayMetricsDensity = displayMetricsDensity
+                )
+                DrawProductRecognitionResult(
+                    uiState = uiState,
+                    scaler = scaler,
+                    gapX = gapX,
+                    gapY = gapY
+                )
+
+                if (showInfo.value && uiState.cameraError == null) {
+                    HandleTopInfo(
+                        icon = R.drawable.camera_icon,
+                        info = stringResource(R.string.instruction_1),
+                        showInfo = showInfo
+                    )
+                }
+            }
+
+            UsecaseState.Main.value -> {
+
+            }
+
+            else -> {
+                TODO("Unhandled usecaseState received = $selectedDemo")
+            }
         }
     }
 
-    // Calculate the Camera PreviewView Bottom and set the Bottom Bar padding accordingly at the Bottom align
-    val camPreviewViewBottomInDp = heightInDp + activityInnerPadding.calculateTopPadding().value.dp
-    val resources = LocalContext.current.resources
-    val screenHeightInDp = with(density) {
-        resources.displayMetrics.heightPixels.toDp() // px to dp
+    uiState.cameraError?.let {
+        showCameraErrorText()
     }
 
-    val calculatedBottomBarBottomPadding =
-        (screenHeightInDp - camPreviewViewBottomInDp) + activityInnerPadding.calculateBottomPadding()
-
-    showBottomBar(
-        navController = navController,
-        viewModel = viewModel,
-        calculatedBottomBarBottomPadding = calculatedBottomBarBottomPadding,
-        activityInnerPadding = activityInnerPadding
-    )
+    if (uiState.isCameraReady) {
+        showBottomBar(
+            navController = navController,
+            viewModel = viewModel,
+            activityInnerPadding = activityInnerPadding
+        )
+    }
 }
 
 @Composable
-fun drawBbox(
-    topLeftX: Dp,
-    topLeftY: Dp,
-    bottomRightX: Dp,
-    bottomRightY: Dp,
-    text: String? = null,
-    retailShelfResultClassType: Int? = null,
-    selectedDemo: String
+private fun showCameraErrorText() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.warning_icon),
+                contentDescription = "Warning icon",
+            )
+            Spacer(modifier = Modifier.width(8.dp)) // Space between icon and text
+            Text(
+                text = stringResource(R.string.instruction_6),
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
+                    color = Variables.blackText,
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun DrawOCRResult(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float,
+    displayMetricsDensity: Float
 ) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    Canvas( // Layer 3
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.ocrResults.forEach { ocrResultData ->
+            if (ocrResultData.text.isNotEmpty()) {
 
-        val startX = topLeftX.value.dp.toPx()
-        val startY = topLeftY.value.dp.toPx()
-        val endX = bottomRightX.value.dp.toPx()
-        val endY = bottomRightY.value.dp.toPx()
+                val bBoxTop = ocrResultData.boundingBox.top.toFloat()
+                val bBoxLeft = ocrResultData.boundingBox.left.toFloat()
+                val bBoxBottom = ocrResultData.boundingBox.bottom.toFloat()
+                val bBoxRight = ocrResultData.boundingBox.right.toFloat()
 
-        // Define the size and position of the rectangle
-        val rectangleWidth = endX - startX
-        val rectangleHeight = endY - startY
-        val topLeftOffset = Offset(startX, startY)
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
 
-        when (selectedDemo) {
-            UsecaseState.OCR.value,
-            UsecaseState.OCRFind.value -> {
+                // Define the size and position of the rectangle
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
                 // Draw the filled rectangle
                 drawRect(
                     color = Color.White.copy(alpha = 0.8F),
@@ -253,7 +424,7 @@ fun drawBbox(
                     color = Color.Green,
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = 1.dp.toPx())
+                    style = Stroke(width = (1f * displayMetricsDensity))
                 )
 
                 // Prepare to draw the text
@@ -263,13 +434,13 @@ fun drawBbox(
                 }
 
                 // Calculate the maximum text size that fits in the rectangle
-                val padding = 0.5.dp.toPx() // Padding from the border
+                val padding = 0.5f * displayMetricsDensity // Padding from the border
                 var textSize = 2f
 
                 // Incrementally increase text size until it just fits
                 do {
                     paint.textSize = textSize
-                    val textWidth = paint.measureText(text)
+                    val textWidth = paint.measureText(ocrResultData.text)
                     val textHeight = paint.descent() - paint.ascent()
                     if (textWidth + padding * 2 <= rectangleWidth && textHeight + padding * 2 <= rectangleHeight) {
                         textSize += 1f
@@ -288,26 +459,214 @@ fun drawBbox(
 
                 // Draw the text using nativeCanvas
                 drawContext.canvas.nativeCanvas.drawText(
-                    text!!,
+                    ocrResultData.text,
                     textOffsetX,
                     textOffsetY,
                     paint
                 )
             }
+        }
+    }
+}
 
-            UsecaseState.Barcode.value -> {
+@Composable
+fun DrawOCRResultWithCheckMark(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float,
+    displayMetricsDensity: Float,
+    checkIconDrawable: Drawable?
+) {
+    Canvas( // Layer 3
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.ocrResults.forEach { ocrResultData ->
+            if (ocrResultData.text.isNotEmpty()) {
+
+                val bBoxTop = ocrResultData.boundingBox.top.toFloat()
+                val bBoxLeft = ocrResultData.boundingBox.left.toFloat()
+                val bBoxBottom = ocrResultData.boundingBox.bottom.toFloat()
+                val bBoxRight = ocrResultData.boundingBox.right.toFloat()
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                // Define the size and position of the rectangle
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+                // Draw the filled rectangle
+                drawRect(
+                    color = Color.White.copy(alpha = 0.8F),
+                    topLeft = topLeftOffset,
+                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight)
+                )
+
+                // Draw the border over the filled rectangle
+                drawRect(
+                    color = Color.Green,
+                    topLeft = topLeftOffset,
+                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
+                    style = Stroke(width = (1f * displayMetricsDensity))
+                )
+
+                // Prepare to draw the text
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.BLACK
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+
+                // Calculate the maximum text size that fits in the rectangle
+                val padding = 0.5f * displayMetricsDensity // Padding from the border
+                var textSize = 2f
+
+                // Incrementally increase text size until it just fits
+                do {
+                    paint.textSize = textSize
+                    val textWidth = paint.measureText(ocrResultData.text)
+                    val textHeight = paint.descent() - paint.ascent()
+                    if (textWidth + padding * 2 <= rectangleWidth && textHeight + padding * 2 <= rectangleHeight) {
+                        textSize += 1f
+                    } else {
+                        break
+                    }
+                } while (true)
+
+                // Adjust the text size to be slightly smaller
+                paint.textSize = textSize - 1f
+
+                // Calculate the position to draw the text
+                val textOffsetX = topLeftOffset.x + rectangleWidth / 2
+                val textOffsetY =
+                    topLeftOffset.y + rectangleHeight / 2 - (paint.ascent() + paint.descent()) / 2
+
+                // Draw the text using nativeCanvas
+                drawContext.canvas.nativeCanvas.drawText(
+                    ocrResultData.text,
+                    textOffsetX,
+                    textOffsetY,
+                    paint
+                )
+
+                checkIconDrawable?.let { icon ->
+                    icon.setBounds(
+                        (scaledBBoxLeftInPx + (rectangleWidth / 2) - 30F).toInt(),
+                        (scaledBBoxTopInPx - 30F - 35f).toInt(),
+                        (scaledBBoxLeftInPx + (rectangleWidth / 2) + 30F).toInt(),
+                        (scaledBBoxTopInPx + 30F - 35f).toInt()
+                    )
+                    icon.draw(drawContext.canvas.nativeCanvas)
+
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DrawBarcodeResult(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float,
+    displayMetricsDensity: Float
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.barcodeResults.forEach { barcodeData ->
+            barcodeData?.let {
+
+                val bBoxTop = barcodeData.boundingBox.top.toFloat()
+                val bBoxLeft = barcodeData.boundingBox.left.toFloat()
+                val bBoxBottom = barcodeData.boundingBox.bottom.toFloat()
+                val bBoxRight = barcodeData.boundingBox.right.toFloat()
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                // Define the size and position of the rectangle
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
 
                 drawRect(
                     color = Color.Green,
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = 1.dp.toPx())
+                    style = Stroke(width = (1f * displayMetricsDensity))
                 )
             }
+        }
+    }
 
-            UsecaseState.Retail.value -> {
+    // Draw Decoded Text if found
+    uiState.barcodeResults.forEach { barcodeData ->
+        barcodeData?.let {
+            val bBoxLeft = barcodeData.boundingBox.left.toFloat()
+            val bBoxBottom = barcodeData.boundingBox.bottom.toFloat()
 
-                val boxColor = when (retailShelfResultClassType) {
+            val scaledBBoxLeftInDp = (((scaler * bBoxLeft) + gapX) / displayMetricsDensity).dp
+            val scaledBBoxBottomInDp = (((scaler * bBoxBottom) + gapY) / displayMetricsDensity).dp
+
+            if (barcodeData.text != null && barcodeData.text != "") {
+                Text(
+                    text = barcodeData.text,
+                    fontSize = 10.sp,
+                    color = Color.Black,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(
+                            includeFontPadding = false
+                        )
+                    ),
+                    modifier = Modifier
+                        .offset(x = scaledBBoxLeftInDp, y = scaledBBoxBottomInDp + 2.dp)
+                        .background(Color.White)
+                        .padding(2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawRetailShelfResult(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float,
+    displayMetricsDensity: Float
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.bboxes.forEach { bBox ->
+            bBox?.let {
+
+                val bBoxTop = bBox.ymin
+                val bBoxLeft = bBox.xmin
+                val bBoxBottom = bBox.ymax
+                val bBoxRight = bBox.xmax
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+                val boxColor = when (bBox.cls) {
                     1 -> Color.Green // Products
                     2 -> Color.Blue // Shelf Labels
                     3 -> Color.Blue // Peg Labels
@@ -320,11 +679,41 @@ fun drawBbox(
                     color = boxColor,
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = 1.5.dp.toPx())
+                    style = Stroke(width = (1.5f * displayMetricsDensity))
                 )
             }
+        }
+    }
+}
 
-            UsecaseState.Product.value -> {
+@Composable
+private fun DrawProductRecognitionResult(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.productResults.forEach { productResult ->
+            if (productResult.text.isNotEmpty()) {
+
+                val bBoxTop = productResult.bBox.ymin
+                val bBoxLeft = productResult.bBox.xmin
+                val bBoxBottom = productResult.bBox.ymax
+                val bBoxRight = productResult.bBox.xmax
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
                 // Draw the filled rectangle
                 drawRect(
                     color = Color(0xAA004830).copy(alpha = 0.5F),
@@ -338,179 +727,14 @@ fun drawBbox(
                 }
 
                 val textOffset = Offset(
-                    startX,
-                    startY + (rectangleHeight) / 2
+                    scaledBBoxLeftInPx,
+                    scaledBBoxTopInPx + (rectangleHeight) / 2
                 )
                 drawContext.canvas.nativeCanvas.drawText(
-                    text!!,
+                    productResult.text,
                     textOffset.x,
                     textOffset.y,
                     paint
-                )
-            }
-        }
-
-    }
-
-    if (selectedDemo == UsecaseState.Barcode.value && text != null && text != "") {
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            color = Color.Black,
-            style = TextStyle(
-                platformStyle = PlatformTextStyle(
-                    includeFontPadding = false
-                )
-            ),
-            modifier = Modifier
-                .offset(x = topLeftX, y = bottomRightY + 2.dp)
-                .background(Color.White)
-                .padding(2.dp)
-        )
-    }
-
-}
-
-
-@Composable
-fun DrawOCRResult(
-    uiState: AIDataCaptureDemoUiState,
-    activityInnerPadding: PaddingValues,
-    cameraPreviewResolution: Size,
-    cameraPreviewViewSize: Size
-) {
-    if (uiState.ocrResults.isNotEmpty()) {
-        val resources = LocalContext.current.resources
-        val screenDensity = resources.displayMetrics.density
-        val scaleFactor =
-            cameraPreviewViewSize.width.toFloat() / cameraPreviewResolution.width.toFloat()
-        uiState.ocrResults.forEach { ocrResultData ->
-            if (ocrResultData.text.isNotEmpty()) {
-                val topLeftX = Dp(ocrResultData.boundingBox.left * scaleFactor / screenDensity)
-                val topLeftY =
-                    Dp((ocrResultData.boundingBox.top * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-                val bottomRightX = Dp(ocrResultData.boundingBox.right * scaleFactor / screenDensity)
-                val bottomRightY =
-                    Dp((ocrResultData.boundingBox.bottom * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-                drawBbox(
-                    topLeftX = topLeftX,
-                    topLeftY = topLeftY,
-                    bottomRightX = bottomRightX,
-                    bottomRightY = bottomRightY,
-                    text = ocrResultData.text,
-                    selectedDemo = UsecaseState.OCR.value
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun DrawBarcodeResult(
-    uiState: AIDataCaptureDemoUiState,
-    activityInnerPadding: PaddingValues,
-    cameraPreviewResolution: Size,
-    cameraPreviewViewSize: Size
-) {
-    val resources = LocalContext.current.resources
-    val screenDensity = resources.displayMetrics.density
-    val scaleFactor =
-        cameraPreviewViewSize.width.toFloat() / cameraPreviewResolution.width.toFloat()
-
-    uiState.barcodeResults.forEach { barcodeData ->
-        barcodeData?.let {
-            val topLeftX = Dp(barcodeData.boundingBox.left * scaleFactor / screenDensity)
-            val topLeftY =
-                Dp((barcodeData.boundingBox.top * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-            val bottomRightX =
-                Dp(barcodeData.boundingBox.right * scaleFactor / screenDensity)
-            val bottomRightY =
-                Dp((barcodeData.boundingBox.bottom * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-            drawBbox(
-                topLeftX = topLeftX,
-                topLeftY = topLeftY,
-                bottomRightX = bottomRightX,
-                bottomRightY = bottomRightY,
-                text = barcodeData.text,
-                selectedDemo = UsecaseState.Barcode.value
-            )
-        }
-    }
-}
-
-@Composable
-fun DrawRetailShelfResult(
-    uiState: AIDataCaptureDemoUiState,
-    activityInnerPadding: PaddingValues,
-    cameraPreviewResolution: Size,
-    cameraPreviewViewSize: Size
-) {
-    if (uiState.bboxes.isNotEmpty()) {
-        val resources = LocalContext.current.resources
-        val screenDensity = resources.displayMetrics.density
-        val scaleFactor =
-            cameraPreviewViewSize.width.toFloat() / cameraPreviewResolution.width.toFloat()
-
-        uiState.bboxes.forEach { bBox ->
-            bBox?.let {
-                val topLeftX = Dp(bBox.xmin * scaleFactor / screenDensity)
-                val topLeftY =
-                    Dp((bBox.ymin * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-                val bottomRightX = Dp(bBox.xmax * scaleFactor / screenDensity)
-                val bottomRightY =
-                    Dp((bBox.ymax * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-                drawBbox(
-                    topLeftX = topLeftX,
-                    topLeftY = topLeftY,
-                    bottomRightX = bottomRightX,
-                    bottomRightY = bottomRightY,
-                    retailShelfResultClassType = bBox.cls,
-                    selectedDemo = UsecaseState.Retail.value
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun DrawProductRecognitionResult(
-    uiState: AIDataCaptureDemoUiState,
-    activityInnerPadding: PaddingValues,
-    cameraPreviewResolution: Size,
-    cameraPreviewViewSize: Size
-) {
-    if (uiState.productResults.isNotEmpty()) {
-        val resources = LocalContext.current.resources
-        val screenDensity = resources.displayMetrics.density
-        val scaleFactor =
-            cameraPreviewViewSize.width.toFloat() / cameraPreviewResolution.width.toFloat()
-
-        uiState.productResults.forEach { productResult ->
-            if (productResult.text.isNotEmpty()) {
-                // The product is recognized. Hence draw the SKU on Canvas
-                val bBox = productResult.bBox
-
-                val topLeftX = Dp(bBox.xmin * scaleFactor / screenDensity)
-                val topLeftY =
-                    Dp((bBox.ymin * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-                val bottomRightX = Dp(bBox.xmax * scaleFactor / screenDensity)
-                val bottomRightY =
-                    Dp((bBox.ymax * scaleFactor / screenDensity) + activityInnerPadding.calculateTopPadding().value)
-
-                drawBbox(
-                    topLeftX = topLeftX,
-                    topLeftY = topLeftY,
-                    bottomRightX = bottomRightX,
-                    bottomRightY = bottomRightY,
-                    text = productResult.text,
-                    selectedDemo = UsecaseState.Product.value
                 )
             }
         }
@@ -521,7 +745,6 @@ fun DrawProductRecognitionResult(
 fun showBottomBar(
     navController: NavController,
     viewModel: AIDataCaptureDemoViewModel,
-    calculatedBottomBarBottomPadding: Dp,
     activityInnerPadding: PaddingValues
 ) {
     val uiState = viewModel.uiState.collectAsState().value
@@ -554,18 +777,18 @@ fun showBottomBar(
                                 Color.Black.copy(alpha = 0.4f)
                             },
                             shape = RoundedCornerShape(percent = 50)
-                        ),
+                        )
+                        .clickable {
+                            torchEnabled.value = !torchEnabled.value
+                            viewModel.enableTorch(torchEnabled.value)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = ImageVector.Companion.vectorResource(R.drawable.flashlight_icon),
                         contentDescription = "Torch",
                         modifier = Modifier
-                            .size(20.dp)
-                            .clickable {
-                                torchEnabled.value = !torchEnabled.value
-                                viewModel.enableTorch(torchEnabled.value)
-                            },
+                            .size(20.dp),
                         tint = if (torchEnabled.value) Variables.mainDefault else Variables.stateDefaultEnabled
                     )
                 }
@@ -604,7 +827,14 @@ fun showBottomBar(
                         .align(Alignment.CenterVertically)
                         .background(
                             Color.Black.copy(alpha = 0.4f), shape = RoundedCornerShape(percent = 50)
-                        ),
+                        )
+                        .clickable {
+                            var zoomRatio: Float = uiState.zoomLevel * 2.0f
+                            if (zoomRatio > 4.0f) {
+                                zoomRatio = 1.0F
+                            }
+                            viewModel.setZoom(zoomRatio)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     val roundedValue = ((uiState.zoomLevel * 10).toInt()).toFloat() / 10
@@ -615,14 +845,8 @@ fun showBottomBar(
                             fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
                             fontWeight = FontWeight(400),
                             color = Variables.mainInverse
-                        ),
-                        modifier = Modifier.clickable {
-                            var zoomRatio: Float = uiState.zoomLevel * 2.0f
-                            if (zoomRatio > 4.0f) {
-                                zoomRatio = 1.0F
-                            }
-                            viewModel.setZoom(zoomRatio)
-                        })
+                        )
+                    )
                 }
             }
         }
@@ -631,7 +855,6 @@ fun showBottomBar(
 
 @Composable
 fun HandleTopInfo(
-    activityInnerPadding: PaddingValues,
     icon: Int,
     info: String,
     showInfo: MutableState<Boolean>
@@ -640,7 +863,6 @@ fun HandleTopInfo(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            .padding(activityInnerPadding)
             .padding(top = 16.dp, start = 21.dp, end = 21.dp)
     ) {
         Column(
@@ -660,7 +882,8 @@ fun HandleTopInfo(
                 modifier = Modifier.padding(
                     top = Variables.spacingLarge,
                     bottom = Variables.spacingMedium
-                )
+                ),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Spacer(modifier = Modifier.width(Variables.spacingLarge))
                 Image(
@@ -699,3 +922,59 @@ fun HandleTopInfo(
     }
 }
 
+@Composable
+fun showInformationBox(
+    info: String,
+    topPadding: Dp
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+            .padding(top = topPadding, start = 21.dp, end = 21.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 0.87838.dp,
+                    color = Color(0xFFF8D249),
+                    shape = RoundedCornerShape(size = 360.13556.dp)
+                )
+                .background(
+                    Color.Black.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(size = 360.13556.dp)
+                )
+        ) {
+            Row(
+                modifier = Modifier.padding(
+                    top = Variables.spacingLarge,
+                    bottom = Variables.spacingMedium
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.width(Variables.spacingLarge))
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = "Search Icon",
+                    tint = Variables.mainInverse
+                )
+                Spacer(modifier = Modifier.width(Variables.spacingLarge))
+                Text(
+                    text = info,
+                    modifier = Modifier
+                        .padding(end = 36.dp)
+                        .weight(1f),
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        lineHeight = 21.sp,
+                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                        fontWeight = FontWeight(400),
+                        color = Variables.mainInverse,
+                    )
+                )
+                Spacer(modifier = Modifier.width(Variables.spacingLarge))
+            }
+        }
+    }
+}

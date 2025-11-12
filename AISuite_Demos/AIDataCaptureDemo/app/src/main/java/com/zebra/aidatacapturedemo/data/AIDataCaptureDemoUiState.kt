@@ -155,6 +155,8 @@ data class AIDataCaptureDemoUiState(
 
     // Model --> UI
     var modelDemoReady: Boolean = false,
+    var isCameraReady: Boolean = false,
+    var cameraError: String? = null,
     var isProductEnrollmentCompleted: Boolean = false,
     var currentBitmap: Bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888),
     var captureBitmap: Bitmap? = null,
@@ -163,10 +165,5 @@ data class AIDataCaptureDemoUiState(
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
 
-    // OCR Filter Settings
-    var selectedOcrFilterType: OCRFilterType = OCRFilterType.SHOW_ALL,
-    var selectedExactMatchString: String = "",
-    var selectedNumericCharSliderValues: ClosedFloatingPointRange<Float> = (2f..15f),
-    var selectedAlphaCharSliderValues: ClosedFloatingPointRange<Float> = (2f..15f),
-    var selectedAlphaNumericCharSliderValues: ClosedFloatingPointRange<Float> = (2f..15f)
+    var selectedOCRFilterData: OCRFilterData = OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
 )

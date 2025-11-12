@@ -17,7 +17,7 @@ android {
         applicationId = "com.zebra.aidatacapturedemo"
         minSdk = 33
         targetSdk = 36
-        versionCode = 7
+        versionCode = 12
         val appVersion: String = libs.versions.appVersion.get().toString()
         versionName = appVersion
 
@@ -95,6 +95,7 @@ dependencies {
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
     implementation(libs.androidx.camera.extensions)
+    implementation(libs.runtime.permissions)
 
     // JSON serialization
     implementation(libs.gson)

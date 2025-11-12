@@ -3,44 +3,35 @@
 package com.zebra.aidatacapturedemo.model
 
 import android.util.Log
-import androidx.camera.core.ImageAnalysis
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.coroutineScope
-import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
-import com.zebra.ai.vision.detector.AIVisionSDKException
 import com.zebra.ai.vision.detector.BarcodeDecoder
-import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
-import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.PROFILING
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 
 /**
- * [BarcodeEntityTrackerAnalyzer] class is used to detect & Track barcodes found on the Camera Live Preview
+ * [BarcodeAnalyzer] class is used to detect & Track barcodes found on the Camera Live Preview
  *
  * @param uiState - Used to read all the UI Current State
  * @param viewModel - Used to write any UI State Changes via [AIDataCaptureDemoViewModel]
  */
-class BarcodeEntityTrackerAnalyzer(
+class BarcodeAnalyzer(
     val uiState: StateFlow<AIDataCaptureDemoUiState>,
-    val viewModel: AIDataCaptureDemoViewModel
-) {
+    val viewModel: AIDataCaptureDemoViewModel) {
 
     private lateinit var mActivityLifecycle: Lifecycle
-    private val TAG = "BarcodeEntityTrackerAnalyzer"
+    private val TAG = "BarcodeAnalyzer"
     private var barcodeDecoder: BarcodeDecoder? = null
     private val decoderSettings = BarcodeDecoder.Settings("barcode-localizer")
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
 
     /**
-     * To initialize the BarcodeEntityTrackerAnalyzer
+     * To initialize the BarcodeAnalyzer
      */
     fun initialize() {
         barcodeDecoder?.dispose()
@@ -56,11 +47,11 @@ class BarcodeEntityTrackerAnalyzer(
                     updateModelDemoReady(true)
                     Log.e(
                         PROFILING,
-                        "BarcodeEntityTrackerAnalyzer obj creation / model loading time = ${System.currentTimeMillis() - mStart} milli sec"
+                        "BarcodeAnalyzer obj creation / model loading time = ${System.currentTimeMillis() - mStart} milli sec"
                     )
-                    Log.i(TAG, "BarcodeEntityTrackerAnalyzer init Success")
+                    Log.i(TAG, "BarcodeAnalyzer init Success")
                 }.exceptionally { e: Throwable ->
-                    Log.e(TAG, "BarcodeEntityTrackerAnalyzer init Failed -> " + e.message)
+                    Log.e(TAG, "BarcodeAnalyzer init Failed -> " + e.message)
                     if (e.message?.contains("Given runtimes are not available") == true ||
                         e.message?.contains("Initialize barcodeDecoder due to SNPE exception") == true
                     ) {
@@ -76,27 +67,16 @@ class BarcodeEntityTrackerAnalyzer(
         }
     }
 
-    fun setupEntityTrackerAnalyzer(myLifecycle: Lifecycle): EntityTrackerAnalyzer {
-        mActivityLifecycle = myLifecycle
-
-        val entityTrackerAnalyzer = EntityTrackerAnalyzer(
-            listOf(barcodeDecoder),
-            ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL,
-            executorService,
-            ::handleEntities
-        )
-
-        return entityTrackerAnalyzer
-    }
-
     /**
-     * To deinitialize the BarcodeEntityTrackerAnalyzer, we need to dispose the localizer
+     * To deinitialize the BarcodeAnalyzer, we need to dispose the localizer
      */
     fun deinitialize() {
         barcodeDecoder?.dispose()
         barcodeDecoder = null
     }
-
+    fun getDetector() : BarcodeDecoder? {
+        return barcodeDecoder
+    }
     private fun configure() {
         try {
             //Swap the values as the presented index is reverse of what model expects
@@ -164,24 +144,6 @@ class BarcodeEntityTrackerAnalyzer(
             decoderSettings.Symbology.US4STATE_FICS.enable(uiState.value.barcodeSettings.barcodeSymbology.us4state_fics)
         } catch (e: Exception) {
             Log.e(TAG, "Fatal error: configure failed - ${e.message}")
-        }
-    }
-
-    private fun handleEntities(result: EntityTrackerAnalyzer.Result) {
-        mActivityLifecycle.coroutineScope.launch(Dispatchers.Main) {
-            barcodeDecoder?.let {
-                val returnEntityList = result.getValue(it)
-                var rectList: List<ResultData> = mutableListOf()
-                returnEntityList?.forEach { entity ->
-                    if (entity != null) {
-                        val barcodeEntity = entity as BarcodeEntity
-                        val value = barcodeEntity.value
-                        val rect = barcodeEntity.boundingBox
-                        rectList += ResultData(boundingBox = rect, text = value)
-                    }
-                }
-                viewModel.updateBarcodeResultData(results = rectList)
-            }
         }
     }
 

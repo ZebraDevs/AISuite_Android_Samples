@@ -305,7 +305,7 @@ class FileUtils(cacheDir: String, context : Context) {
                                 if(input != null) {
                                     val bitmap = BitmapFactory.decodeStream(input)
                                     file.parentFile?.name?.let {
-                                        listOfProductData += ProductData(Point(0, 0), it, BBox(), bitmap)
+                                        listOfProductData += ProductData( it, BBox(), bitmap)
                                     }
                                     input.close()
                                 }
