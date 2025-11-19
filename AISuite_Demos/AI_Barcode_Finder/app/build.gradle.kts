@@ -94,9 +94,10 @@ android {
             val versionName = defaultConfig.versionName
             val versionCode = defaultConfig.versionCode
             val buildType = buildType.name
+            val sdkVersion = libs.versions.zebraAIVisionSdk.get()
 
-            // Format: AI_Barcode_Finder-v1.8-release.apk or AI_Barcode_Finder-v1.8-debug.apk
-            output.outputFileName = "AI_Barcode_Finder-v${versionName}-${buildType}.apk"
+            // Format: AI_Barcode_Finder-v1.8-release-SDK_3.1.4.apk or AI_Barcode_Finder-v1.8-debug-SDK_3.1.4.apk
+            output.outputFileName = "AI_Barcode_Finder-v${versionName}-${buildType}-SDK_${sdkVersion}.apk"
         }
     }
 }

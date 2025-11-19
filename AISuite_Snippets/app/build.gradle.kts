@@ -45,9 +45,11 @@ android {
             val versionName = defaultConfig.versionName
             val versionCode = defaultConfig.versionCode
             val buildType = buildType.name
+            val sdkVersion = libs.versions.zebraAIVisionSdk.get()
 
-            // Format: AISuite_Snippets-v1.8-release.apk or AISuite_Snippets-v1.8-debug.apk
-            output.outputFileName = "AISuite_Snippets-v${versionName}-${buildType}.apk"
+            // Format: AISuite_Snippets-v1.8-release-SDK_3.1.4.apk or AISuite_Snippets-v1.8-debug-SDK_3.1.4.apk
+            output.outputFileName = "AISuite_Snippets-v${versionName}-${buildType}-SDK_${sdkVersion}.apk"
+
         }
     }
 }
