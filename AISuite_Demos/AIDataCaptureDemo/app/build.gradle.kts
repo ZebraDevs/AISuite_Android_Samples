@@ -68,6 +68,18 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val versionName = defaultConfig.versionName
+            val versionCode = defaultConfig.versionCode
+            val buildType = buildType.name
+
+            // Format: AI_DataCapture_Demo-v1.8-release.apk or AI_DataCapture_Demo-v1.8-debug.apk
+            output.outputFileName = "AI_DataCapture_Demo-v${versionName}-${buildType}.apk"
+        }
+    }
 }
 
 dependencies {

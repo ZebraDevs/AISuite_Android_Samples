@@ -87,6 +87,18 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
     }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val versionName = defaultConfig.versionName
+            val versionCode = defaultConfig.versionCode
+            val buildType = buildType.name
+
+            // Format: AI_Barcode_Finder-v1.8-release.apk or AI_Barcode_Finder-v1.8-debug.apk
+            output.outputFileName = "AI_Barcode_Finder-v${versionName}-${buildType}.apk"
+        }
+    }
 }
 
 dependencies {

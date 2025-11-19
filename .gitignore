@@ -31,3 +31,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+AISuite_Demos/AI_Barcode_Finder/app/release/
+AISuite_Demos/AIDataCaptureDemo/app/release/
+AISuite_QuickStart/.kotlin/sessions/
+AISuite_QuickStart/app/release/

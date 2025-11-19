@@ -40,6 +40,18 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val versionName = defaultConfig.versionName
+            val versionCode = defaultConfig.versionCode
+            val buildType = buildType.name
+
+            // Format: AISuite_Quickstart-v1.8-release.apk or AISuite_Quickstart-v1.8-debug.apk
+            output.outputFileName = "AISuite_Quickstart-v${versionName}-${buildType}.apk"
+        }
+    }
 }
 
 dependencies {
