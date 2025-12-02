@@ -17,6 +17,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
@@ -26,6 +28,9 @@ import com.zebra.ai.barcodefinder.presentation.ui.theme.BaseTextStyle
 import com.zebra.ai.barcodefinder.presentation.ui.theme.borderPrimaryMain
 import com.zebra.ai.barcodefinder.presentation.ui.theme.disabledMain
 import com.zebra.ai.barcodefinder.presentation.ui.theme.textWhite
+
+val BackgroundColorKey = SemanticsPropertyKey<String>("backgroundColor")
+var SemanticsPropertyReceiver.backgroundColor by BackgroundColorKey
 
 /**
  * Displays a customizable button with optional icons, color, and shape.

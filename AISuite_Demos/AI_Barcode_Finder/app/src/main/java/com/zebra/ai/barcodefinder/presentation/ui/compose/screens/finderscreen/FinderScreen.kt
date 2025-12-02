@@ -153,6 +153,7 @@ fun FinderScreen(
                         }
                     },
                     modifier = Modifier.fillMaxSize()
+                        .semantics{contentDescription = "FinderScreen"}
                 )
 
                 // Barcode Overlay

@@ -75,6 +75,7 @@ fun ScanResultsScreen(
                     IconButton(onClick = onBackPressed) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            modifier = Modifier.semantics{contentDescription = "OnScreenBackNavigation"},
                             contentDescription = null,
                             tint = white
                         )

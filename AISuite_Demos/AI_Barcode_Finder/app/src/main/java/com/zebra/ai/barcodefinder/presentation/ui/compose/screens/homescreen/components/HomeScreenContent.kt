@@ -54,6 +54,7 @@ import com.zebra.ai.barcodefinder.domain.model.AppSettings
 import com.zebra.ai.barcodefinder.presentation.model.SettingsUiState
 import com.zebra.ai.barcodefinder.presentation.ui.compose.components.ZebraButton
 import com.zebra.ai.barcodefinder.presentation.ui.compose.components.ZebraText
+import com.zebra.ai.barcodefinder.presentation.ui.compose.components.backgroundColor
 import com.zebra.ai.barcodefinder.presentation.ui.compose.screens.navbarscreen.NavBarScreen
 import com.zebra.ai.barcodefinder.presentation.ui.theme.AppColors
 import com.zebra.ai.barcodefinder.presentation.ui.theme.AppDimensions
@@ -259,7 +260,10 @@ fun HomeScreenContent(
                             bottom = AppDimensions.dimension_24dp,
                             start = AppDimensions.dimension_16dp,
                             end = AppDimensions.dimension_16dp
-                        ),
+                        )
+                        .semantics{
+                            this.backgroundColor = if (isSDKInitialized) "blue" else "gray"
+                        },
                     enabled = isSDKInitialized && !uiState.isLoading && !uiState.isScanning,
                     shapes = RoundedCornerShape(AppDimensions.dimension_4dp),
                     backgroundColor = if (isSDKInitialized) borderPrimaryMain else disabledMain,

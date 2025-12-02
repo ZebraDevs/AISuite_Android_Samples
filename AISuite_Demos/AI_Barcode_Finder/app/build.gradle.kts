@@ -58,7 +58,6 @@ android {
             "BARCODE_LOCALIZER_MODEL_VERSION",
             "\"${libs.versions.barcodeLocalizer.get()}\""
         )
-
     }
 
     buildTypes {
@@ -87,19 +86,6 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
     }
-
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val versionName = defaultConfig.versionName
-            val versionCode = defaultConfig.versionCode
-            val buildType = buildType.name
-            val sdkVersion = libs.versions.zebraAIVisionSdk.get()
-
-            // Format: AI_Barcode_Finder-v1.8-release-SDK_3.1.4.apk or AI_Barcode_Finder-v1.8-debug-SDK_3.1.4.apk
-            output.outputFileName = "AI_Barcode_Finder-v${versionName}-${buildType}-SDK_${sdkVersion}.apk"
-        }
-    }
 }
 
 dependencies {
@@ -112,9 +98,14 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.foundation)
+    implementation(libs.ui)
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.uiautomator)
+
+    // Test rules and transitive dependencies:
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+
     implementation(libs.camera.core)
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)

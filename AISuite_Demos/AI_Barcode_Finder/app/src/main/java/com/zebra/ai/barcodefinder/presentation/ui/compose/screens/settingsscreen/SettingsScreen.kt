@@ -105,6 +105,7 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(white)
+            .semantics{contentDescription="SettingsScreen"}
     ) {
         // Top App Bar - Using same color as NavBarScreen header
         TopAppBar(

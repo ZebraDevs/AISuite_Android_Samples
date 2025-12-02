@@ -1,5 +1,12 @@
 # AI Barcode Finder Demo
 
+## Demo Overview
+
+| Configuration | Scanning in Action |
+|:-------------:|:------------------:|
+| <img src="config.gif" alt="Demo Configuration" width="300"> | <img src="scan.gif" alt="Barcode Scanning" width="300"> |
+| The configuration screen allows you to set up actionable barcodes and define action types (pickup, recall, quantity) before starting the scanning process. | Once configured, the app provides real-time barcode detection and tracking with interactive overlays. Simply point the camera at barcodes to see them detected and tracked in real-time. |
+
 ## Project Purpose
 
 **AI Barcode Finder Demo** is a sample Android application that demonstrates how to use Zebra's AI Data Capture SDK, specifically the `EntityTrackerAnalyzer` for barcode finding. This project shows how to integrate EntityTrackerAnalyzer (a CameraX `ImageAnalysis.Analyzer` exposed by Zebra's SDK) with Jetpack Compose and MVVM architecture for modern, enterprise-grade barcode scanning.

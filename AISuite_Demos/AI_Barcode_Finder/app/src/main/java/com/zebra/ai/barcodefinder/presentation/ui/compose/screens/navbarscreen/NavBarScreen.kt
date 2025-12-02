@@ -96,7 +96,8 @@ fun NavBarScreen(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = AppDimensions.spacerHeight8), // Reduced from 16.dp
+                    .padding(vertical = AppDimensions.spacerHeight8) // Reduced from 16.dp
+                    .semantics{contentDescription="Navbar"},
                 verticalArrangement = Arrangement.spacedBy(AppDimensions.zeroPadding) // Reduced from 8.dp
             ) {
                 val navigationItems = listOf(
@@ -122,7 +123,7 @@ fun NavBarScreen(
                         stringResource(id = R.string.navbar_screen_about),
                         Icons.Default.Info,
                         onNavigateToAbout,
-                        modifier = Modifier.semantics{contentDescription="About"}
+                        modifier = Modifier.semantics{contentDescription="NavbarAbout"}
                     ),
                     NavigationItem(
                         stringResource(id = R.string.navbar_screen_feedback),

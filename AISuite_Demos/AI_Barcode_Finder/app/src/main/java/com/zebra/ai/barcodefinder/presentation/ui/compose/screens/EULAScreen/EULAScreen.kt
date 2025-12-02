@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -49,7 +51,8 @@ fun EULAScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(white)
-            .padding(AppDimensions.dimension_24dp),
+            .padding(AppDimensions.dimension_24dp)
+            .semantics{contentDescription = "EULAScreen"},
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Header
@@ -64,7 +67,8 @@ fun EULAScreen(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .semantics{contentDescription = "ScrollableEULA"},
             verticalArrangement = Arrangement.Center
         ) {
             ZebraText(

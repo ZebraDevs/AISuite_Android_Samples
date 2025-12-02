@@ -89,8 +89,8 @@ fun ActionProductRecallDialog(
                     ) {
                         ZebraText(
                             textValue = productName,
-                            modifier = Modifier.semantics{contentDescription="ConfirmActionProductName"},
                             fontSize = AppDimensions.dialogTextFontSizeMedium,
+                            modifier = Modifier.semantics{contentDescription="ConfirmActionProductName"},
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
                         )
