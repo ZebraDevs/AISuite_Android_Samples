@@ -17,7 +17,7 @@ import androidx.documentfile.provider.DocumentFile
 import com.google.gson.Gson
 import com.zebra.ai.vision.detector.BBox
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
-import com.zebra.aidatacapturedemo.data.OcrFindSettings
+import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
 import com.zebra.aidatacapturedemo.data.RetailShelfSettings
@@ -43,11 +43,11 @@ class FileUtils(cacheDir: String, context : Context) {
         barcodeSettingsFile = File(mCacheDir, "barcode_settings.json")
         ocrTextSettingsFile = File(mCacheDir, "ocr_text_settings.json")
         retailShelfSettingsFile = File(mCacheDir, "retailshelf_settings.json")
-        ocrFindSettingsFile = File(mCacheDir, "ocrfind_settings.json")
+        ocrBarcodeFindSettingsFile = File(mCacheDir, "ocrbarcodefind_settings.json")
         productRecogntionSettingsFile= File(mCacheDir, "product_recognition_settings.json")
         settingsFiles.put(UsecaseState.Barcode.value, barcodeSettingsFile)
         settingsFiles.put(UsecaseState.OCR.value, ocrTextSettingsFile)
-        settingsFiles.put(UsecaseState.OCRFind.value, ocrFindSettingsFile)
+        settingsFiles.put(UsecaseState.OCRBarcodeFind.value, ocrBarcodeFindSettingsFile)
         settingsFiles.put(UsecaseState.Retail.value, retailShelfSettingsFile)
         settingsFiles.put(UsecaseState.Product.value, productRecogntionSettingsFile)
 
@@ -62,7 +62,7 @@ class FileUtils(cacheDir: String, context : Context) {
         private lateinit var barcodeSettingsFile: File
         private lateinit var ocrTextSettingsFile: File
         private lateinit var retailShelfSettingsFile: File
-        private lateinit var ocrFindSettingsFile: File
+        private lateinit var ocrBarcodeFindSettingsFile: File
         private lateinit var productRecogntionSettingsFile: File
 
         var settingsFiles : MutableMap<String, File> = mutableMapOf()
@@ -113,22 +113,22 @@ class FileUtils(cacheDir: String, context : Context) {
             }
         }
 
-        fun loadAdvancedOCRSettings(): OcrFindSettings {
-            return if (settingsFiles.getValue(UsecaseState.OCRFind.value).exists()) {
+        fun loadOCRBarcodeFindSettings(): OcrBarcodeFindSettings {
+            return if (settingsFiles.getValue(UsecaseState.OCRBarcodeFind.value).exists()) {
                 try {
-                    val json = settingsFiles.getValue(UsecaseState.OCRFind.value).readText()
-                    gson.fromJson(json, OcrFindSettings::class.java) ?: OcrFindSettings()
+                    val json = settingsFiles.getValue(UsecaseState.OCRBarcodeFind.value).readText()
+                    gson.fromJson(json, OcrBarcodeFindSettings::class.java) ?: OcrBarcodeFindSettings()
                 } catch (_: Exception) {
-                    OcrFindSettings()
+                    OcrBarcodeFindSettings()
                 }
             } else {
-                OcrFindSettings()
+                OcrBarcodeFindSettings()
             }
         }
 
-        fun saveOCRFindSettings(settings: OcrFindSettings) {
+        fun saveOCRBarcodeFindSettings(settings: OcrBarcodeFindSettings) {
             try {
-                FileWriter(settingsFiles.getValue(UsecaseState.OCRFind.value)).use { writer ->
+                FileWriter(settingsFiles.getValue(UsecaseState.OCRBarcodeFind.value)).use { writer ->
                     gson.toJson(settings, writer)
                 }
             } catch (e: Exception) {

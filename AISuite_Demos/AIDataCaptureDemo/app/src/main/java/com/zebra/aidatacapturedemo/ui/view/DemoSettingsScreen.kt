@@ -99,7 +99,8 @@ fun DemoSettingsScreen(
     val settingsItemsList = ExpandableSettingsItemsList()
     settingsItemsList.AddCommonSettings()
 
-    if (demo == UsecaseState.Barcode.value) {
+    if ((demo == UsecaseState.Barcode.value) ||
+        (demo == UsecaseState.OCRBarcodeFind.value) ) {
         settingsItemsList.AddBarcodeSettings()
     } else if (demo == UsecaseState.Product.value) {
         settingsItemsList.AddProductSettings()
@@ -167,7 +168,6 @@ fun DemoSettingsScreen(
                     R.string.restore_default,
                     onButtonClick = {
                         viewModel.restoreDefaultSettings()
-                        viewModel.applySettings()
                     }
                 ))
         }
@@ -309,7 +309,7 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             var fileName: String = ""
-            if ((uiState.usecaseSelected == UsecaseState.OCRFind.value) || (uiState.usecaseSelected == UsecaseState.OCR.value)) {
+            if ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) || (uiState.usecaseSelected == UsecaseState.OCR.value)) {
                 fileName = "ocr_model_input_size.html"
             } else if (uiState.usecaseSelected == UsecaseState.Barcode.value) {
                 fileName = "barcode_model_input_size.html"
@@ -327,7 +327,7 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             var fileName: String = ""
-            if ((uiState.usecaseSelected == UsecaseState.OCRFind.value) || (uiState.usecaseSelected == UsecaseState.OCR.value)) {
+            if ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) || (uiState.usecaseSelected == UsecaseState.OCR.value)) {
                 fileName = "ocr_resolution.html"
             } else if (uiState.usecaseSelected == UsecaseState.Barcode.value) {
                 fileName = "barcode_resolution.html"
@@ -584,8 +584,8 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
 fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
     val uiState = viewModel.uiState.collectAsState().value
     val versionPair = when (uiState.usecaseSelected) {
-        UsecaseState.OCRFind.value -> {
-            Pair(first = "Ocr Find Version", second = BuildConfig.TextOcrRecognizer_Version)
+        UsecaseState.OCRBarcodeFind.value -> {
+            Pair(first = "OCR Barcode Find Version", second = BuildConfig.TextOcrRecognizer_Version)
         }
 
         UsecaseState.OCR.value -> {

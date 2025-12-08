@@ -7,6 +7,7 @@ import androidx.lifecycle.Lifecycle
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.PROFILING
+import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.flow.StateFlow
 import java.io.IOException
@@ -36,7 +37,7 @@ class BarcodeAnalyzer(
     fun initialize() {
         barcodeDecoder?.dispose()
         barcodeDecoder = null
-        updateModelDemoReady(false)
+        updateBarcodeModelDemoReady(false)
         try {
             configure()
 
@@ -44,7 +45,7 @@ class BarcodeAnalyzer(
             BarcodeDecoder.getBarcodeDecoder(decoderSettings, executorService)
                 .thenAccept { barcodeDecoderInstance: BarcodeDecoder ->
                     barcodeDecoder = barcodeDecoderInstance
-                    updateModelDemoReady(true)
+                    updateBarcodeModelDemoReady(true)
                     Log.e(
                         PROFILING,
                         "BarcodeAnalyzer obj creation / model loading time = ${System.currentTimeMillis() - mStart} milli sec"
@@ -79,75 +80,145 @@ class BarcodeAnalyzer(
     }
     private fun configure() {
         try {
-            //Swap the values as the presented index is reverse of what model expects
-            val processorOrder = when (uiState.value.barcodeSettings.commonSettings.processorSelectedIndex) {
-                0 -> arrayOf(2, 0, 1) // AUTO
-                1 -> arrayOf(2) // DSP
-                2 -> arrayOf(1) // GPU
-                3 -> arrayOf(0) //CPU
-                else -> {
-                    arrayOf(2, 0, 1)
-                }
+            if (uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
+                //Swap the values as the presented index is reverse of what model expects
+                val processorOrder =
+                    when (uiState.value.ocrBarcodeFindSettings.commonSettings.processorSelectedIndex) {
+                        0 -> arrayOf(2, 0, 1) // AUTO
+                        1 -> arrayOf(2) // DSP
+                        2 -> arrayOf(1) // GPU
+                        3 -> arrayOf(0) //CPU
+                        else -> {
+                            arrayOf(2, 0, 1)
+                        }
+                    }
+                decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder =
+                    processorOrder
+
+                decoderSettings.detectorSetting.inferencerOptions.defaultDims.width =
+                    uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
+                decoderSettings.detectorSetting.inferencerOptions.defaultDims.height =
+                    uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
+
+                decoderSettings.Symbology.AUSTRALIAN_POSTAL.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.australian_postal)
+                decoderSettings.Symbology.AZTEC.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.aztec)
+                decoderSettings.Symbology.CANADIAN_POSTAL.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.canadian_postal)
+                decoderSettings.Symbology.CHINESE_2OF5.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.chinese_2of5)
+                decoderSettings.Symbology.CODABAR.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.codabar)
+                decoderSettings.Symbology.CODE11.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.code11)
+                decoderSettings.Symbology.CODE39.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.code39)
+                decoderSettings.Symbology.CODE93.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.code93)
+                decoderSettings.Symbology.CODE128.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.code128)
+                decoderSettings.Symbology.COMPOSITE_AB.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.composite_ab)
+                decoderSettings.Symbology.COMPOSITE_C.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.composite_c)
+                decoderSettings.Symbology.D2OF5.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.d2of5)
+                decoderSettings.Symbology.DATAMATRIX.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.datamatrix)
+                decoderSettings.Symbology.DOTCODE.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.dotcode)
+                decoderSettings.Symbology.DUTCH_POSTAL.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.dutch_postal)
+                decoderSettings.Symbology.EAN8.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.ean_8)
+                decoderSettings.Symbology.EAN13.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.ean_13)
+                decoderSettings.Symbology.FINNISH_POSTAL_4S.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.finnish_postal_4s)
+                decoderSettings.Symbology.GRID_MATRIX.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.grid_matrix)
+                decoderSettings.Symbology.GS1_DATABAR.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.gs1_databar)
+                decoderSettings.Symbology.GS1_DATABAR_EXPANDED.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.gs1_databar_expanded)
+                decoderSettings.Symbology.GS1_DATABAR_LIM.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.gs1_databar_lim)
+                decoderSettings.Symbology.GS1_DATAMATRIX.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.gs1_datamatrix)
+                decoderSettings.Symbology.GS1_QRCODE.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.gs1_qrcode)
+                decoderSettings.Symbology.HANXIN.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.hanxin)
+                decoderSettings.Symbology.I2OF5.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.i2of5)
+                decoderSettings.Symbology.JAPANESE_POSTAL.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.japanese_postal)
+                decoderSettings.Symbology.KOREAN_3OF5.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.korean_3of5)
+                decoderSettings.Symbology.MAILMARK.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.mailmark)
+                decoderSettings.Symbology.MATRIX_2OF5.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.matrix_2of5)
+                decoderSettings.Symbology.MAXICODE.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.maxicode)
+                decoderSettings.Symbology.MICROPDF.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.micropdf)
+                decoderSettings.Symbology.MICROQR.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.microqr)
+                decoderSettings.Symbology.MSI.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.msi)
+                decoderSettings.Symbology.PDF417.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.pdf417)
+                decoderSettings.Symbology.QRCODE.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.qrcode)
+                decoderSettings.Symbology.TLC39.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.tlc39)
+                decoderSettings.Symbology.TRIOPTIC39.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.trioptic39)
+                decoderSettings.Symbology.UK_POSTAL.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.uk_postal)
+                decoderSettings.Symbology.UPCA.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.upc_a)
+                decoderSettings.Symbology.UPCE0.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.upce0)
+                decoderSettings.Symbology.UPCE1.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.upce1)
+                decoderSettings.Symbology.USPLANET.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.usplanet)
+                decoderSettings.Symbology.USPOSTNET.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.uspostnet)
+                decoderSettings.Symbology.US4STATE.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.us4state)
+                decoderSettings.Symbology.US4STATE_FICS.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.us4state_fics)
+            } else {
+                //Swap the values as the presented index is reverse of what model expects
+                val processorOrder =
+                    when (uiState.value.barcodeSettings.commonSettings.processorSelectedIndex) {
+                        0 -> arrayOf(2, 0, 1) // AUTO
+                        1 -> arrayOf(2) // DSP
+                        2 -> arrayOf(1) // GPU
+                        3 -> arrayOf(0) //CPU
+                        else -> {
+                            arrayOf(2, 0, 1)
+                        }
+                    }
+                decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder =
+                    processorOrder
+
+                decoderSettings.detectorSetting.inferencerOptions.defaultDims.width =
+                    uiState.value.barcodeSettings.commonSettings.inputSizeSelected
+                decoderSettings.detectorSetting.inferencerOptions.defaultDims.height =
+                    uiState.value.barcodeSettings.commonSettings.inputSizeSelected
+
+                decoderSettings.Symbology.AUSTRALIAN_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.australian_postal)
+                decoderSettings.Symbology.AZTEC.enable(uiState.value.barcodeSettings.barcodeSymbology.aztec)
+                decoderSettings.Symbology.CANADIAN_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.canadian_postal)
+                decoderSettings.Symbology.CHINESE_2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.chinese_2of5)
+                decoderSettings.Symbology.CODABAR.enable(uiState.value.barcodeSettings.barcodeSymbology.codabar)
+                decoderSettings.Symbology.CODE11.enable(uiState.value.barcodeSettings.barcodeSymbology.code11)
+                decoderSettings.Symbology.CODE39.enable(uiState.value.barcodeSettings.barcodeSymbology.code39)
+                decoderSettings.Symbology.CODE93.enable(uiState.value.barcodeSettings.barcodeSymbology.code93)
+                decoderSettings.Symbology.CODE128.enable(uiState.value.barcodeSettings.barcodeSymbology.code128)
+                decoderSettings.Symbology.COMPOSITE_AB.enable(uiState.value.barcodeSettings.barcodeSymbology.composite_ab)
+                decoderSettings.Symbology.COMPOSITE_C.enable(uiState.value.barcodeSettings.barcodeSymbology.composite_c)
+                decoderSettings.Symbology.D2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.d2of5)
+                decoderSettings.Symbology.DATAMATRIX.enable(uiState.value.barcodeSettings.barcodeSymbology.datamatrix)
+                decoderSettings.Symbology.DOTCODE.enable(uiState.value.barcodeSettings.barcodeSymbology.dotcode)
+                decoderSettings.Symbology.DUTCH_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.dutch_postal)
+                decoderSettings.Symbology.EAN8.enable(uiState.value.barcodeSettings.barcodeSymbology.ean_8)
+                decoderSettings.Symbology.EAN13.enable(uiState.value.barcodeSettings.barcodeSymbology.ean_13)
+                decoderSettings.Symbology.FINNISH_POSTAL_4S.enable(uiState.value.barcodeSettings.barcodeSymbology.finnish_postal_4s)
+                decoderSettings.Symbology.GRID_MATRIX.enable(uiState.value.barcodeSettings.barcodeSymbology.grid_matrix)
+                decoderSettings.Symbology.GS1_DATABAR.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_databar)
+                decoderSettings.Symbology.GS1_DATABAR_EXPANDED.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_databar_expanded)
+                decoderSettings.Symbology.GS1_DATABAR_LIM.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_databar_lim)
+                decoderSettings.Symbology.GS1_DATAMATRIX.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_datamatrix)
+                decoderSettings.Symbology.GS1_QRCODE.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_qrcode)
+                decoderSettings.Symbology.HANXIN.enable(uiState.value.barcodeSettings.barcodeSymbology.hanxin)
+                decoderSettings.Symbology.I2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.i2of5)
+                decoderSettings.Symbology.JAPANESE_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.japanese_postal)
+                decoderSettings.Symbology.KOREAN_3OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.korean_3of5)
+                decoderSettings.Symbology.MAILMARK.enable(uiState.value.barcodeSettings.barcodeSymbology.mailmark)
+                decoderSettings.Symbology.MATRIX_2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.matrix_2of5)
+                decoderSettings.Symbology.MAXICODE.enable(uiState.value.barcodeSettings.barcodeSymbology.maxicode)
+                decoderSettings.Symbology.MICROPDF.enable(uiState.value.barcodeSettings.barcodeSymbology.micropdf)
+                decoderSettings.Symbology.MICROQR.enable(uiState.value.barcodeSettings.barcodeSymbology.microqr)
+                decoderSettings.Symbology.MSI.enable(uiState.value.barcodeSettings.barcodeSymbology.msi)
+                decoderSettings.Symbology.PDF417.enable(uiState.value.barcodeSettings.barcodeSymbology.pdf417)
+                decoderSettings.Symbology.QRCODE.enable(uiState.value.barcodeSettings.barcodeSymbology.qrcode)
+                decoderSettings.Symbology.TLC39.enable(uiState.value.barcodeSettings.barcodeSymbology.tlc39)
+                decoderSettings.Symbology.TRIOPTIC39.enable(uiState.value.barcodeSettings.barcodeSymbology.trioptic39)
+                decoderSettings.Symbology.UK_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.uk_postal)
+                decoderSettings.Symbology.UPCA.enable(uiState.value.barcodeSettings.barcodeSymbology.upc_a)
+                decoderSettings.Symbology.UPCE0.enable(uiState.value.barcodeSettings.barcodeSymbology.upce0)
+                decoderSettings.Symbology.UPCE1.enable(uiState.value.barcodeSettings.barcodeSymbology.upce1)
+                decoderSettings.Symbology.USPLANET.enable(uiState.value.barcodeSettings.barcodeSymbology.usplanet)
+                decoderSettings.Symbology.USPOSTNET.enable(uiState.value.barcodeSettings.barcodeSymbology.uspostnet)
+                decoderSettings.Symbology.US4STATE.enable(uiState.value.barcodeSettings.barcodeSymbology.us4state)
+                decoderSettings.Symbology.US4STATE_FICS.enable(uiState.value.barcodeSettings.barcodeSymbology.us4state_fics)
             }
-            decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = processorOrder
-
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width =
-                uiState.value.barcodeSettings.commonSettings.inputSizeSelected
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height =
-                uiState.value.barcodeSettings.commonSettings.inputSizeSelected
-
-            decoderSettings.Symbology.AUSTRALIAN_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.australian_postal)
-            decoderSettings.Symbology.AZTEC.enable(uiState.value.barcodeSettings.barcodeSymbology.aztec)
-            decoderSettings.Symbology.CANADIAN_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.canadian_postal)
-            decoderSettings.Symbology.CHINESE_2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.chinese_2of5)
-            decoderSettings.Symbology.CODABAR.enable(uiState.value.barcodeSettings.barcodeSymbology.codabar)
-            decoderSettings.Symbology.CODE11.enable(uiState.value.barcodeSettings.barcodeSymbology.code11)
-            decoderSettings.Symbology.CODE39.enable(uiState.value.barcodeSettings.barcodeSymbology.code39)
-            decoderSettings.Symbology.CODE93.enable(uiState.value.barcodeSettings.barcodeSymbology.code93)
-            decoderSettings.Symbology.CODE128.enable(uiState.value.barcodeSettings.barcodeSymbology.code128)
-            decoderSettings.Symbology.COMPOSITE_AB.enable(uiState.value.barcodeSettings.barcodeSymbology.composite_ab)
-            decoderSettings.Symbology.COMPOSITE_C.enable(uiState.value.barcodeSettings.barcodeSymbology.composite_c)
-            decoderSettings.Symbology.D2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.d2of5)
-            decoderSettings.Symbology.DATAMATRIX.enable(uiState.value.barcodeSettings.barcodeSymbology.datamatrix)
-            decoderSettings.Symbology.DOTCODE.enable(uiState.value.barcodeSettings.barcodeSymbology.dotcode)
-            decoderSettings.Symbology.DUTCH_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.dutch_postal)
-            decoderSettings.Symbology.EAN8.enable(uiState.value.barcodeSettings.barcodeSymbology.ean_8)
-            decoderSettings.Symbology.EAN13.enable(uiState.value.barcodeSettings.barcodeSymbology.ean_13)
-            decoderSettings.Symbology.FINNISH_POSTAL_4S.enable(uiState.value.barcodeSettings.barcodeSymbology.finnish_postal_4s)
-            decoderSettings.Symbology.GRID_MATRIX.enable(uiState.value.barcodeSettings.barcodeSymbology.grid_matrix)
-            decoderSettings.Symbology.GS1_DATABAR.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_databar)
-            decoderSettings.Symbology.GS1_DATABAR_EXPANDED.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_databar_expanded)
-            decoderSettings.Symbology.GS1_DATABAR_LIM.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_databar_lim)
-            decoderSettings.Symbology.GS1_DATAMATRIX.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_datamatrix)
-            decoderSettings.Symbology.GS1_QRCODE.enable(uiState.value.barcodeSettings.barcodeSymbology.gs1_qrcode)
-            decoderSettings.Symbology.HANXIN.enable(uiState.value.barcodeSettings.barcodeSymbology.hanxin)
-            decoderSettings.Symbology.I2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.i2of5)
-            decoderSettings.Symbology.JAPANESE_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.japanese_postal)
-            decoderSettings.Symbology.KOREAN_3OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.korean_3of5)
-            decoderSettings.Symbology.MAILMARK.enable(uiState.value.barcodeSettings.barcodeSymbology.mailmark)
-            decoderSettings.Symbology.MATRIX_2OF5.enable(uiState.value.barcodeSettings.barcodeSymbology.matrix_2of5)
-            decoderSettings.Symbology.MAXICODE.enable(uiState.value.barcodeSettings.barcodeSymbology.maxicode)
-            decoderSettings.Symbology.MICROPDF.enable(uiState.value.barcodeSettings.barcodeSymbology.micropdf)
-            decoderSettings.Symbology.MICROQR.enable(uiState.value.barcodeSettings.barcodeSymbology.microqr)
-            decoderSettings.Symbology.MSI.enable(uiState.value.barcodeSettings.barcodeSymbology.msi)
-            decoderSettings.Symbology.PDF417.enable(uiState.value.barcodeSettings.barcodeSymbology.pdf417)
-            decoderSettings.Symbology.QRCODE.enable(uiState.value.barcodeSettings.barcodeSymbology.qrcode)
-            decoderSettings.Symbology.TLC39.enable(uiState.value.barcodeSettings.barcodeSymbology.tlc39)
-            decoderSettings.Symbology.TRIOPTIC39.enable(uiState.value.barcodeSettings.barcodeSymbology.trioptic39)
-            decoderSettings.Symbology.UK_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.uk_postal)
-            decoderSettings.Symbology.UPCA.enable(uiState.value.barcodeSettings.barcodeSymbology.upc_a)
-            decoderSettings.Symbology.UPCE0.enable(uiState.value.barcodeSettings.barcodeSymbology.upce0)
-            decoderSettings.Symbology.UPCE1.enable(uiState.value.barcodeSettings.barcodeSymbology.upce1)
-            decoderSettings.Symbology.USPLANET.enable(uiState.value.barcodeSettings.barcodeSymbology.usplanet)
-            decoderSettings.Symbology.USPOSTNET.enable(uiState.value.barcodeSettings.barcodeSymbology.uspostnet)
-            decoderSettings.Symbology.US4STATE.enable(uiState.value.barcodeSettings.barcodeSymbology.us4state)
-            decoderSettings.Symbology.US4STATE_FICS.enable(uiState.value.barcodeSettings.barcodeSymbology.us4state_fics)
         } catch (e: Exception) {
-            Log.e(TAG, "Fatal error: configure failed - ${e.message}")
+                Log.e(TAG, "Fatal error: configure failed - ${e.message}")
         }
     }
 
-    private fun updateModelDemoReady(isReady: Boolean) {
-        viewModel.updateModelDemoReady(isReady = isReady)
+    private fun updateBarcodeModelDemoReady(isReady: Boolean) {
+        viewModel.updateBarcodeModelDemoReady(isReady = isReady)
     }
 }

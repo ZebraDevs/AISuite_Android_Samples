@@ -1,6 +1,6 @@
 ## AI Data Capture Demo Application
 
-This application demonstrates the features available in the Zebra AI Data Capture SDK - https://techdocs.zebra.com/ai-datacapture .  The application demonstrates technology features, including **Barcode Recognizer**, **Text/OCR Recognizer**, and **Product & Shelf Localizer**, and usecase feature including **Product & Shelf Recognizer**, and **OCR Finder**. Each  feature is illustrated through a live preview that provides real-time, on-screen feedback, displaying bounding boxes around detected objects and additionally showing recognition results for Product and Shelf Recognition and OCR Text Find.
+This application demonstrates the features available in the Zebra AI Data Capture SDK - https://techdocs.zebra.com/ai-datacapture .  The application demonstrates technology features, including **Barcode Recognizer**, **Text/OCR Recognizer**, and **Product & Shelf Localizer**, and usecase feature including **Product & Shelf Recognizer**, and **OCR Barcode Finder**. Each  feature is illustrated through a live preview that provides real-time, on-screen feedback, displaying bounding boxes around detected objects and additionally showing recognition results for Product and Shelf Recognition and OCR Text Find.
 
 ## Project Purpose
 Use this project as a sample for:
@@ -47,9 +47,9 @@ Use this project as a sample for:
 
 ## Usage Overview
 ### Usecase Demos
-**OCR Find** - Optical Character Recognition:  
-- Displays text recognition results on the live viewfinder.  
-- The search icon enables the user to locate text by filtering for numeric, alphabetic, or alphanumeric content, including options for specifying size ranges or exact string matches
+**OCR Find + Barcode** - Optical Character and Barcode Recognition:  
+- Displays text recognition and barcode results on the live viewfinder.  
+- The filter icon enables the user to locate text by filtering for numeric, alphabetic, or alphanumeric content, including options for specifying size ranges or exact string matches
 **Product & Shelf Recognizer** - Product Recognition:  
 - Enables creation of a product index  
 - Multi-step process required to create index followed displaying results on live viewfinder  

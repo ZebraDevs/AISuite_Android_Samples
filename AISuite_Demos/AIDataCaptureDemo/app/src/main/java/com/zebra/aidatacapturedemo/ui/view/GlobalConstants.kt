@@ -1,9 +1,10 @@
 package com.zebra.aidatacapturedemo.ui.view
 
-import android.util.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainIcon1
@@ -42,6 +43,25 @@ object Variables {
     val mainLight: Color = Color(0xFFE0E3E9)
     val inverseDefault: Color = Color(0xFFFFFFFF)
     val textSubtle: Color = Color(0xFF646A78)
+
+    val colorsBorderPrimaryLegacy: Color = Color(0xFF3886FF)
+    val radiusMinimal: Dp = 4.dp
+
+    val colorsSurfaceCool: Color = Color(0xFFF8FBFF)
+
+    val TypefaceFontSize12: TextUnit = 12.sp
+    val TypefaceLineHeight16: TextUnit = 16.sp
+    val colorsTextDefault: Color = Color(0xFF1D1E23)
+
+    val TypefaceLineHeight24: TextUnit = 24.sp
+    val colorsTextBody: Color = Color(0xFF545963)
+
+    val colorsMainSubtle: Color = Color(0xFF545963)
+
+    val colorsMainLight: Color = Color(0xFFE0E3E9)
+
+    val colorsSurfacePrimary: Color = Color(0xFF1F69FF)
+
 }
 
 fun getIconMainColor(demo: String): Color {
@@ -59,7 +79,7 @@ fun getIconMainColor(demo: String): Color {
             mainColor = mainIcon2
         }
 
-        UsecaseState.OCRFind.value -> {
+        UsecaseState.OCRBarcodeFind.value -> {
             mainColor = mainIcon1
         }
 
@@ -85,7 +105,7 @@ fun getIconSecondaryColor(demo: String): Color {
             secondaryColor = secondaryIcon2
         }
 
-        UsecaseState.OCRFind.value -> {
+        UsecaseState.OCRBarcodeFind.value -> {
             secondaryColor = secondaryIcon1
         }
 
@@ -111,7 +131,7 @@ fun getIconId(demo: String): Int? {
             iconId = R.drawable.retail_shelf_icon
         }
 
-        UsecaseState.OCRFind.value -> {
+        UsecaseState.OCRBarcodeFind.value -> {
             iconId = R.drawable.ocr_finder_icon
         }
 
@@ -123,7 +143,7 @@ fun getIconId(demo: String): Int? {
 }
 
 fun getSettingHeading(demo: String): Int? {
-    var settingsString : Int? = null
+    var settingsString: Int? = null
     when (demo) {
         UsecaseState.Barcode.value -> {
             settingsString = R.string.barcode_settings
@@ -137,8 +157,8 @@ fun getSettingHeading(demo: String): Int? {
             settingsString = R.string.retailshelf_settings
         }
 
-        UsecaseState.OCRFind.value -> {
-            settingsString = R.string.ocr_find_settings
+        UsecaseState.OCRBarcodeFind.value -> {
+            settingsString = R.string.ocr_barcode_find_settings
         }
 
         UsecaseState.Product.value -> {
@@ -149,7 +169,7 @@ fun getSettingHeading(demo: String): Int? {
 }
 
 fun getDemoTitle(demo: String): Int? {
-    var settingsString : Int? = null
+    var settingsString: Int? = null
     when (demo) {
         UsecaseState.Barcode.value -> {
             settingsString = R.string.barcode_demo
@@ -163,8 +183,8 @@ fun getDemoTitle(demo: String): Int? {
             settingsString = R.string.retail_shelf_demo
         }
 
-        UsecaseState.OCRFind.value -> {
-            settingsString = R.string.ocr_find_demo
+        UsecaseState.OCRBarcodeFind.value -> {
+            settingsString = R.string.ocr_barcode_find
         }
 
         UsecaseState.Product.value -> {
@@ -179,7 +199,7 @@ fun getDemoTitle(demo: String): Int? {
 }
 
 fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
-    var descString : Int? = null
+    var descString: Int? = null
     when (setting) {
         R.string.runtime_processor -> {
             when (value) {
@@ -194,6 +214,7 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
                 2 -> {
                     descString = R.string.runtime_processor_gpu_desc
                 }
+
                 3 -> {
                     descString = R.string.runtime_processor_cpu_desc
                 }
@@ -223,7 +244,7 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
                 }
 
                 UsecaseState.OCR.value,
-                UsecaseState.OCRFind.value -> {
+                UsecaseState.OCRBarcodeFind.value -> {
                     when (value) {
                         0 -> {
                             descString = R.string.resolution_1mp_desc_ocr
@@ -273,7 +294,7 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
                 }
 
                 UsecaseState.OCR.value,
-                UsecaseState.OCRFind.value -> {
+                UsecaseState.OCRBarcodeFind.value -> {
                     when (value) {
                         0 -> {
                             descString = R.string.model_input_size_640_ocr

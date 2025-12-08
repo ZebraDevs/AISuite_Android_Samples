@@ -1,5 +1,5 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
-package com.zebra.aisuite_quickstart.java.analyzers.barcodetracker;
+package com.zebra.aisuite_quickstart.java.analyzers.tracker;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The BarcodeTrackerGraphic class extends the GraphicOverlay.Graphic class and is
+ * The TrackerGraphic class extends the GraphicOverlay.Graphic class and is
  * responsible for rendering visual elements on a canvas to represent detected barcodes.
  * This includes drawing bounding boxes around detected barcodes and displaying the decoded
  * text associated with each barcode.
@@ -22,7 +22,7 @@ import java.util.List;
  * derived from the barcodes.
  *
  * Usage:
- * - Instantiate the BarcodeTrackerGraphic with a reference to the GraphicOverlay and lists
+ * - Instantiate the TrackerGraphic with a reference to the GraphicOverlay and lists
  *   of bounding boxes and decoded strings.
  * - The draw(Canvas) method is called to render the graphics on the screen.
  *
@@ -34,7 +34,7 @@ import java.util.List;
  * Note: This class should be used as part of a barcode detection and visualization system,
  * typically within an Android application.
  */
-public class BarcodeTrackerGraphic extends GraphicOverlay.Graphic {
+public class TrackerGraphic extends GraphicOverlay.Graphic {
     private final Paint boxPaint;
     private final Paint contentRectPaint;
     private final Paint contentTextPaint;
@@ -44,14 +44,14 @@ public class BarcodeTrackerGraphic extends GraphicOverlay.Graphic {
     private final int contentPadding = 25;
 
     /**
-     * Constructs a new BarcodeTrackerGraphic object, initializing the Paint objects used
+     * Constructs a new TrackerGraphic object, initializing the Paint objects used
      * for drawing and preparing the bounding boxes and decoded text for rendering.
      *
      * @param overlay The GraphicOverlay on which this graphic will be drawn.
      * @param boxes A list of Rect objects representing the bounding boxes of detected barcodes.
      * @param decodedStrings A list of strings representing the decoded content of each barcode.
      */
-    public BarcodeTrackerGraphic(GraphicOverlay overlay, List<Rect> boxes, List<String> decodedStrings) {
+    public TrackerGraphic(GraphicOverlay overlay, List<Rect> boxes, List<String> decodedStrings) {
         super(overlay);
        // overlay.clear();
 

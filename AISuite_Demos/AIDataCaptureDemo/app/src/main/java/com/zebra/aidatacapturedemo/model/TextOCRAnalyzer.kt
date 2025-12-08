@@ -42,14 +42,14 @@ class TextOCRAnalyzer(
         try {
             textOCR?.dispose()
             textOCR = null
-            updateModelDemoReady(false)
+            updateOcrModelDemoReady(false)
 
             configure()
 
             val mStart = System.currentTimeMillis()
             TextOCR.getTextOCR(textOCRSettings, executorService).thenAccept { ocrInstance ->
                 textOCR = ocrInstance
-                updateModelDemoReady(true)
+                updateOcrModelDemoReady(true)
                 Log.e(
                     PROFILING,
                     "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - mStart} milli sec"
@@ -81,10 +81,10 @@ class TextOCRAnalyzer(
 
     private fun configure() {
         try {
-            if (uiState.value.usecaseSelected == UsecaseState.OCRFind.value) {
+            if (uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
                 //Swap the values as the presented index is reverse of what model expects
                 val processorOrder =
-                    when (uiState.value.ocrFindSettings.commonSettings.processorSelectedIndex) {
+                    when (uiState.value.ocrBarcodeFindSettings.commonSettings.processorSelectedIndex) {
                         0 -> arrayOf(2, 0, 1) // AUTO
                         1 -> arrayOf(2) // DSP
                         2 -> arrayOf(1) // GPU
@@ -99,9 +99,9 @@ class TextOCRAnalyzer(
                 textOCRSettings.decodingTotalProbThreshold = 0F
 
                 textOCRSettings.detectionInferencerOptions.defaultDims.width =
-                    uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
+                    uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
                 textOCRSettings.detectionInferencerOptions.defaultDims.height =
-                    uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
+                    uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
             } else {
                 //Swap the values as the presented index is reverse of what model expects
                 val processorOrder =
@@ -188,7 +188,7 @@ class TextOCRAnalyzer(
         }
     }
 
-    private fun updateModelDemoReady(isReady: Boolean) {
-        viewModel.updateModelDemoReady(isReady = isReady)
+    private fun updateOcrModelDemoReady(isReady: Boolean) {
+        viewModel.updateOcrModelDemoReady(isReady = isReady)
     }
 }

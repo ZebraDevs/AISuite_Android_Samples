@@ -1,5 +1,5 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
-package com.zebra.aisuite_quickstart.kotlin.analyzers.barcodetracker
+package com.zebra.aisuite_quickstart.kotlin.analyzers.tracker
 
 import android.graphics.Canvas
 import android.graphics.Color
@@ -8,7 +8,7 @@ import android.graphics.Rect
 import com.zebra.aisuite_quickstart.GraphicOverlay
 
 /**
- * The BarcodeTrackerGraphic class extends GraphicOverlay.Graphic and is responsible for
+ * The TrackerGraphic class extends GraphicOverlay.Graphic and is responsible for
  * rendering visual elements on a canvas to represent detected barcodes. This includes
  * drawing bounding boxes around detected barcodes and displaying the decoded text associated
  * with each barcode.
@@ -17,7 +17,7 @@ import com.zebra.aisuite_quickstart.GraphicOverlay
  * for the visual representation of barcode detection results in an Android application.
  *
  * Usage:
- * - Instantiate the BarcodeTrackerGraphic with a reference to the GraphicOverlay, and lists
+ * - Instantiate the TrackerGraphic with a reference to the GraphicOverlay, and lists
  *   of bounding boxes and decoded strings.
  * - The draw(Canvas) method is called to render the graphics on the screen.
  *
@@ -29,7 +29,7 @@ import com.zebra.aisuite_quickstart.GraphicOverlay
  * Note: This class is typically used in conjunction with a barcode detection system to visually
  * display the results of the detection process in an Android application.
  */
-class BarcodeTrackerGraphic(
+class TrackerGraphic(
     overlay: GraphicOverlay,
     boxes: List<Rect>?,
     decodedStrings: List<String>?

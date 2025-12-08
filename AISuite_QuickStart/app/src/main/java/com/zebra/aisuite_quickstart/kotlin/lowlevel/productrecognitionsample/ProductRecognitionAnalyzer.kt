@@ -117,12 +117,13 @@ class ProductRecognitionAnalyzer(
                     recognitions?.let {
                         Log.d(TAG, "Products recognitions length" + recognitions.size)
                         if (!isStopped) callback.onDetectionRecognitionResult(detections!!, products!!, it)
-                        isAnalyzing = true
-                        image.close()
                     }
+                    isAnalyzing = true
+                    image.close()
                 }?.exceptionally { ex ->
                     isAnalyzing = true
                     image.close()
+                    Log.d(TAG, "Exception occurred: ${ex.message}")
                     null
                 }
             } catch (ex: AIVisionSDKException) {

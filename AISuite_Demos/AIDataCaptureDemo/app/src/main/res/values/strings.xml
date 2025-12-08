@@ -3,8 +3,8 @@
     <string name="about">About</string>
 
     <string name="usecase_demos">Use Case Demos</string>
-    <string name="ocr_find_demo">OCR Find</string>
-    <string name="ocr_find_desc">Search for specific text</string>
+    <string name="ocr_barcode_find">OCR Find + Barcode</string>
+    <string name="ocr_barcode_find_desc">Search for specific text or barcode</string>
     <string name="product_enrollment_recognition_demo">Product &amp; Shelf Recognizer</string>
     <string name="product_enrollment_recognition_desc">Enroll and recognize products on shelves and peg boards</string>
 
@@ -34,7 +34,7 @@
     <string name="enterproducthint">Scan or Type Product SKU</string>
 
     <string name="barcode_settings">Barcode Recognizer Settings</string>
-    <string name="ocr_find_settings">OCR Find Settings</string>
+    <string name="ocr_barcode_find_settings">OCR Find + Barcode Settings</string>
     <string name="text_ocr_recognizer_settings">Text/OCR Recognizer Settings</string>
     <string name="retailshelf_settings">Product &amp; Shelf Localizer Settings</string>
     <string name="productrecognition_settings">Product &amp; Shelf Recognizer Settings</string>
@@ -196,4 +196,7 @@
     <string name="ocr_starts_with">Starts With</string>
     <string name="ocr_contains">Contains</string>
     <string name="ocr_regex">Regex</string>
+
+    <string name="barcode_model">Barcode Model</string>
+    <string name="ocr_model">OCR Model</string>
 </resources>

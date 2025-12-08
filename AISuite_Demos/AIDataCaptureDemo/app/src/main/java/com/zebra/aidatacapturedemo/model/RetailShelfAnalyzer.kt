@@ -89,7 +89,7 @@ class RetailShelfAnalyzer(
         try {
             localizer?.dispose()
             localizer = null
-            updateModelDemoReady(false)
+            updateRetailShelfModelDemoReady(false)
 
             configure()
 
@@ -97,7 +97,7 @@ class RetailShelfAnalyzer(
                 Localizer.getLocalizer(locSettings, executorService)
                     .thenAccept { localizerInstance: Localizer ->
                         localizer = localizerInstance
-                        updateModelDemoReady(true)
+                        updateRetailShelfModelDemoReady(true)
                         Log.i(TAG, "Localizer init Success")
                     }.exceptionally { e: Throwable ->
                         Log.e(TAG, "Localizer init Failed -> " + e.message)
@@ -197,7 +197,7 @@ class RetailShelfAnalyzer(
         viewModel.updateRetailShelfDetectionResult(results = result)
     }
 
-    private fun updateModelDemoReady(isReady: Boolean) {
-        viewModel.updateModelDemoReady(isReady = isReady)
+    private fun updateRetailShelfModelDemoReady(isReady: Boolean) {
+        viewModel.updateRetailShelfModelDemoReady(isReady = isReady)
     }
 }

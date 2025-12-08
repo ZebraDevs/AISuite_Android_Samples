@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zebra.aidatacapturedemo.R
@@ -146,7 +147,6 @@ fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
         verticalAlignment = Alignment.Top,
         modifier = Modifier
-            .fillMaxWidth()
             .wrapContentHeight()
             .background(color = Color(0xFFFFFFFF), shape = RoundedCornerShape(size = 3.6.dp))
             .padding(start = 14.4.dp, top = 8.dp, end = 14.4.dp, bottom = 8.dp)

@@ -74,7 +74,7 @@ class ProductEnrollmentRecognition(
      * We use only products with greater than 0.8 confidence from product recognition.
      */
     override fun analyze(image: ImageProxy) {
-        if (uiState.value.modelDemoReady == false) {
+        if (!uiState.value.isRetailShelfModelDemoReady) {
             Log.e(TAG, "ProductEnrollmentRecognition init in progress")
             image.close()
             return
@@ -119,7 +119,7 @@ class ProductEnrollmentRecognition(
      */
     fun initialize() {
         deinitialize()
-        checkUpdateModelDemoReady(false)
+        updateRetailShelfModelDemoReady(false)
         initializeLocalizer()
         initFeatureStorage()
         initFeatureExtractor()
@@ -227,7 +227,7 @@ class ProductEnrollmentRecognition(
             Localizer.getLocalizer(locSettings, executorService)
                 .thenAccept { localizerInstance: Localizer ->
                     localizer = localizerInstance
-                    checkUpdateModelDemoReady(true)
+                    updateRetailShelfModelDemoReady(true)
                     Log.i(TAG, "Localizer init Success")
                 }.exceptionally { e: Throwable ->
                     Log.e(TAG, "Localizer init Failed -> " + e.message)
@@ -272,7 +272,7 @@ class ProductEnrollmentRecognition(
             FeatureExtractor.getFeatureExtractor(extractorSettings, executorService)
                 .thenAccept { extractorInstance: FeatureExtractor ->
                     extractor = extractorInstance
-                    checkUpdateModelDemoReady(true)
+                    updateRetailShelfModelDemoReady(true)
                     Log.i(TAG, "Feature Extractor init Success")
                 }.exceptionally { e: Throwable ->
                     Log.e(TAG, "Feature Extractor init Failed -> " + e.message)
@@ -308,7 +308,7 @@ class ProductEnrollmentRecognition(
             FeatureStorage.getFeatureStorage(featureStorageSettings, executorService)
                 .thenAccept { storageInstance: FeatureStorage ->
                     featureStorage = storageInstance
-                    checkUpdateModelDemoReady(true)
+                    updateRetailShelfModelDemoReady(true)
                     Log.i(TAG, "Feature Storage init Success")
                 }.exceptionally { e: Throwable ->
                     Log.e(TAG, "Feature Storage init Failed -> " + e.message)
@@ -342,7 +342,7 @@ class ProductEnrollmentRecognition(
                     if (isEnrollmentRequested) {
                         updateProductEnrollmentState(state = true)
                     } else {
-                        checkUpdateModelDemoReady(true)
+                        updateRetailShelfModelDemoReady(true)
                     }
                     Log.i(TAG, "Recognizer init Success")
                 }.exceptionally { e: Throwable ->
@@ -352,7 +352,7 @@ class ProductEnrollmentRecognition(
         } catch (e: IOException) {
             Log.e(TAG, "Recognizer init Failed -> " + e.message)
         } catch (e: RuntimeException) {
-            checkUpdateModelDemoReady(true)
+            updateRetailShelfModelDemoReady(true)
             Log.e(TAG, "DB empty -> " + e.message)
         }
     }
@@ -506,13 +506,14 @@ class ProductEnrollmentRecognition(
         return productDataList
     }
 
-    private fun checkUpdateModelDemoReady(ready: Boolean) {
-        if (ready == false) {
-            viewModel.updateModelDemoReady(isReady = false)
-        } else {
+    private fun updateRetailShelfModelDemoReady(isReady: Boolean) {
+        if (isReady) {
             if (localizer != null && featureStorage != null && extractor != null) {
-                viewModel.updateModelDemoReady(isReady = ready)
+                viewModel.updateRetailShelfModelDemoReady(isReady = true)
             }
+        } else {
+            viewModel.updateRetailShelfModelDemoReady(isReady = false)
+
         }
     }
 

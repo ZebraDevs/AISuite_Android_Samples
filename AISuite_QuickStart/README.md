@@ -40,7 +40,7 @@ Here’s an overview of the AISuite_QuickStart Sample Application folder:
 #### app/src/main/java/com/zebra/aisuite_quickstart
 ##### Java
 ##### analyzers
-- [barcodetracker](app/src/main/java/com/zebra/aisuite_quickstart/java/analyzers/barcodetracker) - Java Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
+- [tracker](app/src/main/java/com/zebra/aisuite_quickstart/java/analyzers/tracker) - Java Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
 ##### detectors
 - [barcodedecodersample](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/barcodedecodersample) - Java Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
 - [textocrsample](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/textocrsample) - Java Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
@@ -52,7 +52,7 @@ Here’s an overview of the AISuite_QuickStart Sample Application folder:
 - [viewfinder](app/src/main/java/com/zebra/aisuite_quickstart/java/viewfinder/EntityViewGraphic.java) - Java Sample showing how to use [AI Data Capture SDK's Viewfinder](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entityviewfinder) along with [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to display tracked entities
 ##### Kotlin
 ##### analyzers
-- [barcodetracker](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/analyzers/barcodetracker) - Kotlin Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
+- [tracker](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/analyzers/tracker) - Kotlin Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
 ##### detectors
 - [barcodedecodersample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/barcodedecodersample) - Kotlin Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
 - [textocrsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/textocrsample) - Kotlin Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.

@@ -95,12 +95,12 @@ class TextOCRUtils {
                 }
 
                 OCRFilterType.STARTS_WITH -> {
-                    if (ocrFilterData.startsWithString.isNotBlank()) {
-                        for (d in outputOCRResultData) {
-                            if (d.text.startsWith(
-                                    ocrFilterData.startsWithString,
+                    for (d in outputOCRResultData) {
+                        ocrFilterData.startsWithStringList.forEach { startsWithString ->
+                            if ((d.text.startsWith(
+                                    startsWithString,
                                     ignoreCase = true
-                                )
+                                ) && (d.text.length in ocrFilterData.startWithLengthRange.start.toInt()..ocrFilterData.startWithLengthRange.endInclusive.toInt()))
                             ) {
                                 filteredOCRResultData += ResultData(
                                     boundingBox = d.boundingBox,
@@ -112,9 +112,11 @@ class TextOCRUtils {
                 }
 
                 OCRFilterType.CONTAINS -> {
-                    if (ocrFilterData.containsString.isNotBlank()) {
-                        for (d in outputOCRResultData) {
-                            if (d.text.contains(ocrFilterData.containsString, ignoreCase = true)) {
+                    for (d in outputOCRResultData) {
+                        ocrFilterData.containsStringList.forEach { containsString ->
+                            if ((d.text.contains(containsString, ignoreCase = true)) &&
+                                (d.text.length in ocrFilterData.containsLengthRange.start.toInt()..ocrFilterData.containsLengthRange.endInclusive.toInt())
+                            ) {
                                 filteredOCRResultData += ResultData(
                                     boundingBox = d.boundingBox,
                                     text = d.text

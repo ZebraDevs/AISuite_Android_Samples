@@ -17,7 +17,7 @@ enum class UsecaseState(val value: String) {
     Barcode("Barcode Recognizer"),
     OCR("Text/OCR Recognizer"),
     Retail("Product & Shelf Localizer"),
-    OCRFind("OCR Find"),
+    OCRBarcodeFind("OCR Find + Barcode"),
     Product("Product & Shelf Recognizer")
 }
 
@@ -88,8 +88,9 @@ data class BarcodeSettings(
     }
 }
 
-data class OcrFindSettings(
-    var commonSettings: CommonSettings = CommonSettings()
+data class OcrBarcodeFindSettings(
+    var commonSettings: CommonSettings = CommonSettings(),
+    var barcodeSymbology: BarcodeSymbology = BarcodeSymbology()
 )
 
 data class AdvancedOCRSetting(
@@ -149,12 +150,14 @@ data class AIDataCaptureDemoUiState(
     // Settings
     var barcodeSettings : BarcodeSettings = FileUtils.loadBarcodeSettings(),
     var textOCRSettings : TextOcrSettings = FileUtils.loadOCRSettings(),
-    var ocrFindSettings: OcrFindSettings = FileUtils.loadAdvancedOCRSettings(),
+    var ocrBarcodeFindSettings: OcrBarcodeFindSettings = FileUtils.loadOCRBarcodeFindSettings(),
     var retailShelfSettings : RetailShelfSettings = FileUtils.loadRetailShelfSettings(),
     var productRecognitionSettings: ProductRecognitionSettings = FileUtils.loadProductRecognitionSettings(),
 
     // Model --> UI
-    var modelDemoReady: Boolean = false,
+    var isOcrModelDemoReady: Boolean = false,
+    var isBarcodeModelDemoReady: Boolean = false,
+    var isRetailShelfModelDemoReady: Boolean = false,
     var isCameraReady: Boolean = false,
     var cameraError: String? = null,
     var isProductEnrollmentCompleted: Boolean = false,
@@ -165,5 +168,8 @@ data class AIDataCaptureDemoUiState(
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
 
-    var selectedOCRFilterData: OCRFilterData = OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
+    // Choices
+    var selectedOCRFilterData: OCRFilterData = OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL),
+    var isBarcodeModelEnabled: Boolean = true,
+    var isOCRModelEnabled: Boolean = true,
 )

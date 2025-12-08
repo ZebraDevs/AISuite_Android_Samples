@@ -11,6 +11,7 @@ import com.zebra.aisuite_quickstart.GraphicOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
+import static java.lang.Math.abs;
 
 /**
  * The OCRGraphic class extends the GraphicOverlay.Graphic class and is responsible for
@@ -116,8 +117,8 @@ public class OCRGraphic extends GraphicOverlay.Graphic {
      */
     private void getTextSizeWithinBounds(String text, float minX, float minY, float maxX, float maxY, Paint paint) {
         // Define the maximum width and height the text should fit into
-        float maxWidth = maxX - minX;
-        float maxHeight = maxY - minY;
+        float maxWidth = abs(maxX - minX);
+        float maxHeight = abs(maxY - minY);
 
         // Start with a reasonable text size
         float textSize = 100f; // Initial text size

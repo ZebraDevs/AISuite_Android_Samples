@@ -209,12 +209,12 @@ fun AIDataCaptureUsecaseList(viewModel: AIDataCaptureDemoViewModel, navControlle
     ) {
         AIDataCaptureListItem(
             R.drawable.ocr_finder_icon,
-            stringResource(id = R.string.ocr_find_demo),
-            stringResource(id = R.string.ocr_find_desc),
+            stringResource(id = R.string.ocr_barcode_find),
+            stringResource(id = R.string.ocr_barcode_find_desc),
             Variables.mainIcon1,
             Variables.secondaryIcon1,
             onItemClick = { selectedUsecase ->
-                viewModel.updateAppBarTitle(getString(context, R.string.ocr_find_demo))
+                viewModel.updateAppBarTitle(getString(context, R.string.ocr_barcode_find))
                 viewModel.updateSelectedUsecase(selectedUsecase)
                 viewModel.initModel()
                 navController.navigate(route = Screen.DemoStart.route)

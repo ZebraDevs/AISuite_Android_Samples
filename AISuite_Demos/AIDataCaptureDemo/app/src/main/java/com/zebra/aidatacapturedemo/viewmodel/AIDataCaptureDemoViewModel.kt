@@ -47,10 +47,11 @@ import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
+import com.zebra.aidatacapturedemo.data.BarcodeSymbology
 import com.zebra.aidatacapturedemo.data.CommonSettings
 import com.zebra.aidatacapturedemo.data.OCRFilterData
 import com.zebra.aidatacapturedemo.data.OCRFilterType
-import com.zebra.aidatacapturedemo.data.OcrFindSettings
+import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
 import com.zebra.aidatacapturedemo.data.ResultData
@@ -179,7 +180,22 @@ class AIDataCaptureDemoViewModel(
                     productEnrollmentRecognition?.initialize()
                 }
 
-                UsecaseState.OCRFind.value,
+                UsecaseState.OCRBarcodeFind.value->{
+                    if(uiState.value.isOCRModelEnabled) {
+                        ocrAnalyzer = TextOCRAnalyzer(
+                            uiState = uiState,
+                            viewModel = this@AIDataCaptureDemoViewModel
+                        )
+                        ocrAnalyzer?.initialize()
+                    }
+                    if(uiState.value.isBarcodeModelEnabled) {
+                        barcodeAnalyzer = BarcodeAnalyzer(
+                            uiState = uiState,
+                            viewModel = this@AIDataCaptureDemoViewModel
+                        )
+                        barcodeAnalyzer?.initialize()
+                    }
+                }
                 UsecaseState.OCR.value -> {
                     ocrAnalyzer = TextOCRAnalyzer(
                         uiState = uiState,
@@ -211,7 +227,13 @@ class AIDataCaptureDemoViewModel(
                 productEnrollmentRecognition = null
             }
 
-            UsecaseState.OCRFind.value,
+            UsecaseState.OCRBarcodeFind.value -> {
+                ocrAnalyzer?.deinitialize()
+                ocrAnalyzer = null
+
+                barcodeAnalyzer?.deinitialize()
+                barcodeAnalyzer = null
+            }
             UsecaseState.OCR.value -> {
                 ocrAnalyzer?.deinitialize()
                 ocrAnalyzer = null
@@ -237,7 +259,7 @@ class AIDataCaptureDemoViewModel(
                 productEnrollmentRecognition?.startAnalyzing()
             }
 
-            UsecaseState.OCRFind.value,
+            UsecaseState.OCRBarcodeFind.value,
             UsecaseState.OCR.value -> {
 
             }
@@ -261,7 +283,7 @@ class AIDataCaptureDemoViewModel(
                 productEnrollmentRecognition?.stopAnalyzing()
             }
 
-            UsecaseState.OCRFind.value,
+            UsecaseState.OCRBarcodeFind.value,
             UsecaseState.OCR.value -> {
 
             }
@@ -584,8 +606,8 @@ class AIDataCaptureDemoViewModel(
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
 
-            UsecaseState.OCRFind.value -> {
-                val currentProcessorSelectedIndex = _uiState.value.ocrFindSettings.commonSettings
+            UsecaseState.OCRBarcodeFind.value -> {
+                val currentProcessorSelectedIndex = _uiState.value.ocrBarcodeFindSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
 
@@ -608,13 +630,13 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings =
                 updatedSelectedProcessorIndex as CommonSettings
 
-            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings =
+            UsecaseState.OCRBarcodeFind.value -> _uiState.value.ocrBarcodeFindSettings.commonSettings =
                 updatedSelectedProcessorIndex as CommonSettings
 
             UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings =
                 updatedSelectedProcessorIndex as CommonSettings
         }
-        if ((uiState.value.usecaseSelected == UsecaseState.OCRFind.value) || (uiState.value.usecaseSelected == UsecaseState.OCR.value)) {
+        if ((uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) || (uiState.value.usecaseSelected == UsecaseState.OCR.value)) {
             updateSelectedDimensions(0)
         }
     }
@@ -650,8 +672,8 @@ class AIDataCaptureDemoViewModel(
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
 
-            UsecaseState.OCRFind.value -> {
-                val currentInputSizeSelected = _uiState.value.ocrFindSettings.commonSettings
+            UsecaseState.OCRBarcodeFind.value -> {
+                val currentInputSizeSelected = _uiState.value.ocrBarcodeFindSettings.commonSettings
                 if (currentInputSizeSelected.processorSelectedIndex == 2) {
                     dimension = 640
                 }
@@ -680,7 +702,7 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings =
                 updatedInputSize as CommonSettings
 
-            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings =
+            UsecaseState.OCRBarcodeFind.value -> _uiState.value.ocrBarcodeFindSettings.commonSettings =
                 updatedInputSize as CommonSettings
 
             UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings =
@@ -707,8 +729,8 @@ class AIDataCaptureDemoViewModel(
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
 
-            UsecaseState.OCRFind.value -> {
-                val currentResolutionSelectedIndex = _uiState.value.ocrFindSettings.commonSettings
+            UsecaseState.OCRBarcodeFind.value -> {
+                val currentResolutionSelectedIndex = _uiState.value.ocrBarcodeFindSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
 
@@ -731,7 +753,7 @@ class AIDataCaptureDemoViewModel(
             UsecaseState.Product.value -> _uiState.value.productRecognitionSettings.commonSettings =
                 updatedResolution as CommonSettings
 
-            UsecaseState.OCRFind.value -> _uiState.value.ocrFindSettings.commonSettings =
+            UsecaseState.OCRBarcodeFind.value -> _uiState.value.ocrBarcodeFindSettings.commonSettings =
                 updatedResolution as CommonSettings
 
             UsecaseState.OCR.value -> _uiState.value.textOCRSettings.commonSettings =
@@ -753,8 +775,8 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.productRecognitionSettings.commonSettings.resolutionSelectedIndex
             }
 
-            UsecaseState.OCRFind.value -> {
-                _uiState.value.ocrFindSettings.commonSettings.resolutionSelectedIndex
+            UsecaseState.OCRBarcodeFind.value -> {
+                _uiState.value.ocrBarcodeFindSettings.commonSettings.resolutionSelectedIndex
             }
 
             UsecaseState.OCR.value -> {
@@ -782,8 +804,8 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.productRecognitionSettings.commonSettings.processorSelectedIndex
             }
 
-            UsecaseState.OCRFind.value -> {
-                _uiState.value.ocrFindSettings.commonSettings.processorSelectedIndex
+            UsecaseState.OCRBarcodeFind.value -> {
+                _uiState.value.ocrBarcodeFindSettings.commonSettings.processorSelectedIndex
             }
 
             UsecaseState.OCR.value -> {
@@ -811,8 +833,8 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.productRecognitionSettings.commonSettings.inputSizeSelected
             }
 
-            UsecaseState.OCRFind.value -> {
-                _uiState.value.ocrFindSettings.commonSettings.inputSizeSelected
+            UsecaseState.OCRBarcodeFind.value -> {
+                _uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
             }
 
             UsecaseState.OCR.value -> {
@@ -874,7 +896,12 @@ class AIDataCaptureDemoViewModel(
      * Update the barcode symbologies
      */
     fun updateBarcodeSymbology(name: String, enabled: Boolean) {
-        val currentSymbology = _uiState.value.barcodeSettings.barcodeSymbology
+        var currentSymbology = BarcodeSymbology()
+        if(_uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value){
+            currentSymbology = _uiState.value.ocrBarcodeFindSettings.barcodeSymbology
+        } else {
+            currentSymbology = _uiState.value.barcodeSettings.barcodeSymbology
+        }
         val updatedSymbology = when (name) {
             getString(context, R.string.australian_postal) -> currentSymbology.copy(
                 australian_postal = enabled
@@ -1233,7 +1260,27 @@ class AIDataCaptureDemoViewModel(
                 currentSymbology
             }
         }
-        _uiState.value.barcodeSettings.barcodeSymbology = updatedSymbology
+        if(_uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value){
+            _uiState.value.ocrBarcodeFindSettings.barcodeSymbology = updatedSymbology
+        } else {
+            _uiState.value.barcodeSettings.barcodeSymbology = updatedSymbology
+        }
+    }
+
+    fun updateBarcodeModelEnabled(enabled: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isBarcodeModelEnabled = enabled
+            )
+        }
+    }
+
+    fun updateOCRModelEnabled(enabled: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isOCRModelEnabled = enabled
+            )
+        }
     }
 
     /**
@@ -1301,7 +1348,16 @@ class AIDataCaptureDemoViewModel(
                 }
             }
 
-            UsecaseState.OCRFind.value,
+            UsecaseState.OCRBarcodeFind.value -> {
+                ocrAnalyzer?.let {
+                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                }
+                barcodeAnalyzer?.let {
+                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                }
+                val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
+                analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
+            }
             UsecaseState.OCR.value -> {
                 ocrAnalyzer?.let {
                     genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
@@ -1506,8 +1562,8 @@ class AIDataCaptureDemoViewModel(
                 FileUtils.saveProductRecognitionSettings(uiState.value.productRecognitionSettings)
             }
 
-            UsecaseState.OCRFind.value -> {
-                FileUtils.saveOCRFindSettings(uiState.value.ocrFindSettings)
+            UsecaseState.OCRBarcodeFind.value -> {
+                FileUtils.saveOCRBarcodeFindSettings(uiState.value.ocrBarcodeFindSettings)
             }
 
             UsecaseState.OCR.value -> {
@@ -1534,8 +1590,8 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.productRecognitionSettings = ProductRecognitionSettings()
             }
 
-            UsecaseState.OCRFind.value -> {
-                _uiState.value.ocrFindSettings = OcrFindSettings()
+            UsecaseState.OCRBarcodeFind.value -> {
+                _uiState.value.ocrBarcodeFindSettings = OcrBarcodeFindSettings()
             }
 
             UsecaseState.OCR.value -> {
@@ -1581,10 +1637,26 @@ class AIDataCaptureDemoViewModel(
         productEnrollmentRecognition?.enrollProductIndex(uiState.value.productResults)
     }
 
-    fun updateModelDemoReady(isReady: Boolean) {
+    fun updateBarcodeModelDemoReady(isReady: Boolean) {
         _uiState.update { currentState ->
             currentState.copy(
-                modelDemoReady = isReady
+                isBarcodeModelDemoReady = isReady
+            )
+        }
+    }
+
+    fun updateRetailShelfModelDemoReady(isReady: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isRetailShelfModelDemoReady = isReady
+            )
+        }
+    }
+
+    fun updateOcrModelDemoReady(isReady: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isOcrModelDemoReady = isReady
             )
         }
     }

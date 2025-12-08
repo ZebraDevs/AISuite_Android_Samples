@@ -133,7 +133,11 @@ fun CameraPreviewScreen(
     LaunchedEffect(key1 = "clear all the previous results") {
         // clear all the previous results during Fresh Launch
         when (uiState.usecaseSelected) {
-            UsecaseState.OCRFind.value,
+            UsecaseState.OCRBarcodeFind.value -> {
+                viewModel.updateOcrResultData(results = null)
+                viewModel.updateBarcodeResultData(results = listOf())
+            }
+
             UsecaseState.OCR.value -> {
                 viewModel.updateOcrResultData(results = null)
             }
@@ -180,101 +184,146 @@ fun CameraPreviewScreen(
         )
 
         when (val selectedDemo = uiState.usecaseSelected) {
-            UsecaseState.OCRFind.value -> {
+            UsecaseState.OCRBarcodeFind.value -> {
 
-                if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.EXACT_MATCH) {
-                    val checkIconDrawable = ContextCompat.getDrawable(
-                        context,
-                        R.drawable.ic_check
-                    )
-                    DrawOCRResultWithCheckMark(
-                        uiState = uiState,
-                        scaler = scaler,
-                        gapX = gapX,
-                        gapY = gapY,
-                        displayMetricsDensity = displayMetricsDensity,
-                        checkIconDrawable = checkIconDrawable
-                    )
-                    if (uiState.ocrResults.isNotEmpty()) {
-                        FeedbackUtils.vibrate()
-                        FeedbackUtils.beep()
+                when (uiState.selectedOCRFilterData.ocrFilterType) {
+
+                    OCRFilterType.EXACT_MATCH -> {
+                        val checkIconDrawable = ContextCompat.getDrawable(
+                            context,
+                            R.drawable.ic_check
+                        )
+                        DrawOCRResultWithTextSizeScalingAndCheckMark(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity,
+                            checkIconDrawable = checkIconDrawable,
+                            displayTotalHeightInPx = displayTotalHeightInPx,
+                            displayTotalWidthInPx = displayTotalWidthInPx
+                        )
+                        if (uiState.ocrResults.isNotEmpty()) {
+                            FeedbackUtils.vibrate()
+                            FeedbackUtils.beep()
+                        }
+                        showInformationBox(
+                            info = "Looking for: ${uiState.selectedOCRFilterData.exactMatchStringList}",
+                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                        )
                     }
-                    showInformationBox(
-                        info = "Looking for: ${uiState.selectedOCRFilterData.exactMatchStringList}",
-                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                    )
-                } else if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.STARTS_WITH) {
-                    val checkIconDrawable = ContextCompat.getDrawable(
-                        context,
-                        R.drawable.ic_check
-                    )
-                    DrawOCRResultWithCheckMark(
-                        uiState = uiState,
-                        scaler = scaler,
-                        gapX = gapX,
-                        gapY = gapY,
-                        displayMetricsDensity = displayMetricsDensity,
-                        checkIconDrawable = checkIconDrawable
-                    )
-                    if (uiState.ocrResults.isNotEmpty()) {
-                        FeedbackUtils.vibrate()
-                        FeedbackUtils.beep()
+
+                    OCRFilterType.STARTS_WITH -> {
+                        val checkIconDrawable = ContextCompat.getDrawable(
+                            context,
+                            R.drawable.ic_check
+                        )
+                        DrawOCRResultWithTextSizeScalingAndCheckMark(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity,
+                            checkIconDrawable = checkIconDrawable,
+                            displayTotalHeightInPx = displayTotalHeightInPx,
+                            displayTotalWidthInPx = displayTotalWidthInPx
+                        )
+                        if (uiState.ocrResults.isNotEmpty()) {
+                            FeedbackUtils.vibrate()
+                            FeedbackUtils.beep()
+                        }
+                        showInformationBox(
+                            info = "Looking for Starts with: ${uiState.selectedOCRFilterData.startsWithStringList}",
+                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                        )
                     }
-                    showInformationBox(
-                        info = "Looking for Starts with: ${uiState.selectedOCRFilterData.startsWithString}",
-                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                    )
-                } else if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.CONTAINS) {
-                    val checkIconDrawable = ContextCompat.getDrawable(
-                        context,
-                        R.drawable.ic_check
-                    )
-                    DrawOCRResultWithCheckMark(
-                        uiState = uiState,
-                        scaler = scaler,
-                        gapX = gapX,
-                        gapY = gapY,
-                        displayMetricsDensity = displayMetricsDensity,
-                        checkIconDrawable = checkIconDrawable
-                    )
-                    if (uiState.ocrResults.isNotEmpty()) {
-                        FeedbackUtils.vibrate()
-                        FeedbackUtils.beep()
+
+                    OCRFilterType.CONTAINS -> {
+                        val checkIconDrawable = ContextCompat.getDrawable(
+                            context,
+                            R.drawable.ic_check
+                        )
+                        DrawOCRResultWithTextSizeScalingAndCheckMark(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity,
+                            checkIconDrawable = checkIconDrawable,
+                            displayTotalHeightInPx = displayTotalHeightInPx,
+                            displayTotalWidthInPx = displayTotalWidthInPx
+                        )
+                        if (uiState.ocrResults.isNotEmpty()) {
+                            FeedbackUtils.vibrate()
+                            FeedbackUtils.beep()
+                        }
+                        showInformationBox(
+                            info = "Looking for Contains: ${uiState.selectedOCRFilterData.containsStringList}",
+                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                        )
                     }
-                    showInformationBox(
-                        info = "Looking for Contains: ${uiState.selectedOCRFilterData.containsString}",
-                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                    )
-                } else if (uiState.selectedOCRFilterData.ocrFilterType == OCRFilterType.REGEX) {
-                    val checkIconDrawable = ContextCompat.getDrawable(
-                        context,
-                        R.drawable.ic_check
-                    )
-                    DrawOCRResultWithCheckMark(
-                        uiState = uiState,
-                        scaler = scaler,
-                        gapX = gapX,
-                        gapY = gapY,
-                        displayMetricsDensity = displayMetricsDensity,
-                        checkIconDrawable = checkIconDrawable
-                    )
-                    if (uiState.ocrResults.isNotEmpty()) {
-                        FeedbackUtils.vibrate()
-                        FeedbackUtils.beep()
+
+                    OCRFilterType.REGEX -> {
+                        val checkIconDrawable = ContextCompat.getDrawable(
+                            context,
+                            R.drawable.ic_check
+                        )
+                        DrawOCRResultWithTextSizeScalingAndCheckMark(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity,
+                            checkIconDrawable = checkIconDrawable,
+                            displayTotalHeightInPx = displayTotalHeightInPx,
+                            displayTotalWidthInPx = displayTotalWidthInPx
+                        )
+                        if (uiState.ocrResults.isNotEmpty()) {
+                            FeedbackUtils.vibrate()
+                            FeedbackUtils.beep()
+                        }
+                        showInformationBox(
+                            info = "Looking for Regex: ${uiState.selectedOCRFilterData.regexString}",
+                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                        )
                     }
-                    showInformationBox(
-                        info = "Looking for Regex: ${uiState.selectedOCRFilterData.regexString}",
-                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                    )
-                }else {
-                    DrawOCRResult(
-                        uiState = uiState,
-                        scaler = scaler,
-                        gapX = gapX,
-                        gapY = gapY,
-                        displayMetricsDensity = displayMetricsDensity
-                    )
+
+                    OCRFilterType.NUMERIC_CHARACTERS_ONLY,
+                    OCRFilterType.ALPHA_CHARACTERS_ONLY,
+                    OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY -> {
+                        DrawOCRResultWithTextSizeScaling(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity,
+                            displayTotalHeightInPx = displayTotalHeightInPx,
+                            displayTotalWidthInPx = displayTotalWidthInPx
+                        )
+                    }
+
+                    OCRFilterType.SHOW_ALL -> {
+                        DrawOCRResult(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity
+                        )
+                    }
+
+                    else -> {
+                        // Unknown Filter Type received. Not implemented.
+                    }
                 }
+
+                DrawBarcodeResult(
+                    uiState = uiState,
+                    scaler = scaler,
+                    gapX = gapX,
+                    gapY = gapY,
+                    displayMetricsDensity = displayMetricsDensity
+                )
             }
 
             UsecaseState.OCR.value -> {
@@ -414,14 +463,14 @@ fun DrawOCRResult(
 
                 // Draw the filled rectangle
                 drawRect(
-                    color = Color.White.copy(alpha = 0.8F),
+                    color = Color(0xBF000000),
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight)
                 )
 
                 // Draw the border over the filled rectangle
                 drawRect(
-                    color = Color.Green,
+                    color = Color(0xFFFF7B00),
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
                     style = Stroke(width = (1f * displayMetricsDensity))
@@ -429,7 +478,7 @@ fun DrawOCRResult(
 
                 // Prepare to draw the text
                 val paint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.BLACK
+                    color = android.graphics.Color.WHITE
                     textAlign = android.graphics.Paint.Align.CENTER
                 }
 
@@ -470,13 +519,14 @@ fun DrawOCRResult(
 }
 
 @Composable
-fun DrawOCRResultWithCheckMark(
+fun DrawOCRResultWithTextSizeScaling(
     uiState: AIDataCaptureDemoUiState,
     scaler: Float,
     gapX: Float,
     gapY: Float,
     displayMetricsDensity: Float,
-    checkIconDrawable: Drawable?
+    displayTotalHeightInPx: Int,
+    displayTotalWidthInPx: Int
 ) {
     Canvas( // Layer 3
         modifier = Modifier
@@ -490,26 +540,65 @@ fun DrawOCRResultWithCheckMark(
                 val bBoxBottom = ocrResultData.boundingBox.bottom.toFloat()
                 val bBoxRight = ocrResultData.boundingBox.right.toFloat()
 
-                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
-                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
-                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
-                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+                var scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                var scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                var scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                var scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
 
                 // Define the size and position of the rectangle
-                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
-                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                var rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                var rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+
+                // This is preventing the Text to show too small on the drawing
+                if (rectangleHeight <= 20f || rectangleWidth <= 20f) {
+
+                    // Firstly, try increase the BBox Height by 40Px
+                    scaledBBoxTopInPx -= 20f
+
+                    // Make sure, the scaling fit within the Screen at Top.
+                    if (scaledBBoxTopInPx < 0) {
+                        scaledBBoxTopInPx = 0f
+                    }
+
+                    scaledBBoxBottomInPx += 20f
+                    // Make sure, the scaling fit within the Screen at Bottom.
+                    if (scaledBBoxBottomInPx > displayTotalHeightInPx.toFloat()) {
+                        scaledBBoxBottomInPx = displayTotalHeightInPx.toFloat()
+                    }
+
+                    // recalculate the height
+                    rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+
+                    // Secondly, try increase the BBox Width by 40Px
+                    scaledBBoxLeftInPx -= 20f
+
+                    // Make sure, the scaling fit within the Screen at Left.
+                    if (scaledBBoxLeftInPx < 0) {
+                        scaledBBoxLeftInPx = 0f
+                    }
+
+                    scaledBBoxRightInPx += 20f
+                    // Make sure, the scaling fit within the Screen at Right.
+                    if (scaledBBoxRightInPx > displayTotalWidthInPx.toFloat()) {
+                        scaledBBoxRightInPx = displayTotalWidthInPx.toFloat()
+                    }
+
+                    // recalculate the Width
+                    rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                }
+
                 val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
 
                 // Draw the filled rectangle
                 drawRect(
-                    color = Color.White.copy(alpha = 0.8F),
+                    color = Color(0xBF000000),
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight)
                 )
 
                 // Draw the border over the filled rectangle
                 drawRect(
-                    color = Color.Green,
+                    color = Color(0xFFFF7B00),
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
                     style = Stroke(width = (1f * displayMetricsDensity))
@@ -517,7 +606,136 @@ fun DrawOCRResultWithCheckMark(
 
                 // Prepare to draw the text
                 val paint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.BLACK
+                    color = android.graphics.Color.WHITE
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+
+                // Calculate the maximum text size that fits in the rectangle
+                val padding = 0.5f * displayMetricsDensity // Padding from the border
+                var textSize = 2f
+
+                // Incrementally increase text size until it just fits
+                do {
+                    paint.textSize = textSize
+                    val textWidth = paint.measureText(ocrResultData.text)
+                    val textHeight = paint.descent() - paint.ascent()
+                    if (textWidth + padding * 2 <= rectangleWidth && textHeight + padding * 2 <= rectangleHeight) {
+                        textSize += 1f
+                    } else {
+                        break
+                    }
+                } while (true)
+
+                // Adjust the text size to be slightly smaller
+                paint.textSize = textSize - 1f
+
+                // Calculate the position to draw the text
+                val textOffsetX = topLeftOffset.x + rectangleWidth / 2
+                val textOffsetY =
+                    topLeftOffset.y + rectangleHeight / 2 - (paint.ascent() + paint.descent()) / 2
+
+                // Draw the text using nativeCanvas
+                drawContext.canvas.nativeCanvas.drawText(
+                    ocrResultData.text,
+                    textOffsetX,
+                    textOffsetY,
+                    paint
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DrawOCRResultWithTextSizeScalingAndCheckMark(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float,
+    displayMetricsDensity: Float,
+    checkIconDrawable: Drawable?,
+    displayTotalHeightInPx: Int,
+    displayTotalWidthInPx: Int
+) {
+    Canvas( // Layer 3
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.ocrResults.forEach { ocrResultData ->
+            if (ocrResultData.text.isNotEmpty()) {
+
+                val bBoxTop = ocrResultData.boundingBox.top.toFloat()
+                val bBoxLeft = ocrResultData.boundingBox.left.toFloat()
+                val bBoxBottom = ocrResultData.boundingBox.bottom.toFloat()
+                val bBoxRight = ocrResultData.boundingBox.right.toFloat()
+
+                var scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                var scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                var scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                var scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                // Define the size and position of the rectangle
+                var rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                var rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+
+                // This is preventing the Text to show too small on the drawing
+                if (rectangleHeight <= 20f || rectangleWidth <= 20f) {
+
+                    // Firstly, try increase the BBox Height by 40Px
+                    scaledBBoxTopInPx -= 20f
+
+                    // Make sure, the scaling fit within the Screen at Top.
+                    if (scaledBBoxTopInPx < 0) {
+                        scaledBBoxTopInPx = 0f
+                    }
+
+                    scaledBBoxBottomInPx += 20f
+                    // Make sure, the scaling fit within the Screen at Bottom.
+                    if (scaledBBoxBottomInPx > displayTotalHeightInPx.toFloat()) {
+                        scaledBBoxBottomInPx = displayTotalHeightInPx.toFloat()
+                    }
+
+                    // recalculate the height
+                    rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+
+                    // Secondly, try increase the BBox Width by 40Px
+                    scaledBBoxLeftInPx -= 20f
+
+                    // Make sure, the scaling fit within the Screen at Left.
+                    if (scaledBBoxLeftInPx < 0) {
+                        scaledBBoxLeftInPx = 0f
+                    }
+
+                    scaledBBoxRightInPx += 20f
+                    // Make sure, the scaling fit within the Screen at Right.
+                    if (scaledBBoxRightInPx > displayTotalWidthInPx.toFloat()) {
+                        scaledBBoxRightInPx = displayTotalWidthInPx.toFloat()
+                    }
+
+                    // recalculate the Width
+                    rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                }
+
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+                // Draw the filled rectangle
+                drawRect(
+                    color = Color(0xBF000000),
+                    topLeft = topLeftOffset,
+                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight)
+                )
+
+                // Draw the border over the filled rectangle
+                drawRect(
+                    color = Color(0xFFFF7B00),
+                    topLeft = topLeftOffset,
+                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
+                    style = Stroke(width = (1f * displayMetricsDensity))
+                )
+
+                // Prepare to draw the text
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.WHITE
                     textAlign = android.graphics.Paint.Align.CENTER
                 }
 
@@ -621,7 +839,7 @@ fun DrawBarcodeResult(
                 Text(
                     text = barcodeData.text,
                     fontSize = 10.sp,
-                    color = Color.Black,
+                    color = Color.White,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(
                             includeFontPadding = false
@@ -629,7 +847,7 @@ fun DrawBarcodeResult(
                     ),
                     modifier = Modifier
                         .offset(x = scaledBBoxLeftInDp, y = scaledBBoxBottomInDp + 2.dp)
-                        .background(Color.White)
+                        .background(Color(0xBF000000))
                         .padding(2.dp)
                 )
             }

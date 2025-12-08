@@ -125,7 +125,7 @@ fun AIDataCaptureDemoAppBar(
             )
         },
         actions = {
-            if (uiState.usecaseSelected == UsecaseState.OCRFind.value) {
+            if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
                 var isOCRFilterAlertDialogShown by remember { mutableStateOf(false) }
 
                 IconButton(onClick = {
