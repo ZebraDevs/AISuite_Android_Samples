@@ -1,6 +1,8 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.textocrsample;
 
+import static java.lang.Math.abs;
+
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;

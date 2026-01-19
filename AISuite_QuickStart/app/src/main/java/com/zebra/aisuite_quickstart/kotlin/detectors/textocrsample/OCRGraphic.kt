@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import com.zebra.aisuite_quickstart.GraphicOverlay
-import java.lang.Math.abs
 
 /**
  * The OCRGraphic class extends GraphicOverlay.Graphic and is responsible for rendering visual
@@ -106,6 +105,7 @@ class OCRGraphic(
         paint: Paint
     ) {
         // Define the maximum width and height the text should fit into
+
         val maxWidth = kotlin.math.abs(maxX - minX)
         val maxHeight = kotlin.math.abs(maxY - minY)
 

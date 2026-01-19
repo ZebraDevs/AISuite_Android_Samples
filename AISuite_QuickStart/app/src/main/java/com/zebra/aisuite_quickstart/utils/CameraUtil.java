@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.utils;
 
 import android.content.Context;

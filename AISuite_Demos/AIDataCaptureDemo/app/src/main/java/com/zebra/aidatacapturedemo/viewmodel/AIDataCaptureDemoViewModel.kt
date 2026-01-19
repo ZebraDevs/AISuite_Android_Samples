@@ -1592,6 +1592,9 @@ class AIDataCaptureDemoViewModel(
 
             UsecaseState.OCRBarcodeFind.value -> {
                 _uiState.value.ocrBarcodeFindSettings = OcrBarcodeFindSettings()
+                updateOCRModelEnabled(true)
+                updateBarcodeModelEnabled(true)
+                updateOcrFilterData(OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL))
             }
 
             UsecaseState.OCR.value -> {

@@ -11,8 +11,9 @@ appcompat = "1.7.1"
 material = "1.12.0"
 lifecycleLivedataKtx = "2.9.2"
 lifecycleViewmodelKtx = "2.9.2"
-barcodeLocalizer = "5.0.1"
-zebraAIVisionSdk = "3.1.6"
+barcodeLocalizer = "5.0.2"
+zebraAIVisionSdk = "3.1.7"
+navigationCompose = "2.9.6"
 uiautomator = "2.3.0"
 composeBom = "2025.08.00"
 composeCompiler = "1.5.8"
@@ -23,10 +24,14 @@ foundationLayout = "1.9.0"
 foundation = "1.9.0"
 uiTestJunit4 = "1.9.0"
 uiVersion = "1.9.2"
+roomKtx = "2.8.3"
+navigationRuntimeKtx = "2.9.6"
+lifecycleViewmodelKtxVersion = "2.9.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycleLivedataKtx" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 junit = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
@@ -57,6 +62,9 @@ androidx-foundation = { group = "androidx.compose.foundation", name = "foundatio
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "uiTestJunit4" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "uiTestJunit4" }
 ui = { group = "androidx.compose.ui", name = "ui", version.ref = "uiVersion" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
+androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
+lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtxVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

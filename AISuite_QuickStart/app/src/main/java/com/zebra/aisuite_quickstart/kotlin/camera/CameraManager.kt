@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.camera
 
 import android.content.Context
@@ -86,6 +87,7 @@ class CameraManager(private val activity: CameraXLivePreviewActivity, private va
         previewUseCase?.let { cameraProvider?.unbind(it) }
         analysisUseCase?.let { cameraProvider?.unbind(it) }
 
+        activity.binding.graphicOverlay.clear()
         val previewBuilder = Preview.Builder().apply {
             setResolutionSelector(resolutionSelector)
         }

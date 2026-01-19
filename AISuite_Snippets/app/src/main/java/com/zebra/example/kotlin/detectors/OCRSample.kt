@@ -101,10 +101,10 @@ class OCRSample {
             // Switch to the main dispatcher to update UI with results
             withContext(Dispatchers.Main) {
                 for (entity in result) {
-                    val lines = entity.textParagraph.lines
+                    val lines = entity.lines
                     for (line in lines) {
                         for (word in line.words) {
-                            val bbox = word.bbox
+                            val bbox = word.complexBBox
 
                             if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
                                 val minX = bbox.x[0]
@@ -113,7 +113,7 @@ class OCRSample {
                                 val maxY = bbox.y[2]
 
                                 val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
-                                val decodedValue = word.decodes[0].content
+                                val decodedValue = word.text
                                 Log.v(TAG, "Decoded value: $decodedValue")
                             }
                         }

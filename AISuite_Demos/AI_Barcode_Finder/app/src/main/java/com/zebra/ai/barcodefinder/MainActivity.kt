@@ -10,14 +10,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.ViewModelProvider
-import com.zebra.ai.barcodefinder.presentation.ui.compose.screens.homescreen.HomeScreen
-import com.zebra.ai.barcodefinder.presentation.ui.theme.AppTheme
-import com.zebra.ai.barcodefinder.presentation.viewmodel.FinderViewModel
+import com.zebra.ai.barcodefinder.application.presentation.navigation.AppNavHost
+import com.zebra.ai.barcodefinder.application.presentation.ui.theme.AppTheme
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var finderViewModel: FinderViewModel
     private var isAppInBackground = false
     private var isFinishing = false
 
@@ -31,9 +28,6 @@ class MainActivity : AppCompatActivity() {
         // Set status bar content to light (white icons/text) since we're using dark background
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
 
-        // Initialize ViewModel
-        finderViewModel = ViewModelProvider(this)[FinderViewModel::class.java]
-
         // Show the main application content
         setContent {
             AppTheme {
@@ -41,11 +35,11 @@ class MainActivity : AppCompatActivity() {
                     modifier = Modifier.Companion.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Let HomeScreen handle all navigation including BarcodeFinderScreen and ScanResultsScreen
-                    HomeScreen(
-                        finderViewModel = finderViewModel, onBackPressed = {
+                    AppNavHost(
+                        onExit = {
                             finish()  // This will close the activity and exit the application
-                        })
+                        }
+                    )
                 }
             }
         }

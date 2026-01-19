@@ -1,30 +1,6 @@
 <resources>
     <string name="app_name">AI Barcode Finder</string>
 
-    <!--ModelInput-->
-    <string name="model_input_640_title_settings">640 x 640 (small)</string>
-    <string name="model_input_640_title_home">640 x 640</string>
-    <string name="model_input_1280_title_settings">1280 x 1280 (medium)</string>
-    <string name="model_input_1280_title_home">1280 x 1280</string>
-    <string name="model_input_1600_title_settings">1600 x 1600 (large)</string>
-    <string name="model_input_1600_title_home">1600 x 1600</string>
-
-    <!-- ProcessorType -->
-    <string name="processor_type_dsp">DSP</string>
-    <string name="processor_type_dsp_id">dsp</string>
-    <string name="processor_type_gpu">GPU</string>
-    <string name="processor_type_gpu_id">gpu</string>
-    <string name="processor_type_cpu">CPU</string>
-    <string name="processor_type_cpu_id">cpu</string>
-    <string name="processor_type_auto">Auto-select</string>
-    <string name="processor_type_auto_id">auto</string>
-
-    <!-- Resolution -->
-    <string name="resolution_1mp">1MP (1280 × 720) </string>
-    <string name="resolution_2mp">2MP (1920 × 1080) </string>
-    <string name="resolution_4mp">4MP (2688 × 1512) </string>
-    <string name="resolution_8mp">8MP (3840 × 2160) </string>
-
     <!-- ScanStatus -->
     <string name="scan_status_recall_confirmed">Recall has been confirmed</string>
     <string name="scan_status_pickup_confirmed">Pickup confirmed</string>
@@ -294,6 +270,7 @@
     <string name="setting_screen_resolution_8mp_title">8MP (3840 × 2160)</string>
     <string name="setting_screen_resolution_8mp_subtitle">Tiny, distant, or low-contrast barcodes</string>
     <string name="setting_screen_inference_title">Inference (processor) Type</string>
+    <string name="setting_screen_feedback">Feedback</string>
     <string name="setting_screen_inference_description1">This setting chooses which chip in your device runs AI tasks, affecting speed and battery life. &#160;</string>
     <string name="setting_screen_inference_description2">Not all devices have a DSP. </string>
     <string name="setting_screen_inference_dsp_title">DSP (Digital Signal Processor)</string>
@@ -310,6 +287,15 @@
     <string name="setting_screen_reset_to_default">Reset to Default Settings </string>
     <string name="setting_screen_auto">Auto-select</string>
     <string name="setting_screen_auto_select_best_available_inference_type">Selects best available option</string>
+
+    <string name="setting_screen_audio">Audio</string>
+    <string name="setting_screen_beep_when_configured_barcodes_are_found">Beep when configured barcodes are found</string>
+    <string name="setting_screen_haptics">Haptics</string>
+    <string name="setting_screen_vibrate_when_configured_barcodes_are_found">Vibrate when configured barcodes are found</string>
+    <string name="setting_screen_show_all_detected_barcodes">Show all detected barcodes</string>
+    <string name="setting_screen_highlight_barcodes_that_have_been_detected_but_not_decoded">Highlight barcodes that have been detected but not decoded</string>
+
+
 
     <!--EULA Screen-->
     <string name="eula_screen_header">End User License Agreement\n(Unrestricted Software)</string>

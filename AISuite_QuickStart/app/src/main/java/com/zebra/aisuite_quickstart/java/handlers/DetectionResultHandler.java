@@ -1,32 +1,31 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.handlers;
 
 import android.graphics.Rect;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
 
 import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.ComplexBBox;
-import com.zebra.ai.vision.detector.Line;
-import com.zebra.ai.vision.detector.Recognizer;
+import com.zebra.ai.vision.detector.SKUInfo;
 import com.zebra.ai.vision.detector.Word;
 import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.Entity;
+import com.zebra.ai.vision.entity.LabelEntity;
 import com.zebra.ai.vision.entity.LineEntity;
 import com.zebra.ai.vision.entity.ParagraphEntity;
+import com.zebra.ai.vision.entity.ProductEntity;
+import com.zebra.ai.vision.entity.ShelfEntity;
 import com.zebra.ai.vision.entity.WordEntity;
 import com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity;
 import com.zebra.aisuite_quickstart.java.analyzers.tracker.TrackerGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.textocrsample.OCRGraphic;
 import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionGraphic;
-import com.zebra.aisuite_quickstart.java.viewfinder.EntityBarcodeTracker;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityViewGraphic;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -146,65 +145,94 @@ public class DetectionResultHandler {
     }
 
     // Product recognition detection result handler
-    public void handleDetectionRecognitionResult(BBox[] detections, BBox[] products, Recognizer.Recognition[] recognitions) {
+    public void handleDetectionRecognitionResult(List<Entity> result) {
+        Log.d(TAG, "Inside On Shelf RecognitionResult (flat hierarchy)");
         activity.runOnUiThread(() -> {
             activity.getBinding().graphicOverlay.clear();
-            if (detections != null) {
-                List<Rect> labelShelfRects = new ArrayList<>();
-                List<Rect> labelPegRects = new ArrayList<>();
-                List<Rect> shelfRects = new ArrayList<>();
-                List<Rect> recognizedRects = new ArrayList<>();
-                List<String> decodedStrings = new ArrayList<>();
+            if (result == null) return;
 
-                BBox[] labelShelfObjects = Arrays.stream(detections).filter(x -> x.cls == 2).toArray(BBox[]::new);
-                BBox[] labelPegObjects = Arrays.stream(detections).filter(x -> x.cls == 3).toArray(BBox[]::new);
-                BBox[] shelfObjects = Arrays.stream(detections).filter(x -> x.cls == 4).toArray(BBox[]::new);
-
-                for (BBox bBox : labelShelfObjects) {
-                    Rect rect = new Rect((int) bBox.xmin, (int) bBox.ymin, (int) bBox.xmax, (int) bBox.ymax);
-                    Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                    labelShelfRects.add(overlayRect);
+            List<ShelfEntity> shelves = new ArrayList<>();
+            List<LabelEntity> labels = new ArrayList<>();
+            List<ProductEntity> products = new ArrayList<>();
+            for (Entity entity : result) {
+                if (entity instanceof ShelfEntity) {
+                    shelves.add((ShelfEntity) entity);
+                } else if (entity instanceof LabelEntity) {
+                    labels.add((LabelEntity) entity);
+                } else if (entity instanceof ProductEntity) {
+                    products.add((ProductEntity) entity);
                 }
+            }
 
-                for (BBox bBox : labelPegObjects) {
-                    Rect rect = new Rect((int) bBox.xmin, (int) bBox.ymin, (int) bBox.xmax, (int) bBox.ymax);
-                    Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                    labelPegRects.add(overlayRect);
+            List<Rect> shelfRects = new ArrayList<>();
+            List<Rect> labelRects = new ArrayList<>();
+            List<Rect> productRects = new ArrayList<>();
+            List<String> productLabels = new ArrayList<>();
+
+            // Draw shelves and their labels
+            if (shelves != null) {
+                for (ShelfEntity shelf : shelves) {
+                    Rect shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.getBoundingBox());
+                    shelfRects.add(shelfRect);
+
                 }
+            }
 
-                for (BBox bBox : shelfObjects) {
-                    Rect rect = new Rect((int) bBox.xmin, (int) bBox.ymin, (int) bBox.xmax, (int) bBox.ymax);
-                    Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                    shelfRects.add(overlayRect);
-                }
-
-                if (recognitions.length == 0) {
-                    decodedStrings.add("No products found");
-                    recognizedRects.add(new Rect(250, 250, 0, 0));
-                } else {
-                    Log.v(TAG, "products length :" + products.length + " recognitions length: " + recognitions.length);
-                    for (int i = 0; i < products.length; i++) {
-                        if (recognitions[i].similarity[0] > SIMILARITY_THRESHOLD) {
-                            BBox bBox = products[i];
-                            Rect rect = new Rect((int) bBox.xmin, (int) bBox.ymin, (int) bBox.xmax, (int) bBox.ymax);
-                            Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                            recognizedRects.add(overlayRect);
-                            decodedStrings.add(recognitions[i].sku[0]);
-                        }
+            // Draw all labels (if you want to show all, not just those attached to shelves)
+            if (labels != null) {
+                for (LabelEntity label : labels) {
+                    Rect labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.getBoundingBox());
+                    if (!labelRects.contains(labelRect)) {
+                        labelRects.add(labelRect);
+                        // labelTexts.add(label.getLabelText() != null ? label.getLabelText() : "");
                     }
                 }
-
-                activity.getBinding().graphicOverlay.add(new ProductRecognitionGraphic(activity.getBinding().graphicOverlay, labelShelfRects, labelPegRects, shelfRects, recognizedRects, decodedStrings));
             }
+
+            // Draw all products (regardless of shelf assignment)
+            if (products != null) {
+                for (ProductEntity product : products) {
+                    Rect prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.getBoundingBox());
+                    productRects.add(prodRect);
+                    String topSku = "";
+                    List<SKUInfo> skuInfos = product.getTopKSKUs();
+                    if (skuInfos != null && !skuInfos.isEmpty()) {
+                        topSku = skuInfos.get(0).getProductSKU();
+                    }
+                    productLabels.add(topSku);
+
+                    Log.d(TAG, String.format(
+                            "SKU=%s, Product bbox=%s",
+                            topSku, prodRect
+                    ));
+                }
+            }
+
+            activity.getBinding().graphicOverlay.add(
+                    new ProductRecognitionGraphic(
+                            activity.getBinding().graphicOverlay,
+                            shelfRects,
+                            labelRects,
+                            productRects,
+                            productLabels
+                    )
+            );
         });
     }
 
+
+
+
     // Entity tracker detection result handler
-    public void handleEntityTrackerDetection(List<? extends Entity> barcodeEntities, List<? extends Entity> ocrEntities) {
+    public void handleEntityTrackerDetection(List<? extends Entity> barcodeEntities, List<? extends Entity> ocrEntities, List<? extends Entity> moduleEntities) {
         List<Rect> barcodeRects = new ArrayList<>();
         List<String> barcodeStrings = new ArrayList<>();
         List<Rect> ocrRects = new ArrayList<>();
         List<String> ocrStrings = new ArrayList<>();
+        List<Rect> shelfRects = new ArrayList<>();
+        List<Rect> labelRects = new ArrayList<>();
+        List<Rect> productRects = new ArrayList<>();
+        List<String> productLabels = new ArrayList<>();
 
 
         activity.runOnUiThread(() -> {
@@ -257,10 +285,59 @@ public class DetectionResultHandler {
 
                 }
             }
+            if (moduleEntities != null) {
+                List<ShelfEntity> shelves = new ArrayList<>();
+                List<LabelEntity> labels = new ArrayList<>();
+                List<ProductEntity> products = new ArrayList<>();
+                for (Entity entity : moduleEntities) {
+                    if (entity instanceof ShelfEntity) {
+                        shelves.add((ShelfEntity) entity);
+                    } else if (entity instanceof LabelEntity) {
+                        labels.add((LabelEntity) entity);
+                    } else if (entity instanceof ProductEntity) {
+                        products.add((ProductEntity) entity);
+                    }
+                }
+
+                for (ShelfEntity shelf : shelves) {
+                    Rect shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.getBoundingBox());
+                    shelfRects.add(shelfRect);
+                }
+                for (LabelEntity label : labels) {
+                    Rect labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.getBoundingBox());
+                    if (!labelRects.contains(labelRect)) {
+                        labelRects.add(labelRect);
+                    }
+                }
+                for (ProductEntity product : products) {
+                    Rect prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.getBoundingBox());
+                    productRects.add(prodRect);
+                    String topSku = "";
+                    List<SKUInfo> skuInfos = product.getTopKSKUs();
+                    if (skuInfos != null && !skuInfos.isEmpty()) {
+                        SKUInfo topSKU = skuInfos.get(0);
+                        topSku = topSKU.getProductSKU() + " (" + String.format("%.2f", topSKU.getAccuracy()) + ")";
+                    }
+                    productLabels.add(topSku);
+                }
+
+                // Add the product recognition overlay
+                activity.getBinding().graphicOverlay.add(
+                        new ProductRecognitionGraphic(
+                                activity.getBinding().graphicOverlay,
+                                shelfRects,
+                                labelRects,
+                                productRects,
+                                productLabels
+                        )
+                );
+            }
             if (!barcodeRects.isEmpty())
                 activity.getBinding().graphicOverlay.add(new TrackerGraphic(activity.getBinding().graphicOverlay, barcodeRects, barcodeStrings));
             if (!ocrRects.isEmpty())
                 activity.getBinding().graphicOverlay.add(new OCRGraphic(activity.getBinding().graphicOverlay, ocrRects, ocrStrings));
+            if (!shelfRects.isEmpty()|| !labelRects.isEmpty()|| !productRects.isEmpty()|| !productLabels.isEmpty())
+                activity.getBinding().graphicOverlay.add(new ProductRecognitionGraphic(activity.getBinding().graphicOverlay, shelfRects, labelRects, productRects,productLabels));
         });
     }
 

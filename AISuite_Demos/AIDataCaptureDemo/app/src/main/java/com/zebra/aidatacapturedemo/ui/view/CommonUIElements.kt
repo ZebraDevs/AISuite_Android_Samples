@@ -140,9 +140,7 @@ data class SwitchOptionData(
 
 @Composable
 fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
-    var isChecked by remember { mutableStateOf(currentValue) }
     var title = stringResource(switchOption.titleId)
-
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
         verticalAlignment = Alignment.Top,
@@ -166,10 +164,9 @@ fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
         )
         Spacer(modifier = Modifier.weight(1f))
         Switch(
-            checked = isChecked,
+            checked = currentValue,
             onCheckedChange = {
-                isChecked = it
-                switchOption.onItemSelected(title, isChecked)
+                switchOption.onItemSelected(title, it)
             },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = mainInverse,

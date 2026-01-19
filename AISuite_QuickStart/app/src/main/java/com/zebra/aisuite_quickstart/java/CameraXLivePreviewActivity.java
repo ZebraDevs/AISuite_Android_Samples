@@ -21,9 +21,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
-import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
-import com.zebra.ai.vision.detector.Recognizer;
 import com.zebra.ai.vision.detector.Word;
 import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.Entity;
@@ -33,7 +31,6 @@ import com.zebra.aisuite_quickstart.CameraXViewModel;
 import com.zebra.aisuite_quickstart.R;
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding;
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog;
-import com.zebra.aisuite_quickstart.filtertracker.FilterType;
 import com.zebra.aisuite_quickstart.java.analyzers.tracker.Tracker;
 import com.zebra.aisuite_quickstart.java.camera.CameraManager;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeAnalyzer;
@@ -53,6 +50,7 @@ import com.zebra.aisuite_quickstart.java.viewfinder.EntityBarcodeTracker;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityViewGraphic;
 import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -128,8 +126,6 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private DetectionResultHandler detectionHandler;
     private UIHandler uiHandler;
     private BoundingBoxMapper boundingBoxMapper;
-    private boolean isBarcodeChecked = true;
-    private boolean isOCRChecked = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -393,6 +389,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     public synchronized void handleEntities(EntityTrackerAnalyzer.Result result) {
         List<? extends Entity> barcodeEntities;
         List<? extends Entity> ocrEntities;
+        List<? extends Entity> moduleEntities;
 
         if (tracker.getBarcodeDecoder() != null) {
             barcodeEntities = result.getValue(tracker.getBarcodeDecoder());
@@ -405,7 +402,13 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         } else {
             ocrEntities = null;
         }
-        detectionHandler.handleEntityTrackerDetection(barcodeEntities, ocrEntities);
+
+        if (tracker.getModuleRecognizer() != null) {
+            moduleEntities = result.getValue(tracker.getModuleRecognizer());
+        } else {
+            moduleEntities = null;
+        }
+        detectionHandler.handleEntityTrackerDetection(barcodeEntities, ocrEntities, moduleEntities);
 
     }
 
@@ -442,8 +445,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     // Handles product recognition results and updates the graphical overlay
     @Override
-    public void onDetectionRecognitionResult(BBox[] detections, BBox[] products, Recognizer.Recognition[] recognitions) {
-        detectionHandler.handleDetectionRecognitionResult(detections, products, recognitions);
+    public void onRecognitionResult(List<Entity> result) {
+        detectionHandler.handleDetectionRecognitionResult(result);
     }
 
     /**
@@ -474,15 +477,19 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         selectedModel = uiHandler.getSelectedModel();
         analysisUseCase = cameraManager.getAnalysisUseCase();
         previousSelectedModel = selectedModel;
-        isBarcodeChecked = sharedPreferences.getBoolean(FilterDialog.BARCODE_TRACKER, true);
-        isOCRChecked = sharedPreferences.getBoolean(FilterDialog.OCR_TRACKER, false);
+        String[] filterItems = FilterDialog.trackerArray;
+        List<String> selectedFilterItems = new ArrayList<>();
+        for (String filterItem : filterItems) {
+            boolean defaultValue = filterItem.equalsIgnoreCase(FilterDialog.BARCODE_TRACKER);
+            boolean isChecked = sharedPreferences.getBoolean(filterItem, defaultValue);
+            if (isChecked) selectedFilterItems.add(filterItem);
+        }
 
         try {
             switch (selectedModel) {
                 case BARCODE_DETECTION:
                     Log.i(TAG, "Using Barcode Decoder");
                     executors.execute(() -> barcodeHandler = new BarcodeHandler(this, this, analysisUseCase));
-
                     break;
                 case TEXT_OCR_DETECTION:
                     Log.i(TAG, "Using Text OCR");
@@ -494,7 +501,13 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     break;
                 case ENTITY_ANALYZER:
                     Log.i(TAG, "Using Entity Analyzer");
-                    executors.execute(() -> tracker = new Tracker(this, this, analysisUseCase, FilterType.getFilterType(isBarcodeChecked, isOCRChecked)));
+                    executors.execute(() -> {
+                        try {
+                            tracker = new Tracker(this, this, analysisUseCase, selectedFilterItems);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
 
                     break;
                 case PRODUCT_RECOGNITION:
@@ -502,6 +515,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     executors.execute(() -> productRecognitionHandler = new ProductRecognitionHandler(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase));
 
                     break;
+
                 case LEGACY_BARCODE_DETECTION:
                     Log.i(TAG, "Using Legacy Barcode Detection");
                     executors.execute(() -> barcodeLegacySample = new BarcodeSample(this, this, analysisUseCase));

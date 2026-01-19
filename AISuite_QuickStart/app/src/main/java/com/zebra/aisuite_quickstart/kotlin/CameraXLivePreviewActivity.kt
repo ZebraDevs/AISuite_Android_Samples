@@ -19,9 +19,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
-import com.zebra.ai.vision.detector.BBox
 import com.zebra.ai.vision.detector.BarcodeDecoder
-import com.zebra.ai.vision.detector.Recognizer
 import com.zebra.ai.vision.detector.Word
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
@@ -32,7 +30,6 @@ import com.zebra.aisuite_quickstart.CameraXViewModel
 import com.zebra.aisuite_quickstart.R
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog
-import com.zebra.aisuite_quickstart.filtertracker.FilterType
 import com.zebra.aisuite_quickstart.kotlin.analyzers.tracker.Tracker
 import com.zebra.aisuite_quickstart.kotlin.camera.CameraManager
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeAnalyzer
@@ -56,33 +53,6 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/**
- * The CameraXLivePreviewActivity class is an Android activity that demonstrates the use of CameraX
- * for live camera preview and integrates multiple detection and recognition capabilities, including
- * barcode detection, text OCR, product recognition, and entity tracking.
-
- * This class provides functionality for switching between different models and use cases, handling
- * camera lifecycle, managing image analysis, and updating the UI based on detection results.
-
- * Usage:
- * - This activity is started as part of the application to demonstrate CameraX functionalities.
- * - It binds and unbinds camera use cases based on user selection and manages their lifecycle.
- * - It provides a spinner UI to select between different detection models and dynamically adapts
- *   the camera preview and analysis based on the selected model.
-
- * Dependencies:
- * - CameraX: Provides camera lifecycle and use case management.
- * - BarcodeHandler, OCRHandler, ProductRecognitionHandler, Tracker, EntityBarcodeTracker:
- *   Classes that handle specific detection and recognition tasks.
- * - ActivityCameraXlivePreviewBinding: Used for view binding to access UI components.
- * - GraphicOverlay: Custom view for rendering graphical overlays on camera preview.
- * - ExecutorService: Used for asynchronous task execution.
-
- * Exception Handling:
- * - Handles exceptions during analyzer setup and model disposal.
-
- * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
- */
 class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.DetectionCallback,
     TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
     Tracker.DetectionCallback,
@@ -127,8 +97,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var pendingTransformMatrix: Matrix? = null
     private var pendingCropRegion: RectF? = null
     private var sharedPreferences: SharedPreferences? = null
-    private var isBarcodeChecked = true
-    private var isOCRChecked = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -276,10 +244,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
-    /**
-     * Apply any pending viewfinder resize specs to the EntityTrackerAnalyzer
-     * This should be called after the analyzer is fully initialized
-     */
     private fun applyPendingResizeSpecs() {
         if (pendingTransformMatrix != null && entityBarcodeTracker?.getEntityTrackerAnalyzer() != null) {
             entityBarcodeTracker!!.getEntityTrackerAnalyzer()!!
@@ -291,10 +255,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
-    /**
-     * Call this method when EntityBarcodeTracker is fully initialized
-     * This ensures proper setup of the analyzer with any pending configurations
-     */
     override fun onEntityBarcodeTrackerReady() {
         Log.d(tag, "EntityBarcodeTracker is ready, applying pending configurations")
         applyPendingResizeSpecs()
@@ -305,7 +265,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         outState.putString(stateSelectedModel, selectedModel)
     }
 
-
     fun bindAnalysisUseCase() {
         if (cameraManager.getCameraProvider() == null) {
             return
@@ -313,8 +272,13 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         selectedModel = uiHandler.getSelectedModel()
         analysisUseCase = cameraManager.getAnalysisUseCase()
         previousSelectedModel = selectedModel
-        isBarcodeChecked = sharedPreferences!!.getBoolean(FilterDialog.BARCODE_TRACKER, true)
-        isOCRChecked = sharedPreferences!!.getBoolean(FilterDialog.OCR_TRACKER, false)
+        val filterItems = FilterDialog.trackerArray
+        val selectedFilterItems: MutableList<String?> = ArrayList()
+        for (filterItem in filterItems) {
+            val defaultValue = filterItem.equals(FilterDialog.BARCODE_TRACKER, ignoreCase = true)
+            val isChecked = sharedPreferences!!.getBoolean(filterItem, defaultValue)
+            if (isChecked) selectedFilterItems.add(filterItem)
+        }
 
         try {
             when (selectedModel) {
@@ -347,16 +311,14 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 ENTITY_ANALYZER -> {
                     Log.i(tag, "Using Entity Analyzer")
                     executors.execute {
-                        analysisUseCase?.let { tracker = Tracker(this, this, it, FilterType.getFilterType(isBarcodeChecked, isOCRChecked)) }
+                        analysisUseCase?.let { tracker = Tracker(this, this, it, selectedFilterItems) }
                     }
                 }
 
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Using Product Recognition")
                     executors.execute {
-                        productRecognitionHandler =
-                            ProductRecognitionHandler(this, this, analysisUseCase!!)
-
+                            productRecognitionHandler = ProductRecognitionHandler(this, this, analysisUseCase!!)
                     }
                 }
 
@@ -385,7 +347,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
-
     public override fun onResume() {
         super.onResume()
         Log.v(tag, "OnResume called")
@@ -401,7 +362,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             cameraManager.updateTargetRotation(initialRotation)
             boundingBoxMapper.setInitialRotation(initialRotation)
 
-            // check if the device rotation is changes when suspended (0-> 0°, 2 -> 180°)
+            val selectedSize = cameraManager.getSelectedSize()
             if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
                 imageWidth = selectedSize.height
                 imageHeight = selectedSize.width
@@ -414,7 +375,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
         if (uiHandler.isSpinnerInitialized) bindAllCameraUseCases()
     }
-
 
     fun stopAnalyzing() {
         try {
@@ -441,7 +401,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Stopping the recognition analyzer")
-                    productRecognitionHandler?.getProductRecognitionAnalyzer()?.stop()
+                    productRecognitionHandler?.getProductRecognitionAnalyzer()?.stopAnalyzing();
                 }
 
                 LEGACY_BARCODE_DETECTION -> {
@@ -461,34 +421,26 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
-    // Handles barcode detection results and updates the graphical overlay
     override fun onDetectionResult(result: List<BarcodeEntity>) {
-        // Launch a coroutine on the IO dispatcher for background processing
         detectionHandler.handleBarcodeDetection(result)
     }
 
-    // Handles text OCR detection results and updates the graphical overlay
     override fun onDetectionTextResult(list: List<ParagraphEntity>) {
-        // Use lifecycleScope to launch a coroutine
         detectionHandler.handleTextOCRDetection(list)
     }
-    // Handles entity tracking results and updates the graphical overlay
-    override fun handleEntities(result: EntityTrackerAnalyzer.Result) {
-        // Get barcode entities
-        val barcodeEntities = tracker?.getBarcodeDecoder()?.let { result.getValue(it) }
-        // Get OCR entities
-        val ocrEntities = tracker?.getTextOCR()?.let { result.getValue(it) }
 
-        detectionHandler.handleEntityTrackerDetection(barcodeEntities, ocrEntities)
+    override fun handleEntities(result: EntityTrackerAnalyzer.Result) {
+
+            val barcodeEntities = tracker?.getBarcodeDecoder()?.let { result.getValue(it) }
+            val ocrEntities = tracker?.getTextOCR()?.let { result.getValue(it) }
+            val moduleEntities = tracker?.getModuleRecognizer()?.let { result.getValue(it) }
+            detectionHandler.handleEntityTrackerDetection(barcodeEntities, ocrEntities, moduleEntities)
+
     }
 
-    // Handles entities for the entity view tracker and updates the graphical overlay
     override fun handleEntitiesForEntityView(result: EntityTrackerAnalyzer.Result) {
         Log.d(tag, "Handle View Entity - Result received")
-
-        // Apply any pending resize specs now that the analyzer is ready
         applyPendingResizeSpecs()
-
         lifecycleScope.launch(Dispatchers.Main) {
             val entities = if (entityBarcodeTracker?.getBarcodeDecoder() != null) {
                 result.getValue(entityBarcodeTracker!!.getBarcodeDecoder()!!)
@@ -496,15 +448,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 Log.w(tag, "EntityBarcodeTracker or decoder is null - tracker: ${entityBarcodeTracker != null}, decoder: ${entityBarcodeTracker?.getBarcodeDecoder() != null}")
                 null
             }
-
             Log.d(tag, "EntityBarcodeTracker decoder available, entities count: ${entities?.size ?: "null"}")
-
             if (entityViewGraphic != null) {
                 entityViewGraphic?.clear()
             } else {
                 Log.w(tag, "EntityViewGraphic is null")
             }
-
             if (entities != null && entityViewGraphic != null) {
                 Log.d(tag, "Processing ${entities.size} entities for entity view")
                 detectionHandler.handleEntityViewFinderDetection(
@@ -518,22 +467,15 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
-    // Handles product recognition results and updates the graphical overlay
-    override fun onDetectionRecognitionResult(detections: Array<BBox>, products: Array<BBox>, recognitions: Array<Recognizer.Recognition>) {
-        detectionHandler.handleDetectionRecognitionResult(detections, products, recognitions)
+    override fun onRecognitionResult(result: List<Entity>?) {
+        detectionHandler.handleDetectionRecognitionResult(result)
     }
-    /**
-     * Callback method invoked when barcode detection results are available.
-     *
-     * @param barcodes An array of BarcodeDecoder.Result representing detected barcodes.
-     */
+
     override fun onDetectionResult(list: Array<BarcodeDecoder.Result>) {
         detectionHandler.handleLegacyBarcodeDetection(list)
     }
 
-    // Handles text OCR detection results and updates the graphical overlay
     override fun onDetectionTextResult(list: Array<Word>) {
-        // Use lifecycleScope to launch a coroutine
         detectionHandler.handleLegacyTextOCRDetection(list)
     }
 
@@ -583,7 +525,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
-
     companion object {
         private const val BARCODE_DETECTION = "Barcode"
         private const val TEXT_OCR_DETECTION = "OCR"
@@ -601,6 +542,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
         return binding.previewView.getSurfaceProvider()
     }
+
     override fun onBackPressed() {
         super.onBackPressed()
     }

@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.handlers;
 
 import static android.view.View.GONE;
@@ -41,7 +42,7 @@ public class UIHandler {
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
 
     private String selectedModel = BARCODE_DETECTION;
-    private SharedPreferences sharedPreferences;
+    private final SharedPreferences sharedPreferences;
     private boolean isEntityViewFinder = false;
 
     public boolean isSpinnerInitialized = false;
@@ -64,8 +65,8 @@ public class UIHandler {
         List<String> options = new ArrayList<>();
         options.add(BARCODE_DETECTION);
         options.add(TEXT_OCR_DETECTION);
-        options.add(ENTITY_ANALYZER);
         options.add(PRODUCT_RECOGNITION);
+        options.add(ENTITY_ANALYZER);
         options.add(ENTITY_VIEW_FINDER);
         // options.add(LEGACY_BARCODE_DETECTION); // uncomment to use barcode legacy option
         // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option

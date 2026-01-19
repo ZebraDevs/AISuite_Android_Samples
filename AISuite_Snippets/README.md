@@ -38,23 +38,25 @@ Here’s an overview of the AISuite_Snippets folder:
 #### app/src/main/java/com/zebra/example
 ##### Java
 ##### analyzers
-- [barcodetracker](app/src/main/java/com/zebra/example/java/analyzers/BarcodeTracker.java) - Java Snippet using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
+- [tracker](app/src/main/java/com/zebra/example/java/analyzers/Tracker.java) - Java Snippet using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes, ocr and products.
 ##### detectors
 - [barcodedecodersample](app/src/main/java/com/zebra/example/java/detectors/BarcodeSample.java) - Java Snippet showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
 - [textocrsample](app/src/main/java/com/zebra/example/java/detectors/OCRSample.java) - Java Snippet showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
+- [productrecognitionsample](app/src/main/java/com/zebra/example/java/detectors/ProductRecognitionSample.java) - Java Snippet showing how to use [ModuleRecognizer as a detector](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) in your CameraX Analyzer.
 ##### lowlevel
-- [productrecognitionsample](app/src/main/java/com/zebra/example/java/lowlevel/ProductRecognitionSample.java) - Java Snippet to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) application.
+- [simpleproductrecognitionsample](app/src/main/java/com/zebra/example/java/lowlevel/ProductRecognitionLegacySample.java) - Java Snippet to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) application.
 - [simplebarcodesample](app/src/main/java/com/zebra/example/java/lowlevel/BarcodeLegacySample.java) - Java Snippet to use [detect/decode APIs to localize and decode barcodes](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#decodebitmapbmpbboxdetectionsexecutorexecutor) from BitMap images.
 - [simpleocrsample](app/src/main/java/com/zebra/example/java/lowlevel/OCRLegacySample.java) - Java Snippet to use [detect APIs to recognize text](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#detectparagraphsbitmapsrcimgexecutorexecutor) from BitMap images.
     
 ##### Kotlin
 ##### analyzers
-- [barcodetracker](app/src/main/java/com/zebra/example/kotlin/analyzers/BarcodeTracker.kt) - Kotlin Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
+- [tracker](app/src/main/java/com/zebra/example/kotlin/analyzers/Tracker.kt) - Kotlin Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes, ocr and products.
 ##### detectors
 - [barcodedecodersample](app/src/main/java/com/zebra/example/kotlin/detectors/BarcodeSample.kt) - Kotlin Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
 - [textocrsample](app/src/main/java/com/zebra/example/kotlin/detectors/OCRSample.kt) - Kotlin Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
+- [productrecognitionsample](app/src/main/java/com/zebra/example/kotlin/detectors/ProductRecognitionSample.kt) - Kotlin Sample showing how to use [ModuleRecognizer as a detector](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) in your CameraX Analyzer.
 ##### lowlevel
-- [productrecognitionsample](app/src/main/java/com/zebra/example/kotlin/lowlevel/ProductRecognitionSample.kt) - Kotlin Sample to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) application.
+- [simpleproductrecognitionsample](app/src/main/java/com/zebra/example/kotlin/lowlevel/ProductRecognitionLegacySample.kt) - Kotlin Sample to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) application.
 - [simplebarcodesample](app/src/main/java/com/zebra/example/kotlin/lowlevel/BarcodeLegacySample.kt) - Kotlin Sample to use [detect/decode APIs to localize and decode barcodes](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#decodebitmapbmpbboxdetectionsexecutorexecutor) from BitMap images.
 - [simpleocrsample](app/src/main/java/com/zebra/example/kotlin/lowlevel/OCRLegacySample.kt) - Kotlin Sample to use [detect APIs to recognize text](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#detectparagraphsbitmapsrcimgexecutorexecutor) from BitMap images.
     

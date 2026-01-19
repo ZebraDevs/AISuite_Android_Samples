@@ -1092,7 +1092,7 @@ fun HandleTopInfo(
                     shape = RoundedCornerShape(size = 360.13556.dp)
                 )
                 .background(
-                    Color.Black.copy(alpha = 0.4f),
+                    color = Color(0xD9151519),
                     shape = RoundedCornerShape(size = 360.13556.dp)
                 )
         ) {

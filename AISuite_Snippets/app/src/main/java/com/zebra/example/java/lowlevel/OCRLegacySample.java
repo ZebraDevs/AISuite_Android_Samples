@@ -11,8 +11,8 @@ import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.InvalidInputException;
 import com.zebra.ai.vision.detector.TextOCR;
-import com.zebra.ai.vision.internal.detector.Paragraph;
-import com.zebra.ai.vision.internal.detector.Word;
+import com.zebra.ai.vision.detector.Paragraph;
+import com.zebra.ai.vision.detector.Word;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;

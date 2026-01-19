@@ -17,7 +17,7 @@ android {
         applicationId = "com.zebra.aidatacapturedemo"
         minSdk = 33
         targetSdk = 36
-        versionCode = 15
+        versionCode = 16
         val appVersion: String = libs.versions.appVersion.get().toString()
         versionName = appVersion
 
@@ -64,21 +64,8 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-        jniLibs {
+		jniLibs {
             useLegacyPackaging = true
-        }
-    }
-
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val versionName = defaultConfig.versionName
-            val versionCode = defaultConfig.versionCode
-            val buildType = buildType.name
-            val sdkVersion = libs.versions.zebraAIVisionSdk.get()
-
-            // Format: AI_DataCapture_Demo-v1.8-release-SDK_3.1.4.apk or AI_DataCapture_Demo-v1.8-debug-SDK_3.1.4.apk
-            output.outputFileName = "AI_DataCapture_Demo-v${versionName}-${buildType}-SDK_${sdkVersion}.apk"
         }
     }
 }

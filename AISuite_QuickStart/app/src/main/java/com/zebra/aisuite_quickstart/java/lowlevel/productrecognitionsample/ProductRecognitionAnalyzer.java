@@ -1,26 +1,24 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
 
-import android.graphics.Bitmap;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
-import com.zebra.ai.vision.detector.AIVisionSDKException;
 import com.zebra.ai.vision.detector.BBox;
-import com.zebra.ai.vision.detector.FeatureExtractor;
-import com.zebra.ai.vision.detector.InvalidInputException;
-import com.zebra.ai.vision.detector.Localizer;
-import com.zebra.ai.vision.detector.Recognizer;
-import com.zebra.aisuite_quickstart.utils.CommonUtils;
+import com.zebra.ai.vision.detector.ImageData;
+import com.zebra.ai.vision.entity.Entity;
+import com.zebra.ai.vision.detector.ModuleRecognizer;
+import com.zebra.ai.vision.entity.ShelfEntity;
 
-import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
+
+
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+
 
 /**
  * The ProductRecognitionAnalyzer class implements the ImageAnalysis.Analyzer interface and is
@@ -59,33 +57,21 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
      * Implement this interface to define how recognition results are processed.
      */
     public interface DetectionCallback {
-        void onDetectionRecognitionResult(BBox[] detections, BBox[] products, Recognizer.Recognition[] recognitions);
+        void onRecognitionResult(List<Entity> result);
     }
 
     private static final String TAG = "ProductRecognitionAnalyzer";
     private boolean isAnalyzing = true;
     private final DetectionCallback callback;
-    private final Localizer localizer;
-    private final FeatureExtractor featureExtractor;
-    private final Recognizer recognizer;
     private BBox[] detections, products;
     private volatile boolean isStopped = false;
     private final ExecutorService executorService;
+    private final ModuleRecognizer productRecognizer;
 
-    /**
-     * Constructs a new ProductRecognitionAnalyzer with the specified callback, localizer,
-     * feature extractor, and recognizer.
-     *
-     * @param callback The callback for handling recognition results.
-     * @param localizer The localizer used for detecting objects within images.
-     * @param featureExtractor The feature extractor used for generating descriptors.
-     * @param recognizer The recognizer used for matching and identifying products.
-     */
-    public ProductRecognitionAnalyzer(DetectionCallback callback, Localizer localizer, FeatureExtractor featureExtractor, Recognizer recognizer) {
+
+    public ProductRecognitionAnalyzer(DetectionCallback callback, ModuleRecognizer productRecognizer) {
         this.callback = callback;
-        this.localizer = localizer;
-        this.featureExtractor = featureExtractor;
-        this.recognizer = recognizer;
+        this.productRecognizer = productRecognizer;
         this.executorService = Executors.newSingleThreadExecutor();
     }
 
@@ -97,76 +83,64 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
      */
     @Override
     public void analyze(@NonNull ImageProxy image) {
-        if (!isAnalyzing || isStopped) {
+        Log.e(TAG, "analyze() called");
+        if(productRecognizer == null){
+            Log.d(TAG, "Module recognizer is null");
             image.close();
             return;
         }
-        isAnalyzing = false; // Prevent re-entry
+        if (!isAnalyzing || isStopped) {
+            Log.d(TAG, "Analyzer is stopped or already analyzing. Closing image.");
+            image.close();
+            return;
+        }
 
-        Future<?> future = executorService.submit(() -> {
-            try {
-                Log.d(TAG, "Starting image analysis");
-                Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
-                CompletableFuture<BBox[]> futureResultBBox = localizer.detect(bitmap, executorService);
+        isAnalyzing = false;
 
-                futureResultBBox.thenCompose(bBoxes -> {
-                    detections = bBoxes;
-                    products = Arrays.stream(bBoxes).filter(x -> x.cls == 1).toArray(BBox[]::new);
-                    Log.d(TAG, "Products size =" + products.length + " detections " + detections.length);
+        Log.d(TAG, "Converting ImageProxy to Bitmap...");
+        ImageData imageData = ImageData.fromImageProxy(image);
 
-                    if (detections != null && detections.length > 0) {
-                        try {
-                            return featureExtractor.generateDescriptors(products, bitmap, executorService);
-                        } catch (InvalidInputException e) {
-                            throw new RuntimeException(e);
+        Log.d(TAG, "Calling moduleRecognizer.process...");
+        long start = System.currentTimeMillis();
+        productRecognizer.process(imageData)
+                .thenAccept(entityList -> {
+                    long end = System.currentTimeMillis();
+                    long inferenceTime = end - start;
+                    Log.d(TAG, "Inference Time: " + inferenceTime);
+                    int shelfCount = 0;
+                    if (entityList != null) {
+                        for (Entity entity : entityList) {
+                            if (entity instanceof ShelfEntity) {
+                                shelfCount++;
+                            }
                         }
-                    } else {
-                        return CompletableFuture.completedFuture(null);
                     }
-                }).thenCompose(descriptor -> {
-                    if (descriptor != null && detections.length > 0) {
-                        try {
-                            return recognizer.findRecognitions(descriptor, executorService);
-                        } catch (InvalidInputException e) {
-                            throw new RuntimeException(e);
-                        }
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                }).thenAccept(recognitions -> {
-                    if (recognitions != null) {
-                        Log.d(TAG, "Products recognitions " + recognitions.length);
-                        if (!isStopped) callback.onDetectionRecognitionResult(detections, products, recognitions);
+                    Log.d(TAG, "process() completed. Shelves found: " + shelfCount);
+                    if (!isStopped && callback != null) {
+                        Log.d(TAG, "Invoking callback.onRecognitionResult");
+                        callback.onRecognitionResult(entityList);
                     }
                     image.close();
                     isAnalyzing = true;
-                }).exceptionally(ex -> {
-                    Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                    Log.d(TAG, "Image closed, ready for next frame.");
+                })
+                .exceptionally(ex -> {
+                    Log.e(TAG, "Error in shelf recognition: " + ex.getMessage(), ex);
                     image.close();
                     isAnalyzing = true;
                     return null;
                 });
-
-            } catch (AIVisionSDKException e) {
-                Log.e(TAG, "Exception occurred: " + e.getMessage());
-                image.close();
-                isAnalyzing = true;
-            }
-        });
-
-        // Cancel the task if the analyzer is stopped
-        if (isStopped) {
-            future.cancel(true);
-        }
     }
+
 
     /**
      * Stops the analysis process and terminates any ongoing tasks. This method should be
      * called to release resources and halt image analysis when it is no longer required.
      */
+
     public void stopAnalyzing() {
+        Log.d(TAG, "stopAnalyzing() called. Shutting down executor.");
         isStopped = true;
-        executorService.shutdownNow(); // Attempt to cancel ongoing tasks
+        executorService.shutdownNow();
     }
 }
-

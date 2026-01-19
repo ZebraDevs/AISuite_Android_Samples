@@ -32,9 +32,9 @@ import com.zebra.aisuite_quickstart.GraphicOverlay
  */
 class ProductRecognitionGraphic(
     overlay: GraphicOverlay,
-    labelShelfRects: List<Rect>?,
-    labelPegRects: List<Rect>?,
     shelfRects: List<Rect>?,
+    labelShelfRects: List<Rect>?,
+//    labelPegRects: List<Rect>?,
     recognizedRects: List<Rect>?,
     decodedStrings: List<String>?
 ) : GraphicOverlay.Graphic(overlay) {
@@ -75,9 +75,9 @@ class ProductRecognitionGraphic(
         labelShelfRects?.let { addAll(it) }
     }
 
-    private val labelPegBBoxes = mutableListOf<Rect>().apply {
-        labelPegRects?.let { addAll(it) }
-    }
+//    private val labelPegBBoxes = mutableListOf<Rect>().apply {
+//        labelPegRects?.let { addAll(it) }
+//    }
 
     private val shelfBBoxes = mutableListOf<Rect>().apply {
         shelfRects?.let { addAll(it) }
@@ -106,10 +106,10 @@ class ProductRecognitionGraphic(
             canvas.drawText("LabelShelf", rect.left.toFloat(), rect.bottom.toFloat(), textPaint)
         }
 
-        labelPegBBoxes.forEach { rect ->
-            canvas.drawRect(rect, labelShelfPaint)
-            canvas.drawText("LabelPeg", rect.left.toFloat(), rect.bottom.toFloat(), textPaint)
-        }
+//        labelPegBBoxes.forEach { rect ->
+//            canvas.drawRect(rect, labelShelfPaint)
+//            canvas.drawText("LabelPeg", rect.left.toFloat(), rect.bottom.toFloat(), textPaint)
+//        }
 
         shelfBBoxes.forEach { rect ->
             canvas.drawRect(rect, shelfPaint)

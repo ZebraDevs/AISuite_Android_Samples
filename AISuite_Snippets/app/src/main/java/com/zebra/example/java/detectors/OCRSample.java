@@ -13,10 +13,11 @@ import com.zebra.ai.vision.detector.ComplexBBox;
 import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.TextOCR;
+import com.zebra.ai.vision.entity.LineEntity;
 import com.zebra.ai.vision.entity.ParagraphEntity;
-import com.zebra.ai.vision.internal.detector.Line;
-import com.zebra.ai.vision.internal.detector.Word;
+import com.zebra.ai.vision.entity.WordEntity;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,14 +103,14 @@ public class OCRSample {
             textOCR.process(ImageData.fromImageProxy(image))
                     .thenAccept(result -> {
                         for (ParagraphEntity entity : result) {
-                            Line[] lines = entity.getTextParagraph().lines;
-                            for (Line line : lines) {
-                                for (Word word : line.words) {
-                                    ComplexBBox bbox = word.bbox;
+                            List<LineEntity> lines = entity.getLines();
+                            for (LineEntity line : lines) {
+                                for (WordEntity word : line.getWords()) {
+                                    ComplexBBox bbox = word.getComplexBBox();
                                     if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
                                         float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
                                         Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
-                                        String decodedValue = word.decodes[0].content;
+                                        String decodedValue = word.getText();
                                         Log.d(TAG, "Decoded value: " + decodedValue);
                                     }
                                 }

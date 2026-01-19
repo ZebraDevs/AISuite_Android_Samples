@@ -5,12 +5,8 @@ import android.content.Context
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
-import com.zebra.ai.vision.detector.AIVisionSDK
-import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
-import com.zebra.ai.vision.detector.FeatureExtractor
 import com.zebra.ai.vision.detector.InferencerOptions
-import com.zebra.ai.vision.detector.Localizer
-import com.zebra.ai.vision.detector.Recognizer
+import com.zebra.ai.vision.detector.ModuleRecognizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -21,161 +17,78 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.Executors
 
-/**
- * The ProductRecognitionHandler class is responsible for initializing and managing the product
- * recognition process, which involves detecting products and shelves, extracting features, and
- * recognizing products using a Localizer, FeatureExtractor, and Recognizer. This class sets up
- * the necessary components and manages their lifecycle within an Android application context.
-
- * The ProductRecognitionHandler configures models, assigns an analyzer for image analysis, and
- * provides methods to stop and dispose of resources when they are no longer needed.
-
- * Usage:
- * - Instantiate the ProductRecognitionHandler with the appropriate context, callback, and image analysis configuration.
- * - The class automatically initializes the Localizer, FeatureExtractor, and Recognizer.
- * - Use getProductRecognitionAnalyzer() to retrieve the current instance of the ProductRecognitionAnalyzer.
- * - Call stop() to terminate the executor service and dispose of the recognition components when finished.
-
- * Dependencies:
- * - Android Context: Required for resource management and accessing application assets.
- * - ExecutorService: Used for parallel task execution.
- * - ImageAnalysis: Provides the framework for analyzing image data.
- * - Localizer: Detects objects within an image.
- * - FeatureExtractor: Generates feature descriptors for detected objects.
- * - Recognizer: Matches feature descriptors to known products.
-
- * Exception Handling:
- * - Handles AIVisionSDKLicenseException and generic exceptions during initialization.
- * - Logs any other exceptions encountered during the setup process.
-
- * Note: Ensure that the appropriate permissions and dependencies are configured
- * in the AndroidManifest and build files to utilize camera and image processing capabilities.
- */
 class ProductRecognitionHandler(
     private val context: Context,
     private val callback: ProductRecognitionAnalyzer.DetectionCallback,
     private val imageAnalysis: ImageAnalysis
 ) {
-
     private val TAG = "ProductRecognitionHandler"
-    private var localizer: Localizer? = null
-    private var featureExtractor: FeatureExtractor? = null
-    private var recognizer: Recognizer? = null
-    private val executor = Executors.newSingleThreadExecutor()
-
-    private var localizerInitialized = false
-    private var featureExtractorInitialized = false
-    private var recognizerInitialized = false
+    private val executor = Executors.newFixedThreadPool(3)
     private var productRecognitionAnalyzer: ProductRecognitionAnalyzer? = null
+    private var moduleRecognizer: ModuleRecognizer? = null
     private val mavenModelName = "product-and-shelf-recognizer"
 
     init {
-        initializeProductRecognition()
+        initializeModuleRecognizer()
     }
 
     /**
-     * Initializes the product recognition components including the Localizer, FeatureExtractor,
-     * and Recognizer. This method sets up the necessary components for detecting and recognizing
-     * products within image data.
+     * Initialize ModuleRecognizer with product recognition enabled
      */
-    private fun initializeProductRecognition() {
-        try {
-            var mStart = System.currentTimeMillis()
-            val locSettings = Localizer.Settings(mavenModelName)
-            Log.d(TAG, "Shelf Localizer.settings() obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
+    private fun initializeModuleRecognizer() {
+        CoroutineScope(executor.asCoroutineDispatcher()).launch {
+            try {
+                Log.i(TAG, "Initializing ModuleRecognizer")
 
-            mStart = System.currentTimeMillis()
-            val feSettings = FeatureExtractor.Settings(mavenModelName)
-            Log.d(TAG, "FeatureExtractor.Settings obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
+                // Copy assets
+                val indexFilename = "product.index"
+                val labelsFilename = "product.txt"
+                val toPath = "${context.filesDir}/"
+                copyFromAssets(indexFilename, toPath)
+                copyFromAssets(labelsFilename, toPath)
 
-            val rpo = arrayOf(
-                InferencerOptions.DSP,
-                InferencerOptions.CPU,
-                InferencerOptions.GPU
-            )
+                // Create settings with base model (localization)
+                val settings = ModuleRecognizer.Settings(mavenModelName)
 
-            feSettings.inferencerOptions.runtimeProcessorOrder = rpo
-            locSettings.inferencerOptions.runtimeProcessorOrder = rpo
-            locSettings.inferencerOptions.defaultDims.height = 640
-            locSettings.inferencerOptions.defaultDims.width = 640
+                // Configure InferencerOptions
+                val rpo = arrayOf(
+                    InferencerOptions.DSP,
+                    InferencerOptions.CPU,
+                    InferencerOptions.GPU
+                )
+                settings.inferencerOptions.runtimeProcessorOrder = rpo
+                settings.inferencerOptions.defaultDims.height = 640
+                settings.inferencerOptions.defaultDims.width = 640
 
-            // Ensure that the following files match the ones included in assets
-            val indexFilename = "product.index"
-            val labelsFilename = "product.txt"
-            val toPath = "${context.filesDir}/"
-            copyFromAssets(indexFilename, toPath)
-            copyFromAssets(labelsFilename, toPath)
+                // Enable product recognition with the same model and recognition data
+                settings.enableProductRecognitionWithIndex(
+                    mavenModelName,
+                    "$toPath$indexFilename",
+                    "$toPath$labelsFilename"
+                )
 
-            mStart = System.currentTimeMillis()
-            val reSettings = Recognizer.SettingsIndex()
-            Log.d(TAG, "Recognizer.SettingsIndex() obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
+                // Initialize ModuleRecognizer
+                val startTime = System.currentTimeMillis()
+                moduleRecognizer = ModuleRecognizer.getModuleRecognizer(settings, executor).await()
+                val creationTime = System.currentTimeMillis() - startTime
 
-            reSettings.indexFilename = "$toPath$indexFilename"
-            reSettings.labelFilename = "$toPath$labelsFilename"
+                Log.d(TAG, "ModuleRecognizer Creation Time: ${creationTime}ms")
+                Log.i(TAG, "ModuleRecognizer instance created successfully")
 
-            val mStartLocalizer = System.currentTimeMillis()
-            CoroutineScope(executor.asCoroutineDispatcher()).launch {
-                try {
-                    localizer = Localizer.getLocalizer(locSettings, executor).await()
-                    localizerInitialized = true
-                    setupAnalyzerIfReady()
-                    Log.d(TAG, "Shelf Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - mStartLocalizer} milli sec")
-                } catch (e: AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Shelf Localizer object creation failed, ${e.message}")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Fatal error: load failed - ${e.message}")
-                }
+                // Set up analyzer
+                productRecognitionAnalyzer = ProductRecognitionAnalyzer(callback, moduleRecognizer)
+                imageAnalysis.setAnalyzer(
+                    ContextCompat.getMainExecutor(context),
+                    productRecognitionAnalyzer!!
+                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize ModuleRecognizer: ${e.message}")
+                e.printStackTrace()
             }
-            Log.d(TAG, "Shelf Localizer model archive info=${AIVisionSDK.getInstance(context).getModelArchiveInfo(mavenModelName)}")
-
-            val mStartFeatureExtractor = System.currentTimeMillis()
-            CoroutineScope(executor.asCoroutineDispatcher()).launch {
-                try {
-                    featureExtractor = FeatureExtractor.getFeatureExtractor(feSettings, executor).await()
-                    featureExtractorInitialized = true
-                    setupAnalyzerIfReady()
-                    Log.d(TAG, "FeatureExtractor() obj creation time = ${System.currentTimeMillis() - mStartFeatureExtractor} milli sec")
-                } catch (e: AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Feature Extractor object creation failed, ${e.message}")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
-                }
-            }
-            Log.d(TAG, "Feature Descriptor model archive info=${AIVisionSDK.getInstance(context).getModelArchiveInfo(mavenModelName)}")
-
-            val mStartRecognizer = System.currentTimeMillis()
-            CoroutineScope(executor.asCoroutineDispatcher()).launch {
-                try {
-                    recognizer = Recognizer.getRecognizer(reSettings, executor).await()
-                    recognizerInitialized = true
-                    setupAnalyzerIfReady()
-                    Log.d(TAG, "Recognizer(reSettings) obj creation time = ${System.currentTimeMillis() - mStartRecognizer} milli sec")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Fatal error: recognizer creation failed - ${e.message}")
-                }
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Fatal error: load failed - ${e.message}")
         }
     }
 
-    /**
-     * Sets up the ProductRecognitionAnalyzer if all components (localizer, feature extractor, recognizer) are initialized.
-     */
-    private fun setupAnalyzerIfReady() {
-        if (localizerInitialized && featureExtractorInitialized && recognizerInitialized) {
-            productRecognitionAnalyzer = ProductRecognitionAnalyzer(callback, localizer, featureExtractor, recognizer)
-            imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), productRecognitionAnalyzer!!)
-        }
-    }
-
-    /**
-     * Copies files from the assets folder to the specified path.
-     *
-     * @param filename The name of the file to copy.
-     * @param toPath The destination path.
-     */
     private fun copyFromAssets(filename: String, toPath: String) {
         val bufferSize = 8192
         try {
@@ -192,40 +105,19 @@ class ProductRecognitionHandler(
                 }
             }
         } catch (e: IOException) {
-            Log.e(TAG, "Error in copy from assets ${e.message}")
+            Log.e(TAG, "Error copying from assets: ${e.message}")
         }
     }
 
-    /**
-     * Retrieves the current instance of the ProductRecognitionAnalyzer.
-     *
-     * @return The ProductRecognitionAnalyzer instance, or null if not yet initialized.
-     */
     fun getProductRecognitionAnalyzer(): ProductRecognitionAnalyzer? {
         return productRecognitionAnalyzer
     }
 
-    /**
-     * Stops the executor service and disposes of the localizer, feature extractor, and recognizer,
-     * releasing any resources held. This method should be called when product recognition is no
-     * longer needed.
-     */
     fun stop() {
         executor.shutdownNow()
-        localizer?.let {
-            it.dispose()
-            Log.d(TAG, "Localizer is disposed")
-            localizer = null
-        }
-        featureExtractor?.let {
-            it.dispose()
-            Log.d(TAG, "Feature extractor is disposed")
-            featureExtractor = null
-        }
-        recognizer?.let {
-            it.dispose()
-            Log.d(TAG, "Recognizer is disposed")
-            recognizer = null
-        }
+        productRecognitionAnalyzer?.stopAnalyzing()
+        moduleRecognizer?.dispose()
+        Log.d(TAG, "ModuleRecognizer disposed")
+        moduleRecognizer = null
     }
 }

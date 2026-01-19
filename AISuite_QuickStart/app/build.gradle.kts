@@ -15,7 +15,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "3.0"
+        versionName = "3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,20 +39,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
-    }
-
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val versionName = defaultConfig.versionName
-            val versionCode = defaultConfig.versionCode
-            val buildType = buildType.name
-            val sdkVersion = libs.versions.zebraAIVisionSdk.get()
-
-            // Format: AISuite_Quickstart-v1.8-release-SDK_3.1.4.apk or AISuite_Quickstart-v1.8-debug-SDK_3.1.4.apk
-            output.outputFileName = "AISuite_Quickstart-v${versionName}-${buildType}-SDK_${sdkVersion}.apk"
-
-        }
     }
 }
 

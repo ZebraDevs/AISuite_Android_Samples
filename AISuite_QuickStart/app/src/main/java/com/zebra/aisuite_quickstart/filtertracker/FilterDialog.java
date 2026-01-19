@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.filtertracker;
 
 import static android.content.Context.MODE_PRIVATE;
@@ -38,10 +39,11 @@ public class FilterDialog extends Dialog {
     private FilterAdapter mAdapter;
     public static final String BARCODE_TRACKER = "Barcode Tracker";
     public static final String OCR_TRACKER = "OCR Tracker";
+    public static final String PRODUCT_AND_SHELF = "Product And Shelf";
 
-    private static final String[] trackerArray ={BARCODE_TRACKER,OCR_TRACKER};
+    public static final String[] trackerArray ={BARCODE_TRACKER,OCR_TRACKER,PRODUCT_AND_SHELF};
     private SharedPreferences sharedPreferences;
-    private List<FilterItem> filterItems = new ArrayList<>();
+    private static final List<FilterItem> filterItems = new ArrayList<>();
 
 
     public FilterDialog(Context context) {
@@ -76,7 +78,7 @@ public class FilterDialog extends Dialog {
             Log.d("ActivityCheck", "Instance is from kotlin CameraXLivePreviewActivity");
             sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME_KOTLIN, MODE_PRIVATE);
         }
-
+        filterItems.clear();
         for(String item : trackerArray){
             FilterItem filterItem = new FilterItem(item);
             filterItems.add(filterItem);
@@ -100,7 +102,7 @@ public class FilterDialog extends Dialog {
         mCancelBtn.setOnClickListener(v -> dismiss());
     }
 
-    public List<FilterItem> getFilterItems() {
+    public static List<FilterItem> getFilterItems() {
         return filterItems;
     }
 

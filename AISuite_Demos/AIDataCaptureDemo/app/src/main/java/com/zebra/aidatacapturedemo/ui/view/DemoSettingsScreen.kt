@@ -334,7 +334,7 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             } else {
                 fileName = "product_resolution.html"
             }
-            val htmlString = viewModel.loadInputStreamFromAsset(fileName = "ocr_resolution.html")
+            val htmlString = viewModel.loadInputStreamFromAsset(fileName = fileName)
             val document: Document = Jsoup.parse(htmlString)
             SettingHeader(viewModel = viewModel, document)
             AddResolutionRadioButtonList(viewModel)
@@ -344,7 +344,13 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            //SettingHeader(viewModel = viewModel,"This is where the description lives, that explains to the user what the different option are and what they do")
+            var fileName: String = ""
+            if ((uiState.usecaseSelected == UsecaseState.Barcode.value) || (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value)) {
+                fileName = "barcode_symbologies.html"
+            }
+            val htmlString = viewModel.loadInputStreamFromAsset(fileName = fileName)
+            val document: Document = Jsoup.parse(htmlString)
+            SettingHeader(viewModel = viewModel, document)
             AddBarcodeSymbologySwitchOption(viewModel)
         }
     } else if (item.title.equals(stringResource(R.string.detection_parameters))) {

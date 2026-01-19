@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.handlers
 
 import android.content.SharedPreferences
@@ -74,8 +75,8 @@ class UIHandler(
         val options = listOf(
             BARCODE_DETECTION,
             TEXT_OCR_DETECTION,
-            ENTITY_ANALYZER,
             PRODUCT_RECOGNITION,
+            ENTITY_ANALYZER,
             ENTITY_VIEW_FINDER
             // LEGACY_BARCODE_DETECTION, // Uncomment to use barcode legacy option
             // LEGACY_OCR_DETECTION // Uncomment to use OCR legacy option

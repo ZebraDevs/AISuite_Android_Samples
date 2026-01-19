@@ -1,5 +1,5 @@
 [versions]
-appVersion = "1.0.13"
+appVersion = "1.0.14"
 agp = "8.11.1"
 gson = "2.13.1"
 kotlin = "2.0.21"
@@ -18,10 +18,10 @@ cameraCamera2 = "1.4.2"
 cameraExtensions = "1.4.2"
 accompanistpermissions = "0.37.3"
 constraintlayout = "2.2.1"
-zebraAIVisionSdk = "3.1.6"
-barcodeLocalizer = "5.0.1"
-textOcrRecognizer = "2.7.3"
-productAndShelfRecognizer = "3.4.2"
+zebraAIVisionSdk = "3.1.7"
+barcodeLocalizer = "5.0.2"
+textOcrRecognizer = "2.8.1"
+productAndShelfRecognizer = "3.4.3"
 documentfile = "1.1.0"
 
 

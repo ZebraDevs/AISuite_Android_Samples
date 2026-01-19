@@ -1,36 +1,46 @@
 package com.zebra.aidatacapturedemo.ui.view
 
+import android.R.attr.strokeWidth
 import android.content.Context
-import android.util.Log
 import android.view.WindowManager
 import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScrollModifierNode
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -38,13 +48,12 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.NavController
-import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.UsecaseState
@@ -59,6 +68,9 @@ fun DemoStartScreen(
     innerPadding: PaddingValues,
     context: Context
 ) {
+    var isLoading = remember { mutableStateOf(true) }
+    var isStartDisabled = remember { mutableStateOf(true) }
+
     val uiState = viewModel.uiState.collectAsState().value
     getDemoTitle(uiState.usecaseSelected)?.let { viewModel.updateAppBarTitle(stringResource(it)) }
 
@@ -142,7 +154,6 @@ fun DemoStartScreen(
                             SwitchOptionData(
                                 R.string.barcode_model,
                                 onItemSelected = { title, enabled ->
-
                                     viewModel.updateBarcodeModelEnabled(enabled)
                                     viewModel.deinitModel()
                                     viewModel.initModel()
@@ -191,7 +202,28 @@ fun DemoStartScreen(
                     .padding(bottom = 24.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                StartScanButton(uiState, navController)
+                if(isStartDisabled.value == true){
+                    ButtonOption(
+                        ButtonData(
+                            R.string.start_scan,
+                            mainDisabled,
+                            1.0F,
+                            false,
+                            onButtonClick = {
+                            })
+                    )
+                } else {
+                    ButtonOption(
+                        ButtonData(
+                            R.string.start_scan,
+                            mainPrimary,
+                            1.0F,
+                            true,
+                            onButtonClick = {
+                                navController.navigate(route = Screen.Preview.route)
+                            })
+                    )
+                }
             }
         }
 
@@ -310,10 +342,32 @@ fun DemoStartScreen(
                     .padding(bottom = 24.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                StartScanButton(uiState, navController)
+                if(isStartDisabled.value == true){
+                    ButtonOption(
+                        ButtonData(
+                            R.string.start_scan,
+                            mainDisabled,
+                            1.0F,
+                            false,
+                            onButtonClick = {
+                            })
+                    )
+                } else {
+                    ButtonOption(
+                        ButtonData(
+                            R.string.start_scan,
+                            mainPrimary,
+                            1.0F,
+                            true,
+                            onButtonClick = {
+                                navController.navigate(route = Screen.Preview.route)
+                            })
+                    )
+                }
             }
         }
     }
+    LoadingScreen(uiState, isLoading, isStartDisabled)
 }
 
 @Composable
@@ -403,112 +457,143 @@ fun UsecaseIcon(selectedUsecase: String) {
 }
 
 @Composable
-fun StartScanButton(uiState: AIDataCaptureDemoUiState, navController: NavController) {
+fun ModalLoadingOverlay(onDismissRequest: () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false, // Crucial for full width
+            decorFitsSystemWindows = false // Allows drawing under system bars if configured in Activity
+        )
+    ) {
+        // Block user interaction with the UI below the overlay
+        Box(
+            modifier = Modifier
+                .wrapContentSize()
+                .background(Color.White.copy(alpha = 0.0f)) // Semi-transparent background
+                .pointerInput(Unit) {
+                    // Intercept all tap gestures so they don't reach the underlying content
+                    detectTapGestures(onTap = { /* Do nothing */ })
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(164.dp)
+                    .height(164.dp)
+                    .background(
+                        color = Variables.surfaceDefault,
+                        shape = RoundedCornerShape(size = 8.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = Variables.borderDefault,
+                        shape = RoundedCornerShape(size = 8.dp)
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(33.dp))
+                CircularProgressIndicator(
+                    color = mainPrimary,
+                    modifier = Modifier
+                        .width(56.dp)
+                        .height(56.dp),
+                    strokeWidth = 7.dp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Loading",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
+                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                        fontWeight = FontWeight(400),
+                        color = Variables.colorsMainSubtle,
+                        textAlign = TextAlign.Center,
+                    )
+                )
+            }
+        }
 
+        // Handle the back button press to prevent dismissal during critical ops
+        BackHandler {
+            onDismissRequest()
+        }
+    }
+}
+
+@Composable
+fun LoadingScreen(uiState: AIDataCaptureDemoUiState, isLoading: MutableState<Boolean>, isStartDisabled : MutableState<Boolean>) {
     when (uiState.usecaseSelected) {
         UsecaseState.OCRBarcodeFind.value -> {
-            // (uiState.isBarcodeModelEnabled || uiState.isOCRModelEnabled) is used to make sure,
-            // the Start Scan button stay disabled when both the switch are disabled.
-            if (uiState.isBarcodeModelDemoReady &&
-                uiState.isOcrModelDemoReady &&
-                (uiState.isBarcodeModelEnabled || uiState.isOCRModelEnabled)) {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainPrimary,
-                        1.0F,
-                        true,
-                        onButtonClick = {
-                            navController.navigate(route = Screen.Preview.route)
-                        })
-                )
+            if (uiState.isBarcodeModelEnabled && uiState.isOCRModelEnabled) {
+                if(uiState.isBarcodeModelDemoReady && uiState.isOcrModelDemoReady) {
+                    isLoading.value = false
+                    isStartDisabled.value = false
+                } else {
+                    isLoading.value = true
+                    isStartDisabled.value = true
+                }
+            }
+            else if (!uiState.isBarcodeModelEnabled && !uiState.isOCRModelEnabled) {
+                isLoading.value = false
+                isStartDisabled.value = true
+            } else if (uiState.isBarcodeModelEnabled && !uiState.isOCRModelEnabled) {
+                if(uiState.isBarcodeModelDemoReady) {
+                    isLoading.value = false
+                    isStartDisabled.value = false
+                } else {
+                    isLoading.value = true
+                    isStartDisabled.value = true
+                }
+            } else if (!uiState.isBarcodeModelEnabled && uiState.isOCRModelEnabled) {
+                if(uiState.isOcrModelDemoReady) {
+                    isLoading.value = false
+                    isStartDisabled.value = false
+                } else {
+                    isLoading.value = true
+                    isStartDisabled.value = true
+                }
             } else {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainDisabled,
-                        1.0F,
-                        false,
-                        onButtonClick = {
-                        })
-                )
+                isLoading.value = false
+                isStartDisabled.value = true
             }
         }
-
         UsecaseState.Barcode.value -> {
             if (uiState.isBarcodeModelDemoReady) {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainPrimary,
-                        1.0F,
-                        true,
-                        onButtonClick = {
-                            navController.navigate(route = Screen.Preview.route)
-                        })
-                )
+                isLoading.value = false
+                isStartDisabled.value = false
             } else {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainDisabled,
-                        1.0F,
-                        false,
-                        onButtonClick = {
-                        })
-                )
+                isLoading.value = true
+                isStartDisabled.value = true
             }
         }
-
         UsecaseState.OCR.value -> {
             if (uiState.isOcrModelDemoReady) {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainPrimary,
-                        1.0F,
-                        true,
-                        onButtonClick = {
-                            navController.navigate(route = Screen.Preview.route)
-                        })
-                )
+                isLoading.value = false
+                isStartDisabled.value = false
             } else {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainDisabled,
-                        1.0F,
-                        false,
-                        onButtonClick = {
-                        })
-                )
+                isLoading.value = true
+                isStartDisabled.value = true
             }
         }
-
         UsecaseState.Retail.value,
         UsecaseState.Product.value -> {
             if (uiState.isRetailShelfModelDemoReady) {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainPrimary,
-                        1.0F,
-                        true,
-                        onButtonClick = {
-                            navController.navigate(route = Screen.Preview.route)
-                        })
-                )
+                isLoading.value = false
+                isStartDisabled.value = false
             } else {
-                ButtonOption(
-                    ButtonData(
-                        R.string.start_scan,
-                        mainDisabled,
-                        1.0F,
-                        false,
-                        onButtonClick = {
-                        })
-                )
+                isLoading.value = true
+                isStartDisabled.value = true
             }
         }
+    }
+    if(isLoading.value == true) {
+        ModalLoadingOverlay(
+            onDismissRequest = {
+                // Optional: handle back button press during loading
+                // You can choose to ignore it or set isLoading to false
+                // BackHandler is used to block accidental navigation
+            }
+        )
     }
 }

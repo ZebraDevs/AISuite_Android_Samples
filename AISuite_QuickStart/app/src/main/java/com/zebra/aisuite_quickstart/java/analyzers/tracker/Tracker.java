@@ -12,10 +12,18 @@ import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.Detector;
 import com.zebra.ai.vision.detector.InferencerOptions;
+import com.zebra.ai.vision.detector.ModuleRecognizer;
 import com.zebra.ai.vision.detector.TextOCR;
 import com.zebra.ai.vision.entity.Entity;
-import com.zebra.aisuite_quickstart.filtertracker.FilterType;
+import com.zebra.aisuite_quickstart.filtertracker.FilterDialog;
 
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -63,16 +71,17 @@ public class Tracker {
     private static final String TAG = "Tracker";
     private BarcodeDecoder barcodeDecoder;
     private TextOCR textOCR;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(3);
     private final Context context;
     private EntityTrackerAnalyzer entityTrackerAnalyzer;
     private final DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private String mavenModelName = "barcode-localizer";
-    private String mavenOCRModelName = "text-ocr-recognizer";
-    private boolean barcodeInitialized = false;
-    private boolean ocrInitialized = false;
-    private final FilterType filterType;
+    private final String mavenModelName = "barcode-localizer";
+    private final String mavenOCRModelName = "text-ocr-recognizer";
+    private final String mavenProductModelName = "product-and-shelf-recognizer";
+    private ModuleRecognizer moduleRecognizer;
+    private final List<String> selectedFilterItems;
+    private final List<Detector<? extends List<? extends Entity>>> analyzerList = new ArrayList<>();
 
     /**
      * Constructs a new Tracker with the specified context, callback, and image analysis configuration.
@@ -81,21 +90,26 @@ public class Tracker {
      * @param callback      The callback for handling detection results.
      * @param imageAnalysis The image analysis configuration for processing image data.
      */
-    public Tracker(Context context, DetectionCallback callback, ImageAnalysis imageAnalysis, FilterType filterType) {
+    public Tracker(Context context, DetectionCallback callback, ImageAnalysis imageAnalysis, List<String> filterItems) {
         this.context = context;
         this.callback = callback;
         this.imageAnalysis = imageAnalysis;
-        this.filterType = filterType;
+        this.selectedFilterItems = filterItems;
 
-        if (filterType.equals(FilterType.BOTH)) {
-            initializeBoth();
-        } else if (filterType.equals(FilterType.BARCODE)) {
-            initializeBarcodeDecoder();
-        } else if (filterType.equals(FilterType.OCR)) {
-            initializeTextOCR();
-        } else if (filterType.equals(FilterType.NONE)) {
+        if(!selectedFilterItems.isEmpty()){
+            for(String item : selectedFilterItems){
+                if(item.equalsIgnoreCase(FilterDialog.BARCODE_TRACKER)){
+                    initializeBarcodeDecoder();
+                } else if(item.equalsIgnoreCase(FilterDialog.OCR_TRACKER)){
+                    initializeTextOCR();
+                } else if (item.equalsIgnoreCase(FilterDialog.PRODUCT_AND_SHELF)) {
+                    initializeProductRecognition();
+                }
+            }
+        }else{
             Log.d(TAG, "None of the filter selected");
         }
+
 
     }
 
@@ -172,33 +186,85 @@ public class Tracker {
         }
     }
 
-    /**
-     * Initializes both barcode decoder and text OCR components concurrently.
-     * Uses separate coroutines for each component to allow parallel initialization
-     * and calls setupTrackerIfReady() when each component completes.
-     */
-    public void initializeBoth() {
+    public void initializeProductRecognition() {
+        Log.e(TAG, "Initializing ModuleRecognizer for EntityTrackerAnalyzer");
+
+        String iFilename = "product.index";
+        String lFilename = "product.txt";
+        String toPath = context.getFilesDir() + "/";
+        copyFromAssets(iFilename, toPath);
+        copyFromAssets(lFilename, toPath);
+        String indexFilename = toPath + iFilename;
+        String labelsFilename = toPath + lFilename;
+        ModuleRecognizer.Settings settings;
         try {
-            BarcodeDecoder.Settings barcodeSettings = new BarcodeDecoder.Settings(mavenModelName);
-            TextOCR.Settings ocrSettings = new TextOCR.Settings(mavenOCRModelName);
-
-            configureInferencerOptions(barcodeSettings);
-            configureInferencerOptions(ocrSettings);
-
-            BarcodeDecoder.getBarcodeDecoder(barcodeSettings, executor).thenAccept(decoder -> {
-                barcodeDecoder = decoder;
-                barcodeInitialized = true;
-                setupTrackerIfReady();
-            }).exceptionally(this::handleException);
-
-            TextOCR.getTextOCR(ocrSettings, executor).thenAccept(ocr -> {
-                textOCR = ocr;
-                ocrInitialized = true;
-                setupTrackerIfReady();
-            }).exceptionally(this::handleException);
-        } catch (Exception ex) {
-            Log.e(TAG, "Dual initialization failed: " + ex.getMessage());
+            settings = new ModuleRecognizer.Settings(mavenProductModelName);
+        } catch (Exception e) {
+            Log.e(TAG, "Error "+e.getMessage());
+            return;
         }
+        Integer[] rpo = new Integer[]{
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+        };
+        settings.inferencerOptions.runtimeProcessorOrder = rpo;
+        settings.inferencerOptions.defaultDims.height = 640;
+        settings.inferencerOptions.defaultDims.width = 640;
+        try {
+            settings.enableProductRecognitionWithIndex(
+                    mavenProductModelName,
+                    indexFilename,
+                    labelsFilename
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        long startTime = System.currentTimeMillis();
+        ModuleRecognizer.getModuleRecognizer(settings, executor)
+                .thenAccept(recognizerInstance -> {
+                    Log.e(TAG, "ModuleRecognizer instance created");
+                    moduleRecognizer = recognizerInstance;
+                    // Use EntityTrackerAnalyzer with moduleRecognizer as a Detector
+                    createAnalyzer(List.of(moduleRecognizer));
+                    Log.d(TAG, "Module Recognition creation time: " + (System.currentTimeMillis() - startTime) + "ms");
+                })
+                .exceptionally(e -> {
+                    Log.e(TAG, "Failed to create ModuleRecognizer: " + e.getMessage());
+                    return null;
+                });
+    }
+
+    /**
+     * Copies files from the assets folder to the specified path.
+     *
+     * @param filename The name of the file to copy.
+     * @param toPath The destination path.
+     */
+    private void copyFromAssets(String filename, String toPath) {
+        final int bufferSize = 8192;
+        try (InputStream stream = context.getAssets().open(filename);
+             OutputStream fos = Files.newOutputStream(Paths.get(toPath + filename));
+             BufferedOutputStream output = new BufferedOutputStream(fos)) {
+            byte[] data = new byte[bufferSize];
+            int count;
+            while ((count = stream.read(data)) != -1) {
+                output.write(data, 0, count);
+            }
+            output.flush();
+        } catch (IOException e) {
+            Log.e(TAG, "Error in copy from assets: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieves the current instance of the ProductRecognitionAnalyzer.
+     *
+     * @return The ProductRecognitionAnalyzer instance, or null if not yet initialized.
+     */
+    public ModuleRecognizer getModuleRecognizer() {
+        return moduleRecognizer;
     }
 
     /**
@@ -229,29 +295,23 @@ public class Tracker {
     }
 
     /**
-     * Attempts to initialize the Tracker once all components are initialized.
-     */
-    private synchronized void setupTrackerIfReady() {
-        if (barcodeInitialized && ocrInitialized) {
-            createAnalyzer(List.of(barcodeDecoder, textOCR));
-        }
-    }
-
-    /**
      * Creates and configures an EntityTrackerAnalyzer with the provided analyzers.
      * Sets up the analyzer with original coordinate system and assigns it to the
      * image analysis pipeline using the main executor.
      *
      * @param analyzers List of detector instances (BarcodeDecoder, TextOCR, etc.)
      */
-    private void createAnalyzer(List<Detector<? extends List<? extends Entity>>> analyzers) {
-        entityTrackerAnalyzer = new EntityTrackerAnalyzer(
-                analyzers,
-                ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL,
-                executor,
-                this::handleEntities
-        );
-        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
+    private synchronized void createAnalyzer(List<Detector<? extends List<? extends Entity>>> analyzers) {
+        analyzerList.add(analyzers.get(0));
+        if(selectedFilterItems.size() == analyzerList.size()) {
+            entityTrackerAnalyzer = new EntityTrackerAnalyzer(
+                    analyzerList,
+                    ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL,
+                    executor,
+                    this::handleEntities
+            );
+            imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
+        }
     }
 
     /**
@@ -284,6 +344,11 @@ public class Tracker {
             textOCR.dispose();
             Log.d(TAG, "TextOCR is disposed");
             textOCR = null;
+        }
+        if (moduleRecognizer != null) {
+            moduleRecognizer.dispose();
+            Log.d(TAG, "Module Recognizer is disposed");
+            moduleRecognizer = null;
         }
     }
 

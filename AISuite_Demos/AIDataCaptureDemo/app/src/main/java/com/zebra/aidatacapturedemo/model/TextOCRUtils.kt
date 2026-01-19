@@ -82,45 +82,57 @@ class TextOCRUtils {
                 }
                 // The output is limited to only the text that exact matches the given pattern.
                 OCRFilterType.EXACT_MATCH -> {
-                    for (d in outputOCRResultData) {
-                        ocrFilterData.exactMatchStringList.forEach { exactMatchString ->
-                            if (exactMatchString.equals(d.text, ignoreCase = true)) {
-                                filteredOCRResultData += ResultData(
-                                    boundingBox = d.boundingBox,
-                                    text = d.text
-                                )
+                    val areAllStringsNotBlank =
+                        ocrFilterData.exactMatchStringList.all { it.isNotBlank() }
+                    if (areAllStringsNotBlank) {
+                        for (d in outputOCRResultData) {
+                            ocrFilterData.exactMatchStringList.forEach { exactMatchString ->
+                                if (exactMatchString.equals(d.text, ignoreCase = true)) {
+                                    filteredOCRResultData += ResultData(
+                                        boundingBox = d.boundingBox,
+                                        text = d.text
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 OCRFilterType.STARTS_WITH -> {
-                    for (d in outputOCRResultData) {
-                        ocrFilterData.startsWithStringList.forEach { startsWithString ->
-                            if ((d.text.startsWith(
-                                    startsWithString,
-                                    ignoreCase = true
-                                ) && (d.text.length in ocrFilterData.startWithLengthRange.start.toInt()..ocrFilterData.startWithLengthRange.endInclusive.toInt()))
-                            ) {
-                                filteredOCRResultData += ResultData(
-                                    boundingBox = d.boundingBox,
-                                    text = d.text
-                                )
+                    val areAllStringsNotBlank =
+                        ocrFilterData.startsWithStringList.all { it.isNotBlank() }
+                    if (areAllStringsNotBlank) {
+                        for (d in outputOCRResultData) {
+                            ocrFilterData.startsWithStringList.forEach { startsWithString ->
+                                if ((d.text.startsWith(
+                                        startsWithString,
+                                        ignoreCase = true
+                                    ) && (d.text.length in ocrFilterData.startWithLengthRange.start.toInt()..ocrFilterData.startWithLengthRange.endInclusive.toInt()))
+                                ) {
+                                    filteredOCRResultData += ResultData(
+                                        boundingBox = d.boundingBox,
+                                        text = d.text
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 OCRFilterType.CONTAINS -> {
-                    for (d in outputOCRResultData) {
-                        ocrFilterData.containsStringList.forEach { containsString ->
-                            if ((d.text.contains(containsString, ignoreCase = true)) &&
-                                (d.text.length in ocrFilterData.containsLengthRange.start.toInt()..ocrFilterData.containsLengthRange.endInclusive.toInt())
-                            ) {
-                                filteredOCRResultData += ResultData(
-                                    boundingBox = d.boundingBox,
-                                    text = d.text
-                                )
+                    val areAllStringsNotBlank =
+                        ocrFilterData.containsStringList.all { it.isNotBlank() }
+                    if (areAllStringsNotBlank) {
+                        for (d in outputOCRResultData) {
+                            ocrFilterData.containsStringList.forEach { containsString ->
+                                if ((d.text.contains(containsString, ignoreCase = true)) &&
+                                    (d.text.length in ocrFilterData.containsLengthRange.start.toInt()..ocrFilterData.containsLengthRange.endInclusive.toInt())
+                                ) {
+                                    filteredOCRResultData += ResultData(
+                                        boundingBox = d.boundingBox,
+                                        text = d.text
+                                    )
+                                }
                             }
                         }
                     }

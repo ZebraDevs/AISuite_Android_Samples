@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.camera;
 
 import android.content.Context;
@@ -100,6 +101,7 @@ public class CameraManager {
         if(analysisUseCase!= null){
             cameraProvider.unbind(analysisUseCase);
         }
+        activity.getBinding().graphicOverlay.clear();
 
         Preview.Builder previewBuilder = new Preview.Builder();
         previewBuilder.setResolutionSelector(resolutionSelector);

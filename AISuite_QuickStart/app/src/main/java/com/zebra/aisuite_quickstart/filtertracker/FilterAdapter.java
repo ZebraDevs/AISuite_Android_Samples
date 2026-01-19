@@ -1,3 +1,4 @@
+// Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.filtertracker;
 
 import android.util.Log;
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
 
 public class FilterAdapter extends  RecyclerView.Adapter<FilterAdapter.ViewHolder> {
 
-    private List<FilterItem> filterList;
+    private final List<FilterItem> filterList;
 
     public FilterAdapter(List<FilterItem> list) {
         filterList = list;
@@ -40,23 +41,19 @@ public class FilterAdapter extends  RecyclerView.Adapter<FilterAdapter.ViewHolde
     }
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        FilterItem itemData = filterList.get(position); // Example
+        FilterItem itemData = filterList.get(position);
         holder.textView.setText(itemData.getTitle());
         holder.textView.setChecked(itemData.isChecked());
-        holder.textView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                itemData.setChecked(!itemData.isChecked());
-                notifyDataSetChanged();
-
-            }
+        holder.textView.setOnClickListener(v -> {
+            boolean newCheckedState = !itemData.isChecked();
+            itemData.setChecked(newCheckedState);
+            notifyDataSetChanged(); // Refresh all items
         });
     }
 
     @Override
     public int getItemCount() {
         Log.d("FilterAdapter", "Filter " + filterList.size());
-        if(filterList == null) return 0;
 
         return filterList.size();
     }

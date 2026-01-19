@@ -1,0 +1,13 @@
+package com.zebra.ai.barcodefinder.sdkcoordinator.enums
+
+enum class CoordinatorState {
+    NOT_INITIALIZED,
+    BARCODE_DECODER_INITIALIZED,
+    ENTITY_TRACKER_INITIALIZED,
+    CAMERA_PERMISSION_REQUIRED,
+    CAMERA_PERMISSION_RECEIVED,
+    CAMERA_PERMISSION_DENIED,
+    CAMERA_INITIALIZED,
+    COORDINATOR_READY,
+    ERROR
+}

@@ -7,7 +7,7 @@ import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.ai.vision.detector.TextOCR
-import com.zebra.ai.vision.internal.detector.Paragraph
+import com.zebra.ai.vision.detector.Paragraph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
