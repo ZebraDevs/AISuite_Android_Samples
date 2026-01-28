@@ -17,11 +17,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven{
-            credentials {
-                username = "username" //email id registered with zebra.com
-                password  = "password" //artifactory token generated
-            }
-            url =uri("https://artifactory-apac.zebra.com/artifactory/emc-mvn-rel")
+            url =uri("https://zebratech.jfrog.io/artifactory/emc-mvn-ext")
         }
         flatDir {
             dirs("libs")
