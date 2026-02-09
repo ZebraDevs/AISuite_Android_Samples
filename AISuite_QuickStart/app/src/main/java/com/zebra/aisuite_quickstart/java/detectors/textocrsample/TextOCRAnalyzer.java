@@ -100,15 +100,13 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
                             if (!isStopped) {
                                 callback.onDetectionTextResult(result);
                             }
-                            isAnalyzing = true;
-                            image.close();
                         })
                         .exceptionally(ex -> {
                             Log.e(TAG, "Error in completable future result " + ex.getMessage());
-                            isAnalyzing = true;
-                            image.close();
                             return null;
                         });
+                isAnalyzing = true;
+                image.close();
             } catch (AIVisionSDKException e) {
                 Log.e(TAG, Objects.requireNonNull(e.getMessage()));
                 isAnalyzing = true;

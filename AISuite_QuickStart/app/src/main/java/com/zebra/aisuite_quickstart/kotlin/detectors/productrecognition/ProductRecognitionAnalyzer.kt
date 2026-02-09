@@ -1,12 +1,12 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
-package com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample
+package com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition
 
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.zebra.ai.vision.detector.ImageData
 import com.zebra.ai.vision.detector.ModuleRecognizer
 import com.zebra.ai.vision.entity.Entity
-import com.zebra.ai.vision.detector.ImageData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

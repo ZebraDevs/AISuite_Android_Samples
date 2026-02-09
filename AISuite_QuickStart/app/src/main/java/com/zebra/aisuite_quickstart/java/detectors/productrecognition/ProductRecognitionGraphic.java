@@ -1,11 +1,12 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
-package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
+package com.zebra.aisuite_quickstart.java.detectors.productrecognition;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
+
 
 import com.zebra.aisuite_quickstart.GraphicOverlay;
 
@@ -49,33 +50,14 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
      * and preparing the bounding boxes and decoded product names for rendering.
      *
      * @param overlay The GraphicOverlay on which this graphic will be drawn.
-    //     * @param labelShelfRects A list of Rect objects representing the bounding boxes of label shelves.
-    //     * @param labelPegRects A list of Rect objects representing the bounding boxes of label pegs.
-    //     * @param shelfRects A list of Rect objects representing the bounding boxes of shelves.
-     * @param productRects A list of Rect objects representing the bounding boxes of recognized products.
-     * @param productLabels A list of strings representing the decoded product names.
+     * @param labelShelfRects A list of Rect objects representing the bounding boxes of label shelves.
+     * @param labelPegRects A list of Rect objects representing the bounding boxes of label pegs.
+     * @param shelfRects A list of Rect objects representing the bounding boxes of shelves.
+     * @param recognizedRects A list of Rect objects representing the bounding boxes of recognized products.
+     * @param decodedStrings A list of strings representing the decoded product names.
      */
-    public ProductRecognitionGraphic(
-            GraphicOverlay overlay,
-            List<Rect> shelfRects,
-            List<Rect> labelRects,
-            List<Rect> productRects,
-            List<String> productLabels
-    ) {
+    public ProductRecognitionGraphic(GraphicOverlay overlay, List<Rect> labelShelfRects, List<Rect> labelPegRects, List<Rect> shelfRects, List<Rect> recognizedRects, List<String> decodedStrings) {
         super(overlay);
-
-        shelfBBoxes.clear();
-        if (shelfRects != null) shelfBBoxes.addAll(shelfRects);
-
-        labelShelfBBoxes.clear();
-        if (labelRects != null) labelShelfBBoxes.addAll(labelRects);
-
-        decodedProducts.clear();
-        if (productLabels != null) decodedProducts.addAll(productLabels);
-
-        productBBoxes.clear();
-        if (productRects != null) productBBoxes.addAll(productRects);
-
 
         // Initialize the paint for drawing bounding boxes around products
         boxPaint = new Paint();
@@ -102,6 +84,31 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
         contentTextPaint.setAlpha(255);
         contentTextPaint.setTextSize(20F);
 
+        // Populate bounding boxes and decoded product names
+        labelShelfBBoxes.clear();
+        if (labelShelfRects != null) {
+            labelShelfBBoxes.addAll(labelShelfRects);
+        }
+
+        labelPegBBoxes.clear();
+        if (labelPegRects != null) {
+            labelPegBBoxes.addAll(labelPegRects);
+        }
+
+        shelfBBoxes.clear();
+        if (shelfRects != null) {
+            shelfBBoxes.addAll(shelfRects);
+        }
+
+        productBBoxes.clear();
+        if (recognizedRects != null) {
+            productBBoxes.addAll(recognizedRects);
+        }
+
+        decodedProducts.clear();
+        if (decodedStrings != null) {
+            decodedProducts.addAll(decodedStrings);
+        }
 
         // Trigger a redraw of the overlay
         postInvalidate();

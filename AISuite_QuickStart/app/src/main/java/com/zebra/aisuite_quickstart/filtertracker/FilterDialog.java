@@ -37,8 +37,8 @@ public class FilterDialog extends Dialog {
     private Button mCancelBtn;
     private FilterCallback mCallback;
     private FilterAdapter mAdapter;
-    public static final String BARCODE_TRACKER = "Barcode Tracker";
-    public static final String OCR_TRACKER = "OCR Tracker";
+    public static final String BARCODE_TRACKER = "Barcode";
+    public static final String OCR_TRACKER = "OCR";
     public static final String PRODUCT_AND_SHELF = "Product And Shelf";
 
     public static final String[] trackerArray ={BARCODE_TRACKER,OCR_TRACKER,PRODUCT_AND_SHELF};
@@ -65,7 +65,6 @@ public class FilterDialog extends Dialog {
         View view = LayoutInflater.from(mContext).inflate(R.layout.layout_filter_dialog, null, false);
 
         setContentView(view);
-
 
         mSaveBtn = view.findViewById(R.id.apply_btn);
         mCancelBtn = view.findViewById(R.id.cancel_btn);

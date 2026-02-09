@@ -9,12 +9,13 @@ import com.zebra.ai.vision.detector.Recognizer
 import com.zebra.ai.vision.detector.Word
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
+import com.zebra.ai.vision.entity.LabelEntity
 import com.zebra.ai.vision.entity.ParagraphEntity
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
 import com.zebra.aisuite_quickstart.kotlin.analyzers.tracker.TrackerGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeGraphic
+import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRGraphic
-import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionGraphic
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 
 class DetectionResultHandler(
@@ -104,11 +105,11 @@ class DetectionResultHandler(
                         }
                     }
                 }
-                    activity.binding.graphicOverlay.add(
-                        OCRGraphic(activity.binding.graphicOverlay, rects, decodedStrings)
-                    )
-                }
+                activity.binding.graphicOverlay.add(
+                    OCRGraphic(activity.binding.graphicOverlay, rects, decodedStrings)
+                )
             }
+        }
     }
 
     // Legacy OCR detection result handler
@@ -141,6 +142,92 @@ class DetectionResultHandler(
         }
     }
 
+    fun handleLegacyDetectionRecognitionResult(
+        detections: Array<BBox>?,
+        products: Array<BBox>,
+        recognitions: Array<Recognizer.Recognition>
+    ) {
+        activity.runOnUiThread {
+            activity.binding.graphicOverlay.clear()
+            detections?.let {
+                val labelShelfRects = mutableListOf<Rect>()
+                val labelPegRects = mutableListOf<Rect>()
+                val shelfRects = mutableListOf<Rect>()
+                val recognizedRects = mutableListOf<Rect>()
+                val decodedStrings = mutableListOf<String>()
+                val labelShelfObjects = detections.filter { it.cls == 2 }
+                val labelPegObjects = detections.filter { it.cls == 3 }
+                val shelfObjects = detections.filter { it.cls == 4 }
+                for (bBox in labelShelfObjects) {
+                    val rect = Rect(
+                        bBox.xmin.toInt(),
+                        bBox.ymin.toInt(),
+                        bBox.xmax.toInt(),
+                        bBox.ymax.toInt()
+                    )
+                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                    labelShelfRects.add(overlayRect)
+                }
+                for (bBox in labelPegObjects) {
+                    val rect = Rect(
+                        bBox.xmin.toInt(),
+                        bBox.ymin.toInt(),
+                        bBox.xmax.toInt(),
+                        bBox.ymax.toInt()
+                    )
+                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                    labelPegRects.add(overlayRect)
+                }
+
+                for (bBox in shelfObjects) {
+                    val rect = Rect(
+                        bBox.xmin.toInt(),
+                        bBox.ymin.toInt(),
+                        bBox.xmax.toInt(),
+                        bBox.ymax.toInt()
+                    )
+                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                    shelfRects.add(overlayRect)
+                }
+                // Draw all products
+                if (recognitions.isEmpty()) {
+                    decodedStrings.add("No products found")
+                    recognizedRects.add(Rect(250, 250, 0, 0))
+                } else {
+                    Log.v(
+                        TAG,
+                        "products length: ${products.size} recognitions length: ${recognitions.size}"
+                    )
+                    for (i in products.indices) {
+                        if (recognitions[i].similarity[0] > SIMILARITY_THRESHOLD) {
+                            val bBox = products[i]
+                            val rect = Rect(
+                                bBox.xmin.toInt(),
+                                bBox.ymin.toInt(),
+                                bBox.xmax.toInt(),
+                                bBox.ymax.toInt()
+                            )
+                            val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                            recognizedRects.add(overlayRect)
+                            decodedStrings.add(recognitions[i].sku[0])
+                        }
+                    }
+                }
+
+                activity.binding.graphicOverlay.add(
+                    ProductRecognitionGraphic(
+                        activity.binding.graphicOverlay,
+                        labelShelfRects,
+                        labelPegRects,
+                        shelfRects,
+                        recognizedRects,
+                        decodedStrings
+                    )
+                )
+            }
+        }
+    }
+
     // Product recognition detection result handler
     fun handleDetectionRecognitionResult(result: List<Entity>?) {
         Log.d(TAG, "Inside On Shelf RecognitionResult (flat hierarchy)")
@@ -161,7 +248,8 @@ class DetectionResultHandler(
             }
 
             val shelfRects = mutableListOf<Rect>()
-            val labelRects = mutableListOf<Rect>()
+            val labelShelfRects = mutableListOf<Rect>()
+            val labelPegRects = mutableListOf<Rect>()
             val productRects = mutableListOf<Rect>()
             val productLabels = mutableListOf<String>()
 
@@ -171,11 +259,18 @@ class DetectionResultHandler(
                 shelfRects.add(shelfRect)
             }
 
-            // Draw all labels (not just those attached to shelves)
+
+            // Draw all labels (if you want to show all, not just those attached to shelves)
             for (label in labels) {
-                val labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
-                if (!labelRects.contains(labelRect)) {
-                    labelRects.add(labelRect)
+                if (label.classId == LabelEntity.ClassId.PEG_LABEL) {
+                    val labelRect: Rect =
+                        boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
+                    labelPegRects.add(labelRect)
+                }
+                if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
+                    val labelRect: Rect =
+                        boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
+                    labelShelfRects.add(labelRect)
                 }
             }
 
@@ -193,8 +288,9 @@ class DetectionResultHandler(
             activity.binding.graphicOverlay.add(
                 ProductRecognitionGraphic(
                     activity.binding.graphicOverlay,
+                    labelShelfRects,
+                    labelPegRects,
                     shelfRects,
-                    labelRects,
                     productRects,
                     productLabels
                 )
@@ -202,7 +298,11 @@ class DetectionResultHandler(
         }
     }
 
-    fun handleEntityTrackerDetection(barcodeEntities: List<Entity>?, ocrEntities: List<Entity>?, moduleEntities: List<Entity>?) {
+    fun handleEntityTrackerDetection(
+        barcodeEntities: List<Entity>?,
+        ocrEntities: List<Entity>?,
+        moduleEntities: List<Entity>?
+    ) {
         val barcodeRects = mutableListOf<Rect>()
         val barcodeStrings = mutableListOf<String>()
         val ocrRects = mutableListOf<Rect>()
@@ -212,7 +312,8 @@ class DetectionResultHandler(
         val labels = mutableListOf<com.zebra.ai.vision.entity.LabelEntity>()
         val products = mutableListOf<com.zebra.ai.vision.entity.ProductEntity>()
         val shelfRects = mutableListOf<Rect>()
-        val labelRects = mutableListOf<Rect>()
+        val labelShelfRects = mutableListOf<Rect>()
+        val labelPegRects = mutableListOf<Rect>()
         val productRects = mutableListOf<Rect>()
         val productLabels = mutableListOf<String>()
 
@@ -227,81 +328,99 @@ class DetectionResultHandler(
                         barcodeRects.add(overlayRect)
                         val hashCode = entity.hashCode().toString().takeLast(4)
                         barcodeStrings.add("$hashCode:${entity.value}")
-                        Log.d(TAG, "Tracker UUID: $hashCode Detected entity - Value: ${entity.value}")
+                        Log.d(
+                            TAG,
+                            "Tracker UUID: $hashCode Detected entity - Value: ${entity.value}"
+                        )
                     }
                 }
             }
             ocrEntities?.forEach { entity ->
-                    if (entity is ParagraphEntity) {
-                        val lines = entity.lines
-                        for (line in lines) {
-                            for (word in line.words) {
-                                val bbox = word.complexBBox
+                if (entity is ParagraphEntity) {
+                    val lines = entity.lines
+                    for (line in lines) {
+                        for (word in line.words) {
+                            val bbox = word.complexBBox
 
-                                if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
-                                    val minX = bbox.x[0]
-                                    val maxX = bbox.x[2]
-                                    val minY = bbox.y[0]
-                                    val maxY = bbox.y[2]
+                            if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size >= 3 && bbox.y.size >= 3) {
+                                val minX = bbox.x[0]
+                                val maxX = bbox.x[2]
+                                val minY = bbox.y[0]
+                                val maxY = bbox.y[2]
 
-                                    val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
-                                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
-                                    val decodedValue = word.text
-                                    ocrRects.add(overlayRect)
-                                    ocrStrings.add(decodedValue)
-                                }
+                                val rect =
+                                    Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+                                val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                                val decodedValue = word.text
+                                ocrRects.add(overlayRect)
+                                ocrStrings.add(decodedValue)
                             }
                         }
-                        Log.d(TAG, "Detected OCR entity - Text: ${entity.text}")
                     }
+                    Log.d(TAG, "Detected OCR entity - Text: ${entity.text}")
+                }
 
             }
 
             moduleEntities?.forEach { entity ->
-                    when (entity) {
-                        is com.zebra.ai.vision.entity.ShelfEntity -> shelves.add(entity)
-                        is com.zebra.ai.vision.entity.LabelEntity -> labels.add(entity)
-                        is com.zebra.ai.vision.entity.ProductEntity -> products.add(entity)
-                    }
+                when (entity) {
+                    is com.zebra.ai.vision.entity.ShelfEntity -> shelves.add(entity)
+                    is LabelEntity -> labels.add(entity)
+                    is com.zebra.ai.vision.entity.ProductEntity -> products.add(entity)
                 }
+            }
 
-                // Draw shelves and their labels
-                for (shelf in shelves) {
-                    val shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.boundingBox)
-                    shelfRects.add(shelfRect)
+            // Draw shelves and their labels
+            for (shelf in shelves) {
+                val shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.boundingBox)
+                shelfRects.add(shelfRect)
+            }
+            // Draw all labels (if you want to show all, not just those attached to shelves)
+            for (label in labels) {
+                if (label.classId == LabelEntity.ClassId.PEG_LABEL) {
+                    val labelRect: Rect =
+                        boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
+                    labelPegRects.add(labelRect)
                 }
-                // Draw all labels (not just those attached to shelves)
-                for (label in labels) {
-                    val labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
-                    if (!labelRects.contains(labelRect)) {
-                        labelRects.add(labelRect)
-                    }
+                if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
+                    val labelRect: Rect =
+                        boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
+                    labelShelfRects.add(labelRect)
                 }
-                // Draw all products
-                for (product in products) {
-                    val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
-                    productRects.add(prodRect)
-                    val topSku = product.topKSKUs?.firstOrNull()?.productSKU ?: ""
-                    productLabels.add(topSku)
-                    Log.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
-                }
+            }
+            // Draw all products
+            for (product in products) {
+                val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
+                productRects.add(prodRect)
+                val topSku = product.topKSKUs?.firstOrNull()?.productSKU ?: ""
+                productLabels.add(topSku)
+                Log.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
+            }
 
             // Add graphics for barcodes
             if (barcodeRects.isNotEmpty()) {
-                activity.binding.graphicOverlay.add(TrackerGraphic(activity.binding.graphicOverlay, barcodeRects, barcodeStrings)
+                activity.binding.graphicOverlay.add(
+                    TrackerGraphic(activity.binding.graphicOverlay, barcodeRects, barcodeStrings)
                 )
             }
 
             // Add graphics for OCR
             if (ocrRects.isNotEmpty()) {
-                activity.binding.graphicOverlay.add(OCRGraphic(activity.binding.graphicOverlay, ocrRects, ocrStrings))
+                activity.binding.graphicOverlay.add(
+                    OCRGraphic(
+                        activity.binding.graphicOverlay,
+                        ocrRects,
+                        ocrStrings
+                    )
+                )
             }
-            if (shelfRects.isNotEmpty() || labelRects.isNotEmpty() || productRects.isNotEmpty()) {
+            if (shelfRects.isNotEmpty() || labelShelfRects.isNotEmpty() || labelPegRects.isNotEmpty() || productRects.isNotEmpty()) {
                 activity.binding.graphicOverlay.add(
                     ProductRecognitionGraphic(
                         activity.binding.graphicOverlay,
+                        labelShelfRects,
+                        labelPegRects,
                         shelfRects,
-                        labelRects,
                         productRects,
                         productLabels
                     )
@@ -310,7 +429,10 @@ class DetectionResultHandler(
         }
     }
 
-    fun handleEntityViewFinderDetection(entities: List<Entity>?, entityViewGraphic: EntityViewGraphic) {
+    fun handleEntityViewFinderDetection(
+        entities: List<Entity>?,
+        entityViewGraphic: EntityViewGraphic
+    ) {
         activity.runOnUiThread {
             entityViewGraphic.clear()
             entities?.forEach { entity ->

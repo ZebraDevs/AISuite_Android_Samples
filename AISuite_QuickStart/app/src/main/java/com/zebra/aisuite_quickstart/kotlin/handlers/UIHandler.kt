@@ -34,6 +34,7 @@ class UIHandler(
         private const val LEGACY_OCR_DETECTION = "Legacy OCR"
         private const val ENTITY_ANALYZER = "Tracker"
         private const val PRODUCT_RECOGNITION = "Product Recognition"
+        private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
         private const val ENTITY_VIEW_FINDER = "Entity Viewfinder"
     }
 
@@ -77,9 +78,10 @@ class UIHandler(
             TEXT_OCR_DETECTION,
             PRODUCT_RECOGNITION,
             ENTITY_ANALYZER,
-            ENTITY_VIEW_FINDER
+            ENTITY_VIEW_FINDER,
             // LEGACY_BARCODE_DETECTION, // Uncomment to use barcode legacy option
             // LEGACY_OCR_DETECTION // Uncomment to use OCR legacy option
+            //LEGACY_PRODUCT_RECOGNITION // Uncomment to use Product recognition legacy option
         )
 
         return ArrayAdapter(

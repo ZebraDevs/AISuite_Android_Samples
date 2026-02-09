@@ -209,6 +209,10 @@ class Tracker(
         return null
     }
 
+    /**
+     * Stops and disposes of the BarcodeDecoder, TextOCR, and ModuleRecognizer, releasing any resources held.
+     * This method should be called when barcode detection is no longer needed.
+     */
     fun stop() {
         barcodeDecoder?.let {
             it.dispose()

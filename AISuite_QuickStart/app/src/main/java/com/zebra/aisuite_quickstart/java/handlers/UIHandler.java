@@ -39,6 +39,7 @@ public class UIHandler {
     private static final String LEGACY_OCR_DETECTION = "Legacy OCR";
     private static final String ENTITY_ANALYZER = "Tracker";
     private static final String PRODUCT_RECOGNITION = "Product Recognition";
+    private static final String LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
 
     private String selectedModel = BARCODE_DETECTION;
@@ -70,6 +71,7 @@ public class UIHandler {
         options.add(ENTITY_VIEW_FINDER);
         // options.add(LEGACY_BARCODE_DETECTION); // uncomment to use barcode legacy option
         // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option
+       // options.add(LEGACY_PRODUCT_RECOGNITION); // Uncomment to use Product recognition legacy option
 
         ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(activity, com.zebra.aisuite_quickstart.R.layout.spinner_style, options);
         dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);

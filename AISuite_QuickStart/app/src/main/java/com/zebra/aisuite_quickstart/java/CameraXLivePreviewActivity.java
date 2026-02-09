@@ -1,6 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java;
 
+
 import android.content.SharedPreferences;
 import android.graphics.Matrix;
 import android.graphics.RectF;
@@ -21,7 +22,9 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
+import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
+import com.zebra.ai.vision.detector.Recognizer;
 import com.zebra.ai.vision.detector.Word;
 import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.Entity;
@@ -40,8 +43,10 @@ import com.zebra.aisuite_quickstart.java.detectors.textocrsample.TextOCRAnalyzer
 import com.zebra.aisuite_quickstart.java.handlers.BoundingBoxMapper;
 import com.zebra.aisuite_quickstart.java.handlers.DetectionResultHandler;
 import com.zebra.aisuite_quickstart.java.handlers.UIHandler;
-import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionAnalyzer;
-import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionHandler;
+import com.zebra.aisuite_quickstart.java.detectors.productrecognition.ProductRecognitionAnalyzer;
+import com.zebra.aisuite_quickstart.java.detectors.productrecognition.ProductRecognitionHandler;
+import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionSample;
+import com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample.ProductRecognitionSampleAnalyzer;
 import com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample.BarcodeSample;
 import com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample.BarcodeSampleAnalyzer;
 import com.zebra.aisuite_quickstart.java.lowlevel.simpleocrsample.OCRAnalyzer;
@@ -82,7 +87,7 @@ import java.util.concurrent.Executors;
  * <p>
  * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
  */
-public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, Tracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback {
+public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, Tracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback {
 
     private ActivityCameraXlivePreviewBinding binding;
     private final String TAG = "CameraXLivePreviewActivityJava";
@@ -92,6 +97,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private static final String LEGACY_OCR_DETECTION = "Legacy OCR";
     private static final String ENTITY_ANALYZER = "Tracker";
     private static final String PRODUCT_RECOGNITION = "Product Recognition";
+    private static final String LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
     private ImageAnalysis analysisUseCase;
     private int imageWidth;
@@ -100,6 +106,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private BarcodeHandler barcodeHandler;
     private OCRHandler ocrHandler;
     private ProductRecognitionHandler productRecognitionHandler;
+    private ProductRecognitionSample productRecognitionSample;
     private Tracker tracker;
     private EntityBarcodeTracker entityBarcodeTracker;
     private BarcodeSample barcodeLegacySample;
@@ -302,6 +309,12 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         ocrSample.getOCRAnalyzer().stopAnalyzing();
                     }
                     break;
+                case LEGACY_PRODUCT_RECOGNITION:
+                    Log.i(TAG, "Stopping the legacy product recognition analyzer");
+                    if (productRecognitionSample != null && productRecognitionSample.getProductRecognitionSampleAnalyzer() != null) {
+                        productRecognitionSample.getProductRecognitionSampleAnalyzer().stopAnalyzing();
+                    }
+                    break;
                 default:
                     Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
@@ -355,6 +368,12 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     Log.i(TAG, "Disposing the legacy ocr analyzer");
                     if (ocrSample != null) {
                         ocrSample.stop();
+                    }
+                    break;
+                case LEGACY_PRODUCT_RECOGNITION:
+                    Log.i(TAG, "Disposing the legacy product recognition analyzer");
+                    if (productRecognitionSample != null) {
+                        productRecognitionSample.stop();
                     }
                     break;
                 default:
@@ -470,6 +489,12 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     }
 
+    // Handles product recognition results using legacy api and updates the graphical overlay
+    @Override
+    public void onDetectionRecognitionResult(BBox[] detections, BBox[] products, Recognizer.Recognition[] recognitions) {
+        detectionHandler.handleLegacyProductRecognitionResult(detections, products, recognitions);
+    }
+
     public void bindAnalysisUseCase() {
         if (cameraManager.getCameraProvider() == null) {
             return;
@@ -513,7 +538,6 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 case PRODUCT_RECOGNITION:
                     Log.i(TAG, "Using Product Recognition");
                     executors.execute(() -> productRecognitionHandler = new ProductRecognitionHandler(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase));
-
                     break;
 
                 case LEGACY_BARCODE_DETECTION:
@@ -524,6 +548,10 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 case LEGACY_OCR_DETECTION:
                     Log.i(TAG, "Using Legacy Text OCR");
                     executors.execute(() -> ocrSample = new OCRSample(this, this, analysisUseCase));
+                    break;
+                case LEGACY_PRODUCT_RECOGNITION:
+                    Log.i(TAG, "Using Legacy Product Recognition");
+                    executors.execute(() -> productRecognitionSample = new ProductRecognitionSample(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase) );
                     break;
                 default:
                     throw new IllegalStateException("Invalid model name");
@@ -645,4 +673,5 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     public EntityViewController getEntityViewController(){
         return entityViewController;
     }
+
 }

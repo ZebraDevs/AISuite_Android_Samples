@@ -96,15 +96,13 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
                             if (!isStopped) {
                                 callback.onDetectionResult(result);
                             }
-                            image.close();
-                            isAnalyzing = true;
                         })
                         .exceptionally(ex -> {
                             Log.e(TAG, "Error in completable future result " + ex.getMessage());
-                            image.close();
-                            isAnalyzing = true;
                             return null;
                         });
+                image.close();
+                isAnalyzing = true;
             } catch (AIVisionSDKException e) {
                 Log.e(TAG, Objects.requireNonNull(e.getMessage()));
                 image.close();

@@ -331,7 +331,7 @@ public class Tracker {
     }
 
     /**
-     * Stops and disposes of the BarcodeDecoder,textOCR releasing any resources held.
+     * Stops and disposes of the BarcodeDecoder, TextOCR, and ModuleRecognizer, releasing any resources held.
      * This method should be called when barcode detection is no longer needed.
      */
     public void stop() {

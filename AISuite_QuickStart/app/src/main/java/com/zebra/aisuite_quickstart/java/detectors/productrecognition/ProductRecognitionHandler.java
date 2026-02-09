@@ -1,5 +1,5 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
-package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
+package com.zebra.aisuite_quickstart.java.detectors.productrecognition;
 
 import android.content.Context;
 import android.util.Log;
@@ -57,12 +57,11 @@ public class ProductRecognitionHandler {
             ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
 
             // Configure InferencerOptions
-            Integer[] rpo = new Integer[]{
+            settings.inferencerOptions.runtimeProcessorOrder = new Integer[]{
                     InferencerOptions.DSP,
                     InferencerOptions.CPU,
                     InferencerOptions.GPU
             };
-            settings.inferencerOptions.runtimeProcessorOrder = rpo;
             settings.inferencerOptions.defaultDims.height = 640;
             settings.inferencerOptions.defaultDims.width = 640;
 

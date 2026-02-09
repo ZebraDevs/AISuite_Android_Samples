@@ -19,7 +19,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
+import com.zebra.ai.vision.detector.BBox
 import com.zebra.ai.vision.detector.BarcodeDecoder
+import com.zebra.ai.vision.detector.Recognizer
 import com.zebra.ai.vision.detector.Word
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
@@ -34,13 +36,15 @@ import com.zebra.aisuite_quickstart.kotlin.analyzers.tracker.Tracker
 import com.zebra.aisuite_quickstart.kotlin.camera.CameraManager
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeHandler
+import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionHandler
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRHandler
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.TextOCRAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.handlers.BoundingBoxMapper
 import com.zebra.aisuite_quickstart.kotlin.handlers.DetectionResultHandler
 import com.zebra.aisuite_quickstart.kotlin.handlers.UIHandler
-import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionAnalyzer
-import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionHandler
+import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionSample
+import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionSampleAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample.BarcodeSample
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample.BarcodeSampleAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample.OCRAnalyzer
@@ -57,7 +61,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
     Tracker.DetectionCallback,
     EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback,
-    OCRAnalyzer.DetectionCallback {
+    OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback {
 
     lateinit var binding: ActivityCameraXlivePreviewBinding
     private val tag = "CameraXLivePreviewActivityKotlin"
@@ -75,6 +79,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var ocrHandler: OCRHandler? = null
     private var ocrSample: OCRSample? = null
     private var productRecognitionHandler: ProductRecognitionHandler? = null
+    private var productRecognitionSample: ProductRecognitionSample? = null
     private var tracker: Tracker? = null
     private var barcodeLegacySample: BarcodeSample? = null
     private var entityBarcodeTracker: EntityBarcodeTracker? = null
@@ -177,8 +182,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 // Analyzer not ready yet, extract and store the actual VALUES
 
                 try {
-                    pendingTransformMatrix = Matrix(entityViewResizeSpecs!!.getSensorToViewMatrix())
-                    pendingCropRegion = RectF(entityViewResizeSpecs.getViewfinderFOVCropRegion())
+                    pendingTransformMatrix = Matrix(entityViewResizeSpecs!!.sensorToViewMatrix)
+                    pendingCropRegion = RectF(entityViewResizeSpecs.viewfinderFOVCropRegion)
                     Log.d(tag, "Stored pending viewfinder resize data for later application")
                 } catch (e: java.lang.Exception) {
                     Log.e(tag, "Failed to extract resize spec values", e)
@@ -338,6 +343,13 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
                     }
                 }
+                LEGACY_PRODUCT_RECOGNITION -> {
+                    Log.i(tag, "Using Product Recognition")
+                    executors.execute {
+                        productRecognitionSample =
+                            ProductRecognitionSample(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                    }
+                }
 
                 else -> throw IllegalStateException("Invalid model name")
             }
@@ -401,7 +413,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Stopping the recognition analyzer")
-                    productRecognitionHandler?.getProductRecognitionAnalyzer()?.stopAnalyzing();
+                    productRecognitionHandler?.getProductRecognitionAnalyzer()?.stopAnalyzing()
                 }
 
                 LEGACY_BARCODE_DETECTION -> {
@@ -412,6 +424,11 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 LEGACY_OCR_DETECTION -> {
                     Log.i(tag, "Stopping the legacy ocr analyzer")
                     ocrSample?.getOCRAnalyzer()?.stop()
+                }
+
+                LEGACY_PRODUCT_RECOGNITION -> {
+                    Log.i(tag, "Stopping the legacy product recognition analyzer")
+                    productRecognitionSample?.getProductRecognitionAnalyzer()?.stopAnalyzing()
                 }
 
                 else -> Log.e(tag, "Invalid stop analyzer option")
@@ -518,6 +535,11 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     ocrSample?.stop()
                 }
 
+                LEGACY_PRODUCT_RECOGNITION -> {
+                    Log.i(tag, "Disposing the legacy product recognition analyzer")
+                    productRecognitionSample?.stop()
+                }
+
                 else -> Log.e(tag, "Invalid selected option")
             }
         } catch (e: java.lang.Exception) {
@@ -533,6 +555,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         private const val ENTITY_VIEW_FINDER = "Entity Viewfinder"
         private const val LEGACY_BARCODE_DETECTION = "Legacy Barcode"
         private const val LEGACY_OCR_DETECTION = "Legacy OCR"
+        private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
+
     }
 
     fun getPreviewSurfaceProvider(): Preview.SurfaceProvider {
@@ -561,5 +585,13 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             displayManager?.unregisterDisplayListener(it)
         }
         super.onDestroy()
+    }
+
+    override fun onDetectionRecognitionResult(
+        detections: Array<BBox>,
+        products: Array<BBox>,
+        recognitions: Array<Recognizer.Recognition>
+    ) {
+    detectionHandler.handleLegacyDetectionRecognitionResult(detections, products, recognitions)
     }
 }

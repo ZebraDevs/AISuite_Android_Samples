@@ -1,5 +1,5 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
-package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
+package com.zebra.aisuite_quickstart.java.detectors.productrecognition;
 
 import android.util.Log;
 
@@ -7,24 +7,23 @@ import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
+import com.zebra.ai.vision.detector.AIVisionSDKException;
 import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.ImageData;
-import com.zebra.ai.vision.entity.Entity;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
+import com.zebra.ai.vision.entity.Entity;
 import com.zebra.ai.vision.entity.ShelfEntity;
 
-
-
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
 /**
  * The ProductRecognitionAnalyzer class implements the ImageAnalysis.Analyzer interface and is
- * responsible for analyzing image frames to detect and recognize products. It integrates multiple
- * components including a localizer for object detection, a feature extractor for generating
- * descriptors, and a recognizer for matching and identifying products.
+ * responsible for analyzing image frames to detect and recognize products. It integrates module recognizer for matching and
+ * identify products.
  *
  * This class is designed to be used within an Android application as part of a camera-based
  * product recognition solution. It processes image data asynchronously and returns recognition
@@ -39,9 +38,7 @@ import java.util.concurrent.Executors;
  * Dependencies:
  * - Android ImageProxy: Provides access to image data from the camera.
  * - ExecutorService: Used for asynchronous task execution.
- * - Localizer: Detects objects within an image.
- * - FeatureExtractor: Generates feature descriptors for detected objects.
- * - Recognizer: Matches feature descriptors to known products.
+ * - ModuleRecognizer
  *
  * Concurrency:
  * - Uses a single-threaded executor to ensure that image analysis tasks are processed sequentially.
@@ -102,34 +99,38 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
 
         Log.d(TAG, "Calling moduleRecognizer.process...");
         long start = System.currentTimeMillis();
-        productRecognizer.process(imageData)
-                .thenAccept(entityList -> {
-                    long end = System.currentTimeMillis();
-                    long inferenceTime = end - start;
-                    Log.d(TAG, "Inference Time: " + inferenceTime);
-                    int shelfCount = 0;
-                    if (entityList != null) {
-                        for (Entity entity : entityList) {
-                            if (entity instanceof ShelfEntity) {
-                                shelfCount++;
+        try {
+            productRecognizer.process(imageData)
+                    .thenAccept(entityList -> {
+                        long end = System.currentTimeMillis();
+                        long inferenceTime = end - start;
+                        Log.d(TAG, "Inference Time: " + inferenceTime);
+                        int shelfCount = 0;
+                        if (entityList != null) {
+                            for (Entity entity : entityList) {
+                                if (entity instanceof ShelfEntity) {
+                                    shelfCount++;
+                                }
                             }
                         }
-                    }
-                    Log.d(TAG, "process() completed. Shelves found: " + shelfCount);
-                    if (!isStopped && callback != null) {
-                        Log.d(TAG, "Invoking callback.onRecognitionResult");
-                        callback.onRecognitionResult(entityList);
-                    }
-                    image.close();
-                    isAnalyzing = true;
-                    Log.d(TAG, "Image closed, ready for next frame.");
-                })
-                .exceptionally(ex -> {
-                    Log.e(TAG, "Error in shelf recognition: " + ex.getMessage(), ex);
-                    image.close();
-                    isAnalyzing = true;
-                    return null;
-                });
+                        Log.d(TAG, "process() completed. Shelves found: " + shelfCount);
+                        if (!isStopped && callback != null) {
+                            Log.d(TAG, "Invoking callback.onRecognitionResult");
+                            callback.onRecognitionResult(entityList);
+                        }
+                        Log.d(TAG, "Image closed, ready for next frame.");
+                    })
+                    .exceptionally(ex -> {
+                        Log.e(TAG, "Error in shelf recognition: " + ex.getMessage(), ex);
+                        return null;
+                    });
+            image.close();
+            isAnalyzing = true;
+        } catch (AIVisionSDKException e) {
+            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            isAnalyzing = true;
+            image.close();
+        }
     }
 
 
