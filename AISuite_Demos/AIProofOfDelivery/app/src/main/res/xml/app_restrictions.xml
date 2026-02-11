@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<restrictions xmlns:android="http://schemas.android.com/apk/res/android">
+    <restriction android:key="compliance_blur" android:title="@string/item_title_0" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="compliance_package" android:title="@string/item_title_1" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="compliance_surroundings" android:title="@string/item_title_2" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="compliance_contains_people" android:title="@string/item_title_3" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="blur_people" android:title="@string/item_title_4" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="blur_pets" android:title="@string/item_title_5" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="blur_text" android:title="@string/item_title_6" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="blur_barcodes" android:title="@string/item_title_7" android:restrictionType="bool" android:defaultValue="true" />
+    <restriction android:key="blur_ratio" android:title="@string/item_title_8" android:restrictionType="choice" android:entries="@array/choice_0_entries" android:entryValues="@array/choice_0_values" android:defaultValue="@string/choice_default_0" />
+    <restriction android:key="capture_resolution" android:title="@string/item_title_9" android:restrictionType="choice" android:entries="@array/choice_1_entries" android:entryValues="@array/choice_1_values" android:defaultValue="@string/choice_default_1" />
+    <restriction android:key="save_resolution" android:title="@string/item_title_10" android:restrictionType="choice" android:entries="@array/choice_2_entries" android:entryValues="@array/choice_2_values" android:defaultValue="@string/choice_default_2" />
+    <restriction android:key="threshold_contains_people" android:title="@string/item_title_11" android:restrictionType="string" />
+    <restriction android:key="threshold_package" android:title="@string/item_title_12" android:restrictionType="string" />
+    <restriction android:key="threshold_surroundings" android:title="@string/item_title_13" android:restrictionType="string" />
+    <restriction android:key="threshold_image_quality" android:title="@string/item_title_14" android:restrictionType="string" />
+</restrictions>

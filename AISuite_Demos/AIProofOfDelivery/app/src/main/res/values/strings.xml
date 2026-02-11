@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Picture Proof of Delivery</string>
+    <string name="continue_text">Continue</string>
+    <string name="retake_text">Retake</string>
+    <string name="error_blurred">Poor image quality</string>
+    <string name="error_no_parcel">No Parcel Detected</string>
+    <string name="error_no_environment">Surroundings too Simple</string>
+    <string name="error_barcode">Barcode in Image</string>
+    <string name="error_filter_error">Compliance Check Failed</string>
+    <string name="error_ocr">Text in Image</string>
+    <string name="error_person">Person in Image</string>
+    <string name="error_location_info">Location information</string>
+    <string name="error_sensitive_info">Sensitive information</string>
+    <string name="error_label_info">Label information in Image</string>
+    <string name="error_compliance">Compliance Error</string>
+    <string name="review_issues">"Review issues detected</string>
+    <string name="successfully_captured">"Successfully captured!"</string>
+    <string name="settings">Settings</string>
+    <string name="settings_header_1">Image Compliance Checks</string>
+    <string name="settings_header_2">Captured Image Enhancements</string>
+    <string name="decrease">-</string>
+    <string name="increase">+</string>
+    <string name="provide_user_feedback">Provide feedback</string>
+    <string name="bad_feedback">Bad Feedback</string>
+    <string name="good_feedback">Good feedback</string>
+    <string name="capture_warning">When enabled, this sends the image, your thumbs up/down feedback, and current app settings to Zebra to evaluate application performance (not for model training).</string>
+    <string name="decline">Decline</string>
+    <string name="accept">Accept</string>
+    <string name="confirm">Continue</string>
+    <string name="waiting">Waiting for image processor</string>
+    <string name="init_failed">Failed to initialise processor</string>
+    <string name="license_error">Application license required</string>
+    <string name="processing">Processing image</string>
+    <string name="expiry_warning">This application is proprietary and is for demo purposes only. It is not intended for production use and will expire after Dec 31 2026.</string>
+    <string name="accept_eula">Accept EULA</string>
+</resources>

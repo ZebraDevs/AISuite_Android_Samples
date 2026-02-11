@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <category title="@string/category_0" description="@string/category_description_0">
+        <item title="@string/item_title_0" key="compliance_blur" type="bool" default="true" />
+        <item title="@string/item_title_1" key="compliance_package" type="bool" default="true" />
+        <item title="@string/item_title_2" key="compliance_surroundings" type="bool" default="true" />
+        <item title="@string/item_title_3" key="compliance_contains_people" type="bool" default="true" />
+    </category>
+    <category title="@string/category_1" description="@string/category_description_1">
+        <item title="@string/item_title_4" key="blur_people" type="bool" default="true" />
+        <item title="@string/item_title_5" key="blur_pets" type="bool" default="true" />
+        <item title="@string/item_title_6" key="blur_text" type="bool" default="true" />
+        <item title="@string/item_title_7" key="blur_barcodes" type="bool" default="true" />
+    </category>
+    <category title="@string/category_2" description="@string/category_description_2">
+        <item title="@string/item_title_8" key="blur_ratio" type="choice" default="@string/choice_default_0" entries="@array/choice_0_entries" entryValues="@array/choice_0_values" />
+    </category>
+    <category title="@string/category_3" description="@string/category_description_3">
+        <item title="@string/item_title_9" key="capture_resolution" type="choice" default="@string/choice_default_1" entries="@array/choice_1_entries" entryValues="@array/choice_1_values" />
+        <item title="@string/item_title_10" key="save_resolution" type="choice" default="@string/choice_default_2" entries="@array/choice_2_entries" entryValues="@array/choice_2_values" />
+    </category>
+    <category title="@string/category_4" description="@string/category_description_4">
+        <item title="@string/item_title_11" key="threshold_contains_people" type="float" minValue="0" maxValue="1" decimalPoints="2" />
+        <item title="@string/item_title_12" key="threshold_package" type="float" minValue="0" maxValue="1" decimalPoints="2" />
+        <item title="@string/item_title_13" key="threshold_surroundings" type="float" minValue="0" maxValue="1" decimalPoints="2" />
+        <item title="@string/item_title_14" key="threshold_image_quality" type="float" minValue="0" maxValue="1" decimalPoints="2" />
+        <item title="" key="eula_accepted" hidden="true" type="bool" default="false" />
+    </category>
+</settings>
