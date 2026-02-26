@@ -240,6 +240,23 @@ fun FinderScreen(
                 }
             }
 
+            if (zoomScale > 1f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(end = AppDimensions.dimension_42dp + AppDimensions.dimension_42dp + AppDimensions.dimension_24dp)
+                ) {
+                    ZoomIndicator(
+                        onClick = {
+                            Log.d(TAG, "Default ZoomIndicator clicked. Resetting zoom to default 1f")
+                            finderViewModel.updateZoomScale(1f)
+                        },
+                        zoomValue = 1f,
+                        backgroundAlpha = 0.88f
+                    )
+                }
+            }
+
             Box(
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
@@ -260,7 +277,8 @@ fun FinderScreen(
                         Log.d(TAG, "Updating zoom to: $newZoom")
                         finderViewModel.updateZoomScale(newZoom)
                     },
-                    zoomValue = zoomScale
+                    zoomValue = zoomScale,
+                    backgroundAlpha = if (zoomScale == 1f) 0f else 0.88f
                 )
             }
         }

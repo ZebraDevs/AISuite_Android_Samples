@@ -22,7 +22,8 @@ import com.zebra.ai.barcodefinder.application.presentation.ui.theme.zoomIndicato
 @Composable
 fun ZoomIndicator(
     onClick: () -> Unit,
-    zoomValue: Float
+    zoomValue: Float,
+    backgroundAlpha: Float = 0.88f
 ) {
     // This outer Box is for screen positioning. Its alignment is controlled by its parent.
     Box(
@@ -38,10 +39,15 @@ fun ZoomIndicator(
                 .size(AppDimensions.dimension_42dp)
                 .clip(CircleShape) // The circular clip turns the square into a perfect circle.
                 .clickable(onClick = onClick)
-                .background(color = zoomIndicatorColor)
+                .background(color = zoomIndicatorColor.copy(alpha = backgroundAlpha))
         ) {
+            val displayText = if (zoomValue % 1 == 0f) {
+                "${zoomValue.toInt()}x"
+            } else {
+                "%.1fx".format(zoomValue)
+            }
             ZebraText(
-                textValue = "%.1fx".format(zoomValue),
+                textValue = displayText,
                 style = TextStyle(
                     fontSize = AppDimensions.dialogTextFontSizeExtraSmall,
                     lineHeight = AppDimensions.dialogTextFontSizeMedium,
