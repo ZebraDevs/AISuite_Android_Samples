@@ -10,12 +10,14 @@ import com.zebra.ai.vision.detector.Word
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
 import com.zebra.ai.vision.entity.LabelEntity
+import com.zebra.ai.vision.entity.LocalizerEntity
 import com.zebra.ai.vision.entity.ParagraphEntity
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
 import com.zebra.aisuite_quickstart.kotlin.analyzers.tracker.TrackerGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRGraphic
+import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseLocalizerGraphic
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 
 class DetectionResultHandler(
@@ -445,6 +447,28 @@ class DetectionResultHandler(
                 }
             }
             entityViewGraphic.render()
+        }
+    }
+    fun handleWareHouseLocalizerDetectionResult(result: List<LocalizerEntity>){
+        val rects = mutableListOf<Rect>()
+
+        activity.runOnUiThread {
+            activity.binding.graphicOverlay.clear()
+            result.forEach { bb ->
+                val rect = bb.boundingBox
+                rect?.let {
+                    Log.d(TAG, "Original bbox: $rect")
+                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                    Log.d(TAG, "Mapped bbox: $overlayRect")
+                    rects.add(overlayRect)
+                }
+            }
+            activity.binding.graphicOverlay.add(
+                WareHouseLocalizerGraphic(
+                    activity.binding.graphicOverlay,
+                    rects
+                )
+            )
         }
     }
 }

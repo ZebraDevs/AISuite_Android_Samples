@@ -52,7 +52,7 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
      * Implement this interface to define how detection results are processed.
      */
     public interface DetectionCallback {
-        void onDetectionResult(List<BarcodeEntity> list);
+        void onDetectionResult(List<BarcodeEntity> list, long processingTime);
     }
 
     private static final String TAG = "BarcodeAnalyzer";
@@ -91,18 +91,24 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
         Future<?> future = executorService.submit(() -> {
             try {
                 Log.d(TAG, "Starting image analysis");
-                barcodeDecoder.process(ImageData.fromImageProxy(image))
+                ImageData imageData = ImageData.fromImageProxy(image);
+                long start = System.currentTimeMillis();
+                barcodeDecoder.process(imageData)
                         .thenAccept(result -> {
+                            long processingTime = System.currentTimeMillis() - start;
+                            Log.d(TAG, "processing time: " + processingTime + "ms");
                             if (!isStopped) {
-                                callback.onDetectionResult(result);
+                                callback.onDetectionResult(result, processingTime);
                             }
+                            isAnalyzing = true;
+                            image.close();
                         })
                         .exceptionally(ex -> {
                             Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                            isAnalyzing = true;
+                            image.close();
                             return null;
                         });
-                image.close();
-                isAnalyzing = true;
             } catch (AIVisionSDKException e) {
                 Log.e(TAG, Objects.requireNonNull(e.getMessage()));
                 image.close();

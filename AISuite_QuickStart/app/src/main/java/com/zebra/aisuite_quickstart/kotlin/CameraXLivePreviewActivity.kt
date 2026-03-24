@@ -25,6 +25,7 @@ import com.zebra.ai.vision.detector.Recognizer
 import com.zebra.ai.vision.detector.Word
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
+import com.zebra.ai.vision.entity.LocalizerEntity
 import com.zebra.ai.vision.entity.ParagraphEntity
 import com.zebra.ai.vision.viewfinder.EntityViewController
 import com.zebra.ai.vision.viewfinder.listners.EntityViewResizeSpecs
@@ -43,6 +44,8 @@ import com.zebra.aisuite_quickstart.kotlin.handlers.BoundingBoxMapper
 import com.zebra.aisuite_quickstart.kotlin.handlers.DetectionResultHandler
 import com.zebra.aisuite_quickstart.kotlin.handlers.UIHandler
 import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseLocalizerHandler
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionSample
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionSampleAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample.BarcodeSample
@@ -61,7 +64,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
     Tracker.DetectionCallback,
     EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback,
-    OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback {
+    OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback, WareHouseAnalyzer.DetectionCallback {
 
     lateinit var binding: ActivityCameraXlivePreviewBinding
     private val tag = "CameraXLivePreviewActivityKotlin"
@@ -79,6 +82,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var ocrHandler: OCRHandler? = null
     private var ocrSample: OCRSample? = null
     private var productRecognitionHandler: ProductRecognitionHandler? = null
+    private var wareHouseLocalizerHandler: WareHouseLocalizerHandler? = null
     private var productRecognitionSample: ProductRecognitionSample? = null
     private var tracker: Tracker? = null
     private var barcodeLegacySample: BarcodeSample? = null
@@ -351,6 +355,14 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     }
                 }
 
+                WAREHOUSE_LOCALIZER -> {
+                    Log.i(tag, "Using WareHouse Localizer")
+                    executors.execute {
+                        wareHouseLocalizerHandler =
+                            WareHouseLocalizerHandler(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                    }
+                }
+
                 else -> throw IllegalStateException("Invalid model name")
             }
         } catch (e: Exception) {
@@ -364,7 +376,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         Log.v(tag, "OnResume called")
         clearGraphicOverlay()
 
-        val currentRotation = binding.previewView.display?.rotation ?: Surface.ROTATION_0
+        val currentRotation = display?.rotation ?: Surface.ROTATION_0
         if (currentRotation != initialRotation) {
             Log.d(
                 tag,
@@ -429,6 +441,11 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 LEGACY_PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Stopping the legacy product recognition analyzer")
                     productRecognitionSample?.getProductRecognitionAnalyzer()?.stopAnalyzing()
+                }
+
+                WAREHOUSE_LOCALIZER -> {
+                    Log.i(tag, "Stopping the warehouse analyzer")
+                    wareHouseLocalizerHandler?.getWareHouseAnalyzer()?.stop()
                 }
 
                 else -> Log.e(tag, "Invalid stop analyzer option")
@@ -496,6 +513,18 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         detectionHandler.handleLegacyTextOCRDetection(list)
     }
 
+    override fun onDetectionRecognitionResult(
+        detections: Array<BBox>,
+        products: Array<BBox>,
+        recognitions: Array<Recognizer.Recognition>
+    ) {
+        detectionHandler.handleLegacyDetectionRecognitionResult(detections, products, recognitions)
+    }
+
+    override fun onLocalizerDetectionResult(result: List<LocalizerEntity>) {
+        detectionHandler.handleWareHouseLocalizerDetectionResult(result)
+    }
+
     fun disposeModels() {
         try {
             when (previousSelectedModel) {
@@ -540,6 +569,11 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     productRecognitionSample?.stop()
                 }
 
+                WAREHOUSE_LOCALIZER -> {
+                    Log.i(tag, "Disposing the warehouse localizer")
+                    wareHouseLocalizerHandler?.stop()
+                }
+
                 else -> Log.e(tag, "Invalid selected option")
             }
         } catch (e: java.lang.Exception) {
@@ -556,6 +590,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         private const val LEGACY_BARCODE_DETECTION = "Legacy Barcode"
         private const val LEGACY_OCR_DETECTION = "Legacy OCR"
         private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
+        private const val WAREHOUSE_LOCALIZER = "Warehouse Localizer(beta)"
 
     }
 
@@ -587,11 +622,4 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         super.onDestroy()
     }
 
-    override fun onDetectionRecognitionResult(
-        detections: Array<BBox>,
-        products: Array<BBox>,
-        recognitions: Array<Recognizer.Recognition>
-    ) {
-    detectionHandler.handleLegacyDetectionRecognitionResult(detections, products, recognitions)
-    }
 }

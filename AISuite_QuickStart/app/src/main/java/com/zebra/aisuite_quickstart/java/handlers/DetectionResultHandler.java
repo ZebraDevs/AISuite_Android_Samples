@@ -14,6 +14,7 @@ import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.Entity;
 import com.zebra.ai.vision.entity.LabelEntity;
 import com.zebra.ai.vision.entity.LineEntity;
+import com.zebra.ai.vision.entity.LocalizerEntity;
 import com.zebra.ai.vision.entity.ParagraphEntity;
 import com.zebra.ai.vision.entity.ProductEntity;
 import com.zebra.ai.vision.entity.ShelfEntity;
@@ -23,6 +24,7 @@ import com.zebra.aisuite_quickstart.java.analyzers.tracker.TrackerGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.productrecognition.ProductRecognitionGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.textocrsample.OCRGraphic;
+import com.zebra.aisuite_quickstart.java.detectors.warehouselocalizer.WareHouseLocalizerGraphic;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityViewGraphic;
 
 import java.util.ArrayList;
@@ -106,8 +108,11 @@ public class DetectionResultHandler {
                         ComplexBBox bbox = word.getComplexBBox();
                         if (!word.getText().isEmpty()) {
                             if (bbox != null && bbox.x != null && bbox.y != null &&
-                                    bbox.x.length >= 3 && bbox.y.length >= 3) {
-                                float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
+                                    bbox.x.length >= 4 && bbox.y.length >= 4) {
+                                float minX = Math.min(Math.min(bbox.x[0], bbox.x[1]), Math.min(bbox.x[2], bbox.x[3]));
+                                float maxX = Math.max(Math.max(bbox.x[0], bbox.x[1]), Math.max(bbox.x[2], bbox.x[3]));
+                                float minY = Math.min(Math.min(bbox.y[0], bbox.y[1]), Math.min(bbox.y[2], bbox.y[3]));
+                                float maxY = Math.max(Math.max(bbox.y[0], bbox.y[1]), Math.max(bbox.y[2], bbox.y[3]));
                                 Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
                                 Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
                                 rects.add(overlayRect);
@@ -314,8 +319,11 @@ public class DetectionResultHandler {
                             for (WordEntity wordEntity : lineEntity.getWords()) {
                                 ComplexBBox bbox = wordEntity.getComplexBBox();
 
-                                if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 3 && bbox.y.length >= 3) {
-                                    float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
+                                if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.length >= 4 && bbox.y.length >= 4) {
+                                    float minX = Math.min(Math.min(bbox.x[0], bbox.x[1]), Math.min(bbox.x[2], bbox.x[3]));
+                                    float maxX = Math.max(Math.max(bbox.x[0], bbox.x[1]), Math.max(bbox.x[2], bbox.x[3]));
+                                    float minY = Math.min(Math.min(bbox.y[0], bbox.y[1]), Math.min(bbox.y[2], bbox.y[3]));
+                                    float maxY = Math.max(Math.max(bbox.y[0], bbox.y[1]), Math.max(bbox.y[2], bbox.y[3]));
 
                                     Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
                                     Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
@@ -409,6 +417,25 @@ public class DetectionResultHandler {
                 }
             }
             entityViewGraphic.render();
+        });
+    }
+    public void handleWareHouseLocalizerDetectionResult(List<LocalizerEntity> result) {
+        List<Rect> rects = new ArrayList<>();
+
+        activity.runOnUiThread(() -> {
+            activity.getBinding().graphicOverlay.clear();
+            if (result != null) {
+                for (LocalizerEntity entity : result) {
+                    Rect rect = entity.getBoundingBox();
+                    if (rect != null) {
+                        Log.d(TAG, String.format("Original bbox: %s", rect));
+                        Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
+                        Log.d(TAG, String.format("Mapped bbox: %s", overlayRect));
+                        rects.add(overlayRect);
+                    }
+                }
+                activity.getBinding().graphicOverlay.add(new WareHouseLocalizerGraphic(activity.getBinding().graphicOverlay, rects));
+            }
         });
     }
 }

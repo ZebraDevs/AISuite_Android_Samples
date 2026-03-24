@@ -41,7 +41,7 @@ public class UIHandler {
     private static final String PRODUCT_RECOGNITION = "Product Recognition";
     private static final String LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
-
+    private static final String WAREHOUSE_LOCALIZER = "Warehouse Localizer(beta)";
     private String selectedModel = BARCODE_DETECTION;
     private final SharedPreferences sharedPreferences;
     private boolean isEntityViewFinder = false;
@@ -69,6 +69,7 @@ public class UIHandler {
         options.add(PRODUCT_RECOGNITION);
         options.add(ENTITY_ANALYZER);
         options.add(ENTITY_VIEW_FINDER);
+        options.add(WAREHOUSE_LOCALIZER);
         // options.add(LEGACY_BARCODE_DETECTION); // uncomment to use barcode legacy option
         // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option
        // options.add(LEGACY_PRODUCT_RECOGNITION); // Uncomment to use Product recognition legacy option

@@ -11,6 +11,7 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Display;
 import android.view.Surface;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -28,6 +29,7 @@ import com.zebra.ai.vision.detector.Recognizer;
 import com.zebra.ai.vision.detector.Word;
 import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.Entity;
+import com.zebra.ai.vision.entity.LocalizerEntity;
 import com.zebra.ai.vision.entity.ParagraphEntity;
 import com.zebra.ai.vision.viewfinder.EntityViewController;
 import com.zebra.aisuite_quickstart.CameraXViewModel;
@@ -40,6 +42,8 @@ import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeA
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeHandler;
 import com.zebra.aisuite_quickstart.java.detectors.textocrsample.OCRHandler;
 import com.zebra.aisuite_quickstart.java.detectors.textocrsample.TextOCRAnalyzer;
+import com.zebra.aisuite_quickstart.java.detectors.warehouselocalizer.WareHouseAnalyzer;
+import com.zebra.aisuite_quickstart.java.detectors.warehouselocalizer.WareHouseLocalizerHandler;
 import com.zebra.aisuite_quickstart.java.handlers.BoundingBoxMapper;
 import com.zebra.aisuite_quickstart.java.handlers.DetectionResultHandler;
 import com.zebra.aisuite_quickstart.java.handlers.UIHandler;
@@ -87,7 +91,7 @@ import java.util.concurrent.Executors;
  * <p>
  * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
  */
-public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, Tracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback {
+public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, Tracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback, WareHouseAnalyzer.DetectionCallback {
 
     private ActivityCameraXlivePreviewBinding binding;
     private final String TAG = "CameraXLivePreviewActivityJava";
@@ -99,6 +103,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private static final String PRODUCT_RECOGNITION = "Product Recognition";
     private static final String LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
+    private static final String WAREHOUSE_LOCALIZER = "Warehouse Localizer(beta)";
     private ImageAnalysis analysisUseCase;
     private int imageWidth;
     private int imageHeight;
@@ -121,6 +126,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private int initialRotation = Surface.ROTATION_0;
     private DisplayManager displayManager;
     private DisplayManager.DisplayListener displayListener;
+    private WareHouseLocalizerHandler wareHouseLocalizerHandler;
 
     // Store pending viewfinder resize data to apply once analyzer is ready
     private Matrix pendingTransformMatrix = null;
@@ -315,12 +321,20 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         productRecognitionSample.getProductRecognitionSampleAnalyzer().stopAnalyzing();
                     }
                     break;
+                case WAREHOUSE_LOCALIZER:
+                    Log.i(TAG, "Stopping the warehouse localizer");
+                    if (wareHouseLocalizerHandler != null && wareHouseLocalizerHandler.getWareHouseAnalyzer() != null) {
+                        wareHouseLocalizerHandler.getWareHouseAnalyzer().stopAnalyzing();
+                    }
+                    break;
                 default:
                     Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
+
         } catch (Exception e) {
             Log.e(TAG, "Can not stop the analyzer: " + previousSelectedModel, e);
         }
+        binding.inferenceTimeTextView.setVisibility(View.GONE);
     }
 
     public void disposeModels() {
@@ -376,6 +390,12 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         productRecognitionSample.stop();
                     }
                     break;
+                case WAREHOUSE_LOCALIZER:
+                    Log.i(TAG, "Disposing the warehouse localizer");
+                    if (wareHouseLocalizerHandler != null) {
+                        wareHouseLocalizerHandler.stop();
+                    }
+                    break;
                 default:
                     Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
@@ -393,13 +413,21 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     // Handles barcode detection results and updates the graphical overlay
     @Override
-    public void onDetectionResult(List<BarcodeEntity> result) {
+    public void onDetectionResult(List<BarcodeEntity> result, long processingTime) {
+        runOnUiThread(()->{
+            binding.inferenceTimeTextView.setVisibility(View.VISIBLE);
+            binding.inferenceTimeTextView.setText("Process() API duration: "+processingTime+" ms");
+        });
         detectionHandler.handleBarcodeDetection(result);
     }
 
     // Handles text OCR detection results and updates the graphical overlay
     @Override
-    public void onDetectionTextResult(List<ParagraphEntity> list) {
+    public void onDetectionTextResult(List<ParagraphEntity> list, long processingTime) {
+        runOnUiThread(()->{
+            binding.inferenceTimeTextView.setVisibility(View.VISIBLE);
+            binding.inferenceTimeTextView.setText("Process() API duration: "+processingTime+" ms");
+        });
         detectionHandler.handleTextOCRDetection(list);
     }
 
@@ -495,6 +523,11 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         detectionHandler.handleLegacyProductRecognitionResult(detections, products, recognitions);
     }
 
+    @Override
+    public void onWareHouseLocalizerDetectionResult(List<LocalizerEntity> result) {
+        detectionHandler.handleWareHouseLocalizerDetectionResult(result);
+    }
+
     public void bindAnalysisUseCase() {
         if (cameraManager.getCameraProvider() == null) {
             return;
@@ -552,6 +585,10 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 case LEGACY_PRODUCT_RECOGNITION:
                     Log.i(TAG, "Using Legacy Product Recognition");
                     executors.execute(() -> productRecognitionSample = new ProductRecognitionSample(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase) );
+                    break;
+                case WAREHOUSE_LOCALIZER:
+                    Log.i(TAG, "Using WareHouse Localizer");
+                    executors.execute(() -> wareHouseLocalizerHandler = new WareHouseLocalizerHandler(this, this, analysisUseCase));
                     break;
                 default:
                     throw new IllegalStateException("Invalid model name");
@@ -673,5 +710,6 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     public EntityViewController getEntityViewController(){
         return entityViewController;
     }
+
 
 }

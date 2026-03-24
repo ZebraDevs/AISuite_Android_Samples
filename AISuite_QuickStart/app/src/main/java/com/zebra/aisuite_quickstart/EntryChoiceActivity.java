@@ -97,6 +97,9 @@ public class EntryChoiceActivity extends AppCompatActivity {
         } catch (UnsupportedOperationException ex) {
             runOnUiThread(() -> showErrorDialog(ex.getMessage()));
         }
+        // Get the SDK version
+        String sdkVersion = AIVisionSDK.getInstance(this).getSDKVersion();
+        binding.sdkVersionText.setText("SDK version: "+sdkVersion);
     }
 
     /**

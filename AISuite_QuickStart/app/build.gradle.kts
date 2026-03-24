@@ -15,14 +15,31 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "3.8"
+        val appVersion: String = libs.versions.appVersion.get()
+        versionName = appVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val output = this
+            val fileName = "AIDCQuickStart-${variant.buildType.name}-v${variant.versionName}.apk"
+            (output as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = fileName
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -72,4 +89,7 @@ dependencies {
 
     //Below dependency is to get product Recognition model for AI Suite SDK
     implementation(libs.product.and.shelf.recognizer) { artifact { type = "aar" } }
+
+    //Below dependency is to get warehouse localizer beta model for AI Suite SDK
+    implementation(libs.warehouse.localizer) { artifact { type = "aar" } }
 }

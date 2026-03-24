@@ -12,8 +12,8 @@ The AI Suite Quick Start repository provides sample code to use various features
 * This guide focuses on the contents of the AISuite_QuickStart folder, which is specifically designed to simplify the onboarding process for developers.
 
 ## Useful References
-- [SDK Documentation](https://techdocs.zebra.com/ai-datacapture/latest/about/)
-- [Model Information](https://techdocs.zebra.com/ai-datacapture/latest/setup/#featuresmodels)
+- [SDK Documentation](https://techdocs.zebra.com/ai-datacapture/3-1/about/)
+- [Model Information](https://techdocs.zebra.com/ai-datacapture/3-1/setup/#featuresmodels)
 - [Developer Experience Videos](https://www.youtube.com/zebratechnologies)
 
 ## Key Features
@@ -23,7 +23,7 @@ The AI Suite Quick Start repository provides sample code to use various features
 * Extensibility: Designed to help developers expand and customize as needed.
 
 ## Requirements
-Refer to the requirements outlined at [TechDocs](https://techdocs.zebra.com/ai-datacapture/latest/setup/#requirements)
+Refer to the requirements outlined at [TechDocs](https://techdocs.zebra.com/ai-datacapture/3-1/setup/#requirements)
 
 ## Developer Tools:
 A code editor (e.g., Android Studio)
@@ -40,34 +40,36 @@ Here’s an overview of the AISuite_QuickStart Sample Application folder:
 #### app/src/main/java/com/zebra/aisuite_quickstart
 ##### Java
 ##### analyzers
-- [tracker](app/src/main/java/com/zebra/aisuite_quickstart/java/analyzers/tracker) - Java Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
+- [tracker](app/src/main/java/com/zebra/aisuite_quickstart/java/analyzers/tracker) - Java Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/3-1/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
 ##### detectors
-- [barcodedecodersample](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/barcodedecodersample) - Java Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
-- [textocrsample](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/textocrsample) - Java Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
+- [barcodedecodersample](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/barcodedecodersample) - Java Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/3-1/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
+- [textocrsample](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/textocrsample) - Java Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/3-1/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
+- [productrecognition](app/src/main/java/com/zebra/aisuite_quickstart/java/detectors/productrecognition) - Java Snippet showing how to use [ModuleRecognizer as a detector](https://techdocs.zebra.com/ai-datacapture/3-1/productrecognition/#modulerecognizer) in your CameraX Analyzer.
 ##### lowlevel
-- [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/productrecognitionsample) - Java Sample to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) application. <br> <br> **Note:** The Product Recognition feature requires enrollment of products to generate a product index for the products to be recognized. In [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/productrecognitionsample), there is a [sample shelf image](app/src/main/assets/demo_shelf.jpg) and the corresponding [product.index](app/src/main/assets/product.index) are used. Developers can use the [sample shelf image](app/src/main/assets/demo_shelf.jpg) to check how the products are recognized. For the product enrollment process, please refer to [AIDataCaptureDemo](../AISuite_Demos/AIDataCaptureDemo).<br><br>
-- [simplebarcodesample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/simplebarcodesample) - Java Sample to use [detect/decode APIs to localize and decode barcodes](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#decodebitmapbmpbboxdetectionsexecutorexecutor) from BitMap images.
-- [simpleocrsample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/simpleocrsample) - Java Sample to use [detect APIs to recognize text](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#detectparagraphsbitmapsrcimgexecutorexecutor) from BitMap images.
+- [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/productrecognitionsample) - Java Sample to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/3-1/productrecognition/) application. <br> <br> **Note:** The Product Recognition feature requires enrollment of products to generate a product index for the products to be recognized. In [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/productrecognitionsample), there is a [sample shelf image](app/src/main/assets/demo_shelf.jpg) and the corresponding [product.index](app/src/main/assets/product.index) are used. Developers can use the [sample shelf image](app/src/main/assets/demo_shelf.jpg) to check how the products are recognized. For the product enrollment process, please refer to [AIDataCaptureDemo](../AISuite_Demos/AIDataCaptureDemo).<br><br>
+- [simplebarcodesample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/simplebarcodesample) - Java Sample to use [detect/decode APIs to localize and decode barcodes](https://techdocs.zebra.com/ai-datacapture/3-1/barcodedecoder/#decodebitmapbmpbboxdetectionsexecutorexecutor) from BitMap images.
+- [simpleocrsample](app/src/main/java/com/zebra/aisuite_quickstart/java/lowlevel/simpleocrsample) - Java Sample to use [detect APIs to recognize text](https://techdocs.zebra.com/ai-datacapture/3-1/textocr/#detectparagraphsbitmapsrcimgexecutorexecutor) from BitMap images.
 ##### viewfinder
-- [viewfinder](app/src/main/java/com/zebra/aisuite_quickstart/java/viewfinder/EntityViewGraphic.java) - Java Sample showing how to use [AI Data Capture SDK's Viewfinder](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entityviewfinder) along with [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to display tracked entities
+- [viewfinder](app/src/main/java/com/zebra/aisuite_quickstart/java/viewfinder/EntityViewGraphic.java) - Java Sample showing how to use [AI Data Capture SDK's Viewfinder](https://techdocs.zebra.com/ai-datacapture/3-1/camerax/#entityviewfinder) along with [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/3-1/camerax/#entitytrackeranalyzer) to display tracked entities
 ##### Kotlin
 ##### analyzers
-- [tracker](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/analyzers/tracker) - Kotlin Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
+- [tracker](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/analyzers/tracker) - Kotlin Sample using [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/3-1/camerax/#entitytrackeranalyzer) to detect/decode/track barcodes.
 ##### detectors
-- [barcodedecodersample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/barcodedecodersample) - Kotlin Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
-- [textocrsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/textocrsample) - Kotlin Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
+- [barcodedecodersample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/barcodedecodersample) - Kotlin Sample showing how to use [BarcodeDecoder as a detector](https://techdocs.zebra.com/ai-datacapture/3-1/barcodedecoder/#processimagedataimagedata) in your CameraX Analyzer.
+- [textocrsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/textocrsample) - Kotlin Sample showing how to use [TextOCR as a detector](https://techdocs.zebra.com/ai-datacapture/3-1/textocr/#processimagedataimagedataexecutorexecutor) in your CameraX Analyzer.
+- [productrecognition](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/detectors/productrecognition) - Kotlin Sample showing how to use [ModuleRecognizer as a detector](https://techdocs.zebra.com/ai-datacapture/3-1/productrecognition/#modulerecognizer) in your CameraX Analyzer.
 ##### lowlevel
-- [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/productrecognitionsample) - Kotlin Sample to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/latest/productrecognition/) application. <br><br> **Note:** The Product Recognition feature requires enrollment of products to generate a product index for the products to be recognized. In [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/productrecognitionsample), there is a [sample shelf image](app/src/main/assets/demo_shelf.jpg) and the corresponding [product.index](app/src/main/assets/product.index) are used. Developers can use the [sample shelf image](app/src/main/assets/demo_shelf.jpg) to check how the products are recognized. For the product enrollment process, please refer to [AIDataCaptureDemo](../AISuite_Demos/AIDataCaptureDemo).<br><br>
-- [simplebarcodesample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/simplebarcodesample) - Kotlin Sample to use [detect/decode APIs to localize and decode barcodes](https://techdocs.zebra.com/ai-datacapture/latest/barcodedecoder/#decodebitmapbmpbboxdetectionsexecutorexecutor) from BitMap images.
-- [simpleocrsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/simplebarocrsample) - Kotlin Sample to use [detect APIs to recognize text](https://techdocs.zebra.com/ai-datacapture/latest/textocr/#detectparagraphsbitmapsrcimgexecutorexecutor) from BitMap images.
+- [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/productrecognitionsample) - Kotlin Sample to build a [shelf localization and product recognition](https://techdocs.zebra.com/ai-datacapture/3-1/productrecognition/) application. <br><br> **Note:** The Product Recognition feature requires enrollment of products to generate a product index for the products to be recognized. In [productrecognitionsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/productrecognitionsample), there is a [sample shelf image](app/src/main/assets/demo_shelf.jpg) and the corresponding [product.index](app/src/main/assets/product.index) are used. Developers can use the [sample shelf image](app/src/main/assets/demo_shelf.jpg) to check how the products are recognized. For the product enrollment process, please refer to [AIDataCaptureDemo](../AISuite_Demos/AIDataCaptureDemo).<br><br>
+- [simplebarcodesample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/simplebarcodesample) - Kotlin Sample to use [detect/decode APIs to localize and decode barcodes](https://techdocs.zebra.com/ai-datacapture/3-1/barcodedecoder/#decodebitmapbmpbboxdetectionsexecutorexecutor) from BitMap images.
+- [simpleocrsample](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/lowlevel/simpleocrsample) - Kotlin Sample to use [detect APIs to recognize text](https://techdocs.zebra.com/ai-datacapture/3-1/textocr/#detectparagraphsbitmapsrcimgexecutorexecutor) from BitMap images.
 ##### viewfinder
-- [viewfinder](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/viewfinder/EntityViewGraphic.java) - Kotlin Sample showing how to use [AI Data Capture SDK's Viewfinder](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entityviewfinder) along with [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to display tracked entities.
+- [viewfinder](app/src/main/java/com/zebra/aisuite_quickstart/kotlin/viewfinder/EntityViewGraphic.kt) - Kotlin Sample showing how to use [AI Data Capture SDK's Viewfinder](https://techdocs.zebra.com/ai-datacapture/3-1/camerax/#entityviewfinder) along with [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/3-1/camerax/#entitytrackeranalyzer) to display tracked entities.
 
 ## Support
 If you encounter any issues or have questions about using the AI Suite Quick Start, feel free to contact Zebra Technologies support through the official support page.
 
 ## Thank You
-Lastly, thank you for being a part of our community. If you have any quesitons, please reach out to our DevRel team at developer@zebra.com
+Lastly, thank you for being a part of our community. If you have any questions, please reach out to our DevRel team at developer@zebra.com
 
 This README.md is designed to provide clarity and a user-friendly onboarding experience for developers. If you have specific details about the project that you would like to include, feel free to let us know!
 

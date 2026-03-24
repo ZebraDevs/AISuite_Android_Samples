@@ -36,6 +36,7 @@ class UIHandler(
         private const val PRODUCT_RECOGNITION = "Product Recognition"
         private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
         private const val ENTITY_VIEW_FINDER = "Entity Viewfinder"
+        private const val WAREHOUSE_LOCALIZER = "Warehouse Localizer(beta)"
     }
 
     private var selectedModel: String = BARCODE_DETECTION
@@ -79,6 +80,7 @@ class UIHandler(
             PRODUCT_RECOGNITION,
             ENTITY_ANALYZER,
             ENTITY_VIEW_FINDER,
+            WAREHOUSE_LOCALIZER,
             // LEGACY_BARCODE_DETECTION, // Uncomment to use barcode legacy option
             // LEGACY_OCR_DETECTION // Uncomment to use OCR legacy option
             //LEGACY_PRODUCT_RECOGNITION // Uncomment to use Product recognition legacy option

@@ -54,7 +54,7 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
      * Implement this interface to define how OCR results are processed.
      */
     public interface DetectionCallback {
-        void onDetectionTextResult(List<ParagraphEntity> list);
+        void onDetectionTextResult(List<ParagraphEntity> list, long processingTime);
     }
 
     private static final String TAG = "TextOCRAnalyzer";
@@ -94,19 +94,25 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
         Future<?> future = executorService.submit(() -> {
             try {
                 Log.d(TAG, "Starting image analysis");
-
-                textOCR.process(ImageData.fromImageProxy(image))
+                ImageData imageData = ImageData.fromImageProxy(image);
+                long start = System.currentTimeMillis();
+                textOCR.process(imageData)
                         .thenAccept(result -> {
+                            long processingTime = System.currentTimeMillis() - start;
+                            Log.d(TAG, "processing time: " + processingTime + "ms");
                             if (!isStopped) {
-                                callback.onDetectionTextResult(result);
+                                callback.onDetectionTextResult(result, processingTime);
                             }
+                            isAnalyzing = true;
+                            image.close();
                         })
                         .exceptionally(ex -> {
                             Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                            isAnalyzing = true;
+                            image.close();
                             return null;
                         });
-                isAnalyzing = true;
-                image.close();
+
             } catch (AIVisionSDKException e) {
                 Log.e(TAG, Objects.requireNonNull(e.getMessage()));
                 isAnalyzing = true;
