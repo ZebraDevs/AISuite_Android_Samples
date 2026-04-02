@@ -39,7 +39,7 @@ To get started with the sample applications:
 - Clone the Repository: Download the repository to your local machine using git clone.
 - Explore the Samples: Browse through the sample applications to understand their structure and functionality.
 - Read the Documentation: Refer to the included documentation for detailed information on each sample.
-
+- **Licensing:** The Zebra Showcase App provides a pre-licensed, ready to run demo app. To compile the sample app from source code, a Picture Proof of Delivery License (AI Blueprint, Annual) is required. The SKU for this annual license is **ZEBRA-AI-BP-PPOD**. See [Licensing](https://techdocs.zebra.com/ai-datacapture/latest/license/) for procurement and deployment instructions.
 
 ## Directory Structure
 
@@ -61,6 +61,7 @@ Sample application to aide developers build applications using AI DataCapture SD
 Usecase demos built using the capabilities of AI DataCapture SDK, ready to be adopted into customer apps.
  - [AI Data Capture Demo](AISuite_Demos/AIDataCaptureDemo) - Usecase and technology demos showcasing main features and configurations of AISuite
  - [AI Barcode Finder](AISuite_Demos/AI_Barcode_Finder) - Usecase Demo that uses [EntityTrackerAnalyzer](https://techdocs.zebra.com/ai-datacapture/latest/camerax/#entitytrackeranalyzer) to build a multi-barcode finder application easily to interact with actionable barcodes.
+ - [AI Proof Of Delivery](AISuite_Demos/AIProofOfDelivery) - Picture Proof of Delivery (PPOD) is an on-device AI Blueprint that solves common challenges for delivery drivers. Under constant time pressure, drivers must capture clear, compliant images that show both the parcel and its surroundings, while simultaneously avoiding sensitive data like faces or license plates. This Blueprint simplifies the process, guiding the driver to get a compliant picture on the first attempt.
 
 ## Support
 If you encounter any issues or have questions about using the AI Suite, feel free to contact Zebra Technologies support through the official support page.
