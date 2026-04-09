@@ -5,6 +5,7 @@ package com.zebra.ai.barcodefinder.application.data.source.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import com.zebra.ai.barcodefinder.R
 import com.zebra.ai.barcodefinder.application.domain.enums.ActionState
@@ -14,6 +15,8 @@ import com.zebra.ai.barcodefinder.application.domain.model.ActionableBarcode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Repository for managing actionable barcodes and their states in the app.
@@ -33,6 +36,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class ActionableBarcodeRepository private constructor(context: Context) {
 
     companion object {
+        private const val TAG = "ActionableBarcodeRepository"
+
         @Volatile
         private var INSTANCE: ActionableBarcodeRepository? = null
 
@@ -47,6 +52,8 @@ class ActionableBarcodeRepository private constructor(context: Context) {
             }
         }
     }
+
+    private val mutex = Mutex()
 
     // Maps and lists for tracking actionable barcodes and their configuration states
     private val _actionableBarcodeMapForTracking = mutableMapOf<String, ActionableBarcode>()
@@ -109,6 +116,7 @@ class ActionableBarcodeRepository private constructor(context: Context) {
      * Optionally attaches user data to the barcode.
      */
     fun addActionCompletedBarcode(barcode: ActionableBarcode, userData: Map<String, Any>? = null) {
+        Log.d(TAG, "ADD: Called from thread " + Thread.currentThread().name)
         barcode.actionState = ActionState.STATE_ACTION_COMPLETED
 
         userData?.forEach { (key, value) -> barcode.setUserData(key, value.toString()) }
@@ -124,18 +132,21 @@ class ActionableBarcodeRepository private constructor(context: Context) {
      * Returns a copy of the completed barcodes list.
      */
     fun getActionCompletedBarcodes(): List<ActionableBarcode> {
+        Log.d(TAG , "GET: Called from thread " + Thread.currentThread().name)
         return _actionCompletedBarcodeList.toList()
     }
 
     /**
      * Clears the completed barcodes list and resets their states.
      */
-    fun clearActionCompletedBarcodes() {
-        _actionCompletedBarcodeList.forEach { barcode ->
-            barcode.actionState = ActionState.STATE_ACTION_NOT_COMPLETED
+    suspend fun clearActionCompletedBarcodes() {
+        mutex.withLock {
+            _actionCompletedBarcodeList.forEach { barcode ->
+                barcode.actionState = ActionState.STATE_ACTION_NOT_COMPLETED
+            }
+            _actionCompletedBarcodeList.clear()
+            _actionCompletedBarcodes.value = emptyList()
         }
-        _actionCompletedBarcodeList.clear()
-        _actionCompletedBarcodes.value = emptyList()
     }
 
     /**
@@ -224,12 +235,14 @@ class ActionableBarcodeRepository private constructor(context: Context) {
     /**
      * Applies the current configuration, resets completed actions, and persists to JSON.
      */
-    fun applyConfigurations() {
-        _actionCompletedBarcodeList.clear()
-        _actionCompletedBarcodes.value = emptyList()
-        _actionableBarcodeMapForTracking.clear()
-        _actionableBarcodeMapForTracking.putAll(_configuredActionableBarcodeMap)
-        actionableBarcodeJsonStorage.saveBarcodes( _configuredActionableBarcodeList)
+    suspend fun applyConfigurations() {
+        mutex.withLock {
+            _actionCompletedBarcodeList.clear()
+            _actionCompletedBarcodes.value = emptyList()
+            _actionableBarcodeMapForTracking.clear()
+            _actionableBarcodeMapForTracking.putAll(_configuredActionableBarcodeMap)
+            actionableBarcodeJsonStorage.saveBarcodes(_configuredActionableBarcodeList)
+        }
     }
 
     /**

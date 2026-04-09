@@ -1,23 +1,31 @@
 package com.zebra.ai.barcodefinder.application.domain.usecase
 
+import android.util.Log
+import com.zebra.ai.barcodefinder.application.domain.model.SettingsApplicationResult
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.AppSettings
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.BarcodeSymbology
 import com.zebra.ai.barcodefinder.application.data.source.repository.SettingsRepository
 import com.zebra.ai.barcodefinder.sdkcoordinator.EntityTrackerCoordinator
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.CoordinatorState
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ProcessorType
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 /**
  * Use case for managing application settings, including observing, updating, resetting, and modifying symbologies.
  *
  * @param settingsRepository The repository for managing settings.
  */
+private const val TAG = "SettingsUseCase"
+
 class SettingsUseCase(
     private val entityTrackerCoordinator: EntityTrackerCoordinator,
     private val settingsRepository: SettingsRepository
 ) {
+
+    fun loadSettings(): AppSettings {
+        return settingsRepository.loadSettings()
+    }
 
     /**
      * Observes the current settings as a [kotlinx.coroutines.flow.StateFlow].
@@ -47,16 +55,196 @@ class SettingsUseCase(
     }
 
     /**
-     * Update the Entity Tracker Coordinator with the updated settings
+     * Applies settings to the EntityTrackerCoordinator and returns the result.
+     *
+     * @return SettingsApplicationResult indicating success or failure with details
      */
-    fun updateEntityTrackerCoordinatorWithNewSettings() {
+    suspend fun applySettingsToCoordinator(): SettingsApplicationResult {
         settingsRepository.loadSettings()
-        val appSettings = settingsRepository.settings.value
+        return applyDraftSettingsToCoordinator(settingsRepository.settings.value)
+    }
 
-        CoroutineScope(Dispatchers.Main).launch {
-            entityTrackerCoordinator.configureSdk(appSettings, reset = true)
+    /**
+     * Triggers async SDK configuration and returns immediately (fire-and-forget).
+     * Snapshots the last known good settings for rollback by [observeConfigurationResult].
+     * Call [observeConfigurationResult] afterwards to receive the outcome.
+     *
+     * @param draftSettings The new settings to apply.
+    */
+    suspend fun applyDraftSettingsToCoordinator(draftSettings: AppSettings): SettingsApplicationResult {
+        // Snapshot last good settings BEFORE we start, for rollback if needed.
+        // Draft settings are intentionally NOT persisted here — the repository
+        // keeps the last successfully applied (known-compatible) settings so that
+        // if the ViewModel scope dies mid-flight, reentry uses safe settings.
+        lastAppliedSettings = settingsRepository.settings.value
+        try {
+            entityTrackerCoordinator.configureSdk(draftSettings, reset = true)
+        } catch (e: Exception) {
+            // configureSdk is designed to be safe (sets ERROR_SDK state internally),
+            // but we guard here against any unexpected synchronous failure so the
+            // caller is never left with an unhandled crash.
+            Log.e(TAG, "Unexpected error triggering SDK configuration: ${e.message}", e)
+        }
+
+        return observeConfigurationResult(draftSettings)
+    }
+
+    /**
+     * Suspends until the coordinator reaches a terminal state, then translates it
+     * into a [SettingsApplicationResult] for the presentation layer.
+     * Triggers a best-effort rollback on any error state before returning.
+     *
+     * Must be called after [triggerDraftSettingsConfiguration].
+     *
+     * @param draftSettings The settings that were applied (committed to repository on success).
+     * @return [SettingsApplicationResult] translated from the terminal coordinator state.
+     */
+    suspend fun observeConfigurationResult(draftSettings: AppSettings): SettingsApplicationResult {
+        val terminalState = entityTrackerCoordinator.coordinatorState
+            .first { it.isTerminal() }
+
+        return when (terminalState) {
+            CoordinatorState.COORDINATOR_READY -> {
+                // Only persist draft settings after the SDK confirms successful
+                // configuration. This is the single commit point — if the
+                // coroutine was cancelled before reaching here, the repository
+                // still holds the last known-compatible settings.
+                settingsRepository.saveSettings(draftSettings)
+                Log.d(TAG, "Settings applied and committed successfully")
+                SettingsApplicationResult.Success
+            }
+
+            CoordinatorState.ERROR_UNSUPPORTED_PROCESSOR -> {
+                Log.e(TAG, "Configuration failed: unsupported processor type — retrying with AUTO")
+                // Apply the draft as-is but with AUTO processor. All other settings
+                // (model input, resolution, symbologies, feedback) are preserved.
+                val fallback = draftSettings.copy(processorType = ProcessorType.AUTO)
+                try {
+                    entityTrackerCoordinator.configureSdk(fallback, reset = true)
+                    // Wait until the state leaves the current terminal so we don't
+                    // immediately re-read ERROR_UNSUPPORTED_PROCESSOR.
+                    entityTrackerCoordinator.coordinatorState.first { !it.isTerminal() }
+                    // Now await the result of the AUTO-processor pipeline.
+                    val fallbackState = entityTrackerCoordinator.coordinatorState.first { it.isTerminal() }
+                    if (fallbackState == CoordinatorState.COORDINATOR_READY) {
+                        settingsRepository.saveSettings(fallback)
+                        Log.d(TAG, "AUTO fallback succeeded — settings saved")
+                    } else {
+                        Log.e(TAG, "AUTO fallback also failed: $fallbackState")
+                    }
+                } catch (ex: Exception) {
+                    Log.e(TAG, "AUTO fallback error", ex)
+                }
+                SettingsApplicationResult.Error(
+                    null,
+                    "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.",
+                    isRecoverable = true
+                )
+            }
+
+            CoordinatorState.ERROR_BARCODE_DECODER -> {
+                Log.e(TAG, "Configuration failed: barcode decoder error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to initialize barcode decoder. Please try again.",
+                    isRecoverable = true
+                )
+            }
+
+            CoordinatorState.ERROR_ENTITY_TRACKER -> {
+                Log.e(TAG, "Configuration failed: entity tracker error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to initialize entity tracker. Please try again.",
+                    isRecoverable = true
+                )
+            }
+
+            CoordinatorState.ERROR_CAMERA -> {
+                Log.e(TAG, "Configuration failed: camera error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to initialize camera. Please check camera permissions.",
+                    isRecoverable = false
+                )
+            }
+
+            CoordinatorState.ERROR_SDK -> {
+                Log.e(TAG, "Configuration failed: SDK error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to initialize AI Vision SDK. Please restart the app.",
+                    isRecoverable = false
+                )
+            }
+
+            CoordinatorState.ERROR_AI_VISION_SDK -> {
+                Log.e(TAG, "Configuration failed: AI Vision SDK initialization error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to initialize AI Vision SDK. Please restart the app.",
+                    isRecoverable = false
+                )
+            }
+
+            CoordinatorState.ERROR_BARCODE_DECODER_SETTINGS -> {
+                Log.e(TAG, "Configuration failed: barcode decoder settings error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to configure barcode decoder settings. Please try different settings.",
+                    isRecoverable = true
+                )
+            }
+
+            CoordinatorState.ERROR_DISPOSE -> {
+                Log.e(TAG, "Configuration failed: dispose error")
+                rollbackToPreviousSettings()
+                SettingsApplicationResult.Error(
+                    null,
+                    "Failed to reset previous configuration. Please restart the app.",
+                    isRecoverable = false
+                )
+            }
+
+            else -> {
+                // Exhaustive when - should never reach here
+                Log.e(TAG, "Unexpected terminal state: $terminalState")
+                SettingsApplicationResult.Error(
+                    null,
+                    "Configuration failed with unexpected state: $terminalState",
+                    isRecoverable = true
+                )
+            }
         }
     }
+
+    /**
+     * Best-effort rollback to the last known good settings.
+     * Failures are swallowed - the original error is already surfaced to the UI.
+     */
+    private fun rollbackToPreviousSettings() {
+        val snapshot = lastAppliedSettings ?: run {
+            Log.w(TAG, "No snapshot available for rollback")
+            return
+        }
+        try {
+            // Repository already holds the last known-good settings (draft was
+            // never persisted), so we only need to reconfigure the SDK.
+            entityTrackerCoordinator.configureSdk(snapshot, reset = true)
+            Log.d(TAG, "Rollback to previous settings triggered")
+        } catch (ex: Exception) {
+            Log.e(TAG, "Rollback failed", ex)
+        }
+    }
+
+    // Holds a snapshot of the last committed settings between trigger and observe calls
+    private var lastAppliedSettings: AppSettings? = null
 
     /**
      * Updates the state of a specific barcode symbology (enabled/disabled).
@@ -66,7 +254,14 @@ class SettingsUseCase(
      * @return The updated [BarcodeSymbology] object.
      */
     fun updateSymbology(symbologyName: String, enabled: Boolean): BarcodeSymbology {
-        val currentSymbology = settingsRepository.settings.value.barcodeSymbology
+        return updateSymbology(settingsRepository.settings.value.barcodeSymbology, symbologyName, enabled)
+    }
+
+    fun updateSymbology(
+        currentSymbology: BarcodeSymbology,
+        symbologyName: String,
+        enabled: Boolean
+    ): BarcodeSymbology {
         return when (symbologyName) {
             "Australian Postal" -> currentSymbology.copy(australianPostal = enabled)
             "Aztec" -> currentSymbology.copy(aztec = enabled)

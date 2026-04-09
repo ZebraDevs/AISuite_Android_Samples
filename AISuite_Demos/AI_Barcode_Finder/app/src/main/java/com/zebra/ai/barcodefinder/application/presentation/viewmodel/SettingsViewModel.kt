@@ -4,10 +4,12 @@ package com.zebra.ai.barcodefinder.application.presentation.viewmodel
 
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.BarcodeSymbology
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zebra.ai.barcodefinder.application.data.source.repository.SettingsRepository
 import com.zebra.ai.barcodefinder.application.data.source.storage.SettingsJsonStorage
+import com.zebra.ai.barcodefinder.application.domain.model.SettingsApplicationResult
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ProcessorType
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.Resolution
@@ -15,7 +17,12 @@ import com.zebra.ai.barcodefinder.sdkcoordinator.model.AppSettings
 import com.zebra.ai.barcodefinder.application.domain.usecase.SettingsUseCase
 import com.zebra.ai.barcodefinder.sdkcoordinator.EntityTrackerCoordinator
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.FeedbackType
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -27,6 +34,7 @@ import kotlinx.coroutines.launch
  * @param application The application context
  */
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+    private val TAG = "SettingsViewModel"
 
     //TODO : Need to replace by Proper DI
     val settingsJsonStorage = SettingsJsonStorage(application)
@@ -38,49 +46,76 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Current app settings from the repository. */
     val settings: StateFlow<AppSettings> = settingsUseCase.observeSettings()
 
+    /** Draft settings edited by the user in the Settings screen (not persisted until Apply succeeds). */
+    private val _draftSettings = MutableStateFlow(settings.value)
+    val draftSettings: StateFlow<AppSettings> = _draftSettings.asStateFlow()
+
+    /** Tracks the state of applying settings to SDK */
+    private val _applicationState = MutableStateFlow<SettingsApplicationResult>(
+        SettingsApplicationResult.Idle
+    )
+    val applicationState: StateFlow<SettingsApplicationResult> = _applicationState.asStateFlow()
+
+    // Guard against concurrent SDK reconfiguration (e.g. rapid back-button taps or
+    // system-back gestures fired before the BackHandler's enabled=false takes effect).
+    // Unlike HomeViewModel, applyDraftSettingsToCoordinator() is a suspend function that
+    // awaits the terminal state, so the flag is cleared in a finally block inside the
+    // coroutine rather than in the coordinator-state observer.
+    private var isApplyingSettings = false
+
     /**
-     * Updates settings using the provided update function and syncs with repository.
-     * @param update Function to update AppSettings
+     * Single-shot navigation events. The ViewModel emits [NavigationEvent.NavigateBack] only
+     * after the SDK confirms successful configuration, so the screen defers navigation
+     * until the result is known.
      */
-    private fun updateSettingsWith(update: (AppSettings) -> AppSettings) {
-        viewModelScope.launch {
-            try {
-                settingsUseCase.updateSettings(update)
-            } finally {
-            }
+    private val _navigationEvents = Channel<NavigationEvent>(Channel.BUFFERED)
+    val navigationEvents = _navigationEvents.receiveAsFlow()
+
+    sealed class NavigationEvent {
+        object NavigateBack : NavigationEvent()
+    }
+
+    /**
+     * Updates draft settings using the provided update function.
+     * Clears error state as soon as the user changes a setting.
+     */
+    private fun updateDraftSettingsWith(update: (AppSettings) -> AppSettings) {
+        if (_applicationState.value is SettingsApplicationResult.Error) {
+            resetApplicationState()
         }
+        _draftSettings.update(update)
     }
 
     /**
      * Updates the model input size and syncs with the AI Vision SDK.
      */
     fun updateModelInput(modelInput: ModelInput) {
-        updateSettingsWith { it.copy(modelInput = modelInput) }
+        updateDraftSettingsWith { it.copy(modelInput = modelInput) }
     }
 
     /**
      * Updates the camera resolution and syncs with the AI Vision SDK.
      */
     fun updateResolution(resolution: Resolution) {
-        updateSettingsWith { it.copy(resolution = resolution) }
+        updateDraftSettingsWith { it.copy(resolution = resolution) }
     }
 
     /**
      * Updates the processor type and syncs with the AI Vision SDK.
      */
     fun updateProcessorType(processorType: ProcessorType) {
-        updateSettingsWith { it.copy(processorType = processorType) }
+        updateDraftSettingsWith { it.copy(processorType = processorType) }
     }
 
     /**
      * Updates the barcode symbology and syncs with the AI Vision SDK.
      */
     fun updateBarcodeSymbology(symbology: BarcodeSymbology) {
-        updateSettingsWith { it.copy(barcodeSymbology = symbology) }
+        updateDraftSettingsWith { it.copy(barcodeSymbology = symbology) }
     }
 
     fun updateFeedbackType(feedbackType: FeedbackType) {
-        updateSettingsWith { it.copy(feedbackType = feedbackType) }
+        updateDraftSettingsWith { it.copy(feedbackType = feedbackType) }
     }
 
     /**
@@ -89,27 +124,79 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * @param enabled Whether the symbology is enabled
      */
     fun updateSymbology(symbologyName: String, enabled: Boolean) {
-        val updatedSymbology = settingsUseCase.updateSymbology(symbologyName,enabled)
-        updateBarcodeSymbology(updatedSymbology)
+        val updatedSymbology = settingsUseCase.updateSymbology(
+            currentSymbology = _draftSettings.value.barcodeSymbology,
+            symbologyName = symbologyName,
+            enabled = enabled
+        )
+        updateDraftSettingsWith { it.copy(barcodeSymbology = updatedSymbology) }
     }
 
     /**
      * Resets all settings to their default values and syncs with the AI Vision SDK.
      */
     fun resetToDefaults() {
+        updateDraftSettingsWith { AppSettings() }
+    }
+
+    /**
+     * Applies the draft settings to the SDK coordinator.
+     *
+     * Navigation is deferred: the screen stays visible while the SDK reconfigures
+     * (showing a loading overlay). On success the ViewModel emits [NavigationEvent.NavigateBack]
+     * so the UI navigates only after settings are committed. On error the screen remains
+     * open so the [ErrorBanner] is visible and the user can adjust settings and retry.
+     *
+     * Draft settings are NOT persisted before calling configureSdk — the repository
+     * retains the last successfully applied (known-compatible) settings. This ensures
+     * that if the ViewModel scope dies mid-flight, reentry uses safe settings.
+     */
+    fun applySettingsToSDK() {
+        if (isApplyingSettings) {
+            Log.d(TAG, "applySettingsToSDK() ignored — reconfiguration already in progress")
+            return
+        }
+        isApplyingSettings = true
         viewModelScope.launch {
             try {
-                settingsUseCase.resetSettings()
+                _applicationState.value = SettingsApplicationResult.InProgress
+
+                val result = settingsUseCase.applyDraftSettingsToCoordinator(_draftSettings.value)
+                _applicationState.value = result
+
+                when (result) {
+                    is SettingsApplicationResult.Success -> {
+                        Log.d(TAG, "Settings applied successfully")
+                        // Keep draft in sync with the now-committed settings.
+                        _draftSettings.value = settings.value
+                        // Navigate back — ViewModel is the single source of truth for when
+                        // it is safe to leave the Settings screen.
+                        _navigationEvents.send(NavigationEvent.NavigateBack)
+                    }
+                    is SettingsApplicationResult.Error -> {
+                        Log.e(TAG, "Failed to apply settings: ${result.message}", result.exception)
+                        // Roll back draft to last known-good so the UI shows safe values.
+                        // Stay on screen — ErrorBanner will be visible for the user to react.
+                        _draftSettings.value = settings.value
+                    }
+                    else -> { /* Idle or InProgress */ }
+                }
             } finally {
+                // applyDraftSettingsToCoordinator() is a suspend function that awaits the
+                // terminal coordinator state, so the pipeline is fully complete by the time
+                // we reach here — safe to release the guard regardless of outcome.
+                isApplyingSettings = false
             }
         }
     }
 
     /**
-     * Applying the updated settings to the EntityTracker Coordinator
+     * Resets the application state to Idle.
+     * Call this after handling errors in the UI.
      */
-    fun applySettingsToSDK() {
-        settingsUseCase.updateEntityTrackerCoordinatorWithNewSettings()
+
+    fun resetApplicationState() {
+        _applicationState.value = SettingsApplicationResult.Idle
     }
 
 }

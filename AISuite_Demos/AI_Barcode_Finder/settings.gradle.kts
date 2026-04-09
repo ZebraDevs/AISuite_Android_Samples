@@ -19,7 +19,17 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
+        exclusiveContent {
+            forRepository {
+                maven {
+                    url = uri("https://software.mobile.pendo.io/artifactory/androidx-release")
+                }
+            }
+            filter {
+                includeGroup("sdk.pendo.io")
+            }
+        }
+        maven{
             url =uri("https://zebratech.jfrog.io/artifactory/emc-mvn-ext")
         }
         flatDir {

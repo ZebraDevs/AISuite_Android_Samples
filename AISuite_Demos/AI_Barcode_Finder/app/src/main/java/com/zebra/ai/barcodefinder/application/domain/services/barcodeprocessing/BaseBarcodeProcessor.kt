@@ -3,7 +3,9 @@ package com.zebra.ai.barcodefinder.application.domain.services.barcodeprocessing
 import com.zebra.ai.barcodefinder.application.domain.model.BarcodeProcessingResult
 import com.zebra.ai.barcodefinder.sdkcoordinator.EntityTrackerCoordinator
 import com.zebra.ai.vision.entity.Entity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 /**
@@ -29,10 +31,9 @@ abstract class BaseBarcodeProcessor(
     fun getProcessingFlow(): Flow<BarcodeProcessingResult> {
         return entityTrackerCoordinator.observeEntityTrackingResults()
             .map { entities ->
-                // The actual processing logic, including concurrency, is now delegated
-                // to the implementing class.
                 processScreenSpecificLogic(entities)
             }
+            .flowOn(Dispatchers.Default)
     }
 
     /**

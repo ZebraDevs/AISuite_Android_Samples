@@ -58,6 +58,9 @@ android {
             "BARCODE_LOCALIZER_MODEL_VERSION",
             "\"${libs.versions.barcodeLocalizer.get()}\""
         )
+
+        val pendoApiKey = System.getenv("aibarcodefinder_pendo_api_key") ?: ""
+        buildConfigField(type = "String", name = "PendoApiKey", value = "\"$pendoApiKey\"")
     }
 
     buildTypes {
@@ -131,4 +134,7 @@ dependencies {
 
     // JSON serialization
     implementation(libs.gson)
+
+    // Pendo SDK
+    implementation(libs.pendo.io) { isChanging = true }
 }

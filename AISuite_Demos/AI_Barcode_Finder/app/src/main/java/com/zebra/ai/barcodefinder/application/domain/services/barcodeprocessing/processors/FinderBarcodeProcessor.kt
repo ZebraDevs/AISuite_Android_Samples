@@ -16,11 +16,6 @@ import com.zebra.ai.barcodefinder.application.domain.model.ScanStatus
 import com.zebra.ai.barcodefinder.sdkcoordinator.EntityTrackerCoordinator
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 class FinderBarcodeProcessor(
     entityTrackerCoordinator: EntityTrackerCoordinator,
@@ -29,35 +24,30 @@ class FinderBarcodeProcessor(
     private val barcodeScanSessionManager: BarcodeScanSessionManager?,
 ) : BaseBarcodeProcessor(entityTrackerCoordinator) {
 
-    override suspend fun processScreenSpecificLogic(entities: List<Entity>): BarcodeProcessingResult = coroutineScope {
-        // If barcodeScanSessionManager is provided, launch its processing in the background.
+    override suspend fun processScreenSpecificLogic(entities: List<Entity>): BarcodeProcessingResult {
+        // Single filterIsInstance pass; result shared across feedback and overlay creation
+        val barcodeEntities = entities.filterIsInstance<BarcodeEntity>()
+
+        // Fire feedback for actionable barcodes on the current Default thread
         barcodeScanSessionManager?.let {
-            // Filter the entities to only include the specified action types
-            val filteredEntities = filterActionableEntities(entities)
-            launch {
-                it.processBarcodes(filteredEntities)
-            }
+            val filteredEntities = filterActionableEntities(barcodeEntities)
+            it.processBarcodes(filteredEntities)
         }
 
-        // Part A (Deferred): Create overlay items concurrently.
-        val deferredOverlayItems = async {
-            entities.filterIsInstance<BarcodeEntity>()
-                .map { entity ->
-                    async { createBarcodeOverlayItem(entity) }
-                }
-                .awaitAll()
-                .filterNotNull()
+        // Single-pass overlay creation — no coroutine scheduling overhead per entity
+        val overlayItems = ArrayList<BarcodeOverlayItem>(barcodeEntities.size)
+        for (entity in barcodeEntities) {
+            val item = createBarcodeOverlayItem(entity)
+            if (item != null) overlayItems.add(item)
         }
 
-        // Part B (Deferred): Generate the list of scan results concurrently without blocking.
-        val deferredScanResults = async {
-            actionableBarcodeRepository.actionCompletedBarcodes.first().map { convertToScanResult(it) }
-        }
+        // Mutex-guarded read — safe across Default and Main threads
+        val scanResults = actionableBarcodeRepository.getActionCompletedBarcodes()
+            .map { convertToScanResult(it) }
 
-        // Await the results from both concurrent tasks and return the final result.
-        BarcodeProcessingResult(
-            overlayItems = deferredOverlayItems.await().toMutableList(),
-            scanResults = deferredScanResults.await()
+        return BarcodeProcessingResult(
+            overlayItems = overlayItems,
+            scanResults = scanResults
         )
     }
 
@@ -100,7 +90,7 @@ class FinderBarcodeProcessor(
         )
     }
 
-    private fun filterActionableEntities(entities: List<Entity>): List<BarcodeEntity> {
+    private suspend fun filterActionableEntities(barcodeEntities: List<BarcodeEntity>): List<BarcodeEntity> {
         val actionableTypes = setOf(
             ActionType.TYPE_RECALL,
             ActionType.TYPE_CONFIRM_PICKUP,
@@ -108,7 +98,7 @@ class FinderBarcodeProcessor(
         )
         val completedBarcodes = actionableBarcodeRepository.getActionCompletedBarcodes().toSet()
 
-        return entities.filterIsInstance<BarcodeEntity>().filter { entity ->
+        return barcodeEntities.filter { entity ->
             // We can only filter barcodes that have a value and can be looked up.
             // Undecoded barcodes (where entity.value is null or empty) don't have a type yet.
             if (entity.value.isNullOrEmpty()) {

@@ -55,7 +55,7 @@ class FinderUseCase(
      * @param quantityPicked The quantity picked.
      * @param replenishStock Whether to replenish stock.
      */
-    fun handleQuantityPickup(barcode: ActionableBarcode, quantityPicked: Int, replenishStock: Boolean = false) {
+    suspend fun handleQuantityPickup(barcode: ActionableBarcode, quantityPicked: Int, replenishStock: Boolean = false) {
         actionableBarcodeRepository.addActionCompletedBarcode(
             barcode,
             mapOf(
@@ -70,7 +70,7 @@ class FinderUseCase(
      *
      * @param barcode The barcode to add.
      */
-    fun addCompletedBarcode(barcode: ActionableBarcode) {
+    suspend fun addCompletedBarcode(barcode: ActionableBarcode) {
         actionableBarcodeRepository.addActionCompletedBarcode(barcode)
     }
 

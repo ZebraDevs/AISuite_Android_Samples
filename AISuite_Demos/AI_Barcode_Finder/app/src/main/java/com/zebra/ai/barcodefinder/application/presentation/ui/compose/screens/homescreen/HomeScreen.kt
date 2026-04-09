@@ -308,7 +308,7 @@ fun HomeScreen(
                                 homeViewModel.applySettingsToSDK()
                             },
                             modifier = Modifier.fillMaxWidth(),
-//                            enabled = entityTrackerInitState.isInitialized,
+                            enabled = entityTrackerInitState.isInitialized,
                             textColor = borderPrimaryMain
                             // fontSize and fontWeight from original Text are not directly supported by ZebraButton's internal Text
                         )

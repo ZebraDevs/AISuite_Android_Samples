@@ -210,7 +210,9 @@ class ConfigureViewModel(application: Application) : AndroidViewModel(applicatio
      * Applies actionable barcode configurations and hides the dialog.
      */
     fun onApplyActionableBarcodes() {
-        configureUseCase.applyConfigurations()
+        viewModelScope.launch {
+            configureUseCase.applyConfigurations()
+        }
         _showActionableBarcodeDialog.value = false
         barcodeScanSessionManager.resetSessionState()
     }

@@ -21,6 +21,7 @@ import com.zebra.ai.barcodefinder.sdkcoordinator.exceptions.BarcodeDecoderInitia
 import com.zebra.ai.barcodefinder.sdkcoordinator.exceptions.CameraInitializationException
 import com.zebra.ai.barcodefinder.sdkcoordinator.exceptions.EntityTrackerInitializationException
 import com.zebra.ai.barcodefinder.sdkcoordinator.exceptions.SDKInitializationException
+import com.zebra.ai.barcodefinder.sdkcoordinator.exceptions.UnsupportedProcessorException
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.AppSettings
 import com.zebra.ai.barcodefinder.sdkcoordinator.support.BarcodeDecoderSettingsBuilder
 import com.zebra.ai.barcodefinder.sdkcoordinator.support.PermissionHandler
@@ -99,12 +100,16 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
     // AI components for entity tracking and barcode decoding
     private var entityTrackerAnalyzer: EntityTrackerAnalyzer? = null
     private var barcodeDecoder: BarcodeDecoder? = null
+    private var barcodeDecoderSettings: BarcodeDecoder.Settings? = null
     private var aiVisionSDK: AIVisionSDK? = null
 
 
     // Executors for running camera and entity analysis tasks in background threads
     private val cameraExecutor: Executor = Executors.newSingleThreadExecutor()
     private val entityExecutor: Executor = Executors.newSingleThreadExecutor()
+
+    // Guards callbacks after view finder unbind. @Volatile ensures main-thread visibility.
+    @Volatile private var isViewFinderActive = false
 
     /**
      * Initialization block to ensure the SDK is initialized when the coordinator is created.
@@ -118,34 +123,54 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
         appSettings: AppSettings,
         reset: Boolean = false
     ) {
+        val processName = if (reset) "SDK Reinitialization" else "SDK Initialization"
+        Log.d(TAG, "Starting: $processName")
+
+        _coordinatorState.value = CoordinatorState.CONFIGURING
+
         if (reset) {
             dispose()
         }
 
-        // Execute steps sequentially
-        try {
-            val processName = if (reset) "SDK Update" else "SDK Initialization"
-            println("Starting : $processName")
+        // Step 1: Initialize SDK
+        initializeSdkStep()
 
-            // Step 1: Initialize SDK
-            initializeSdkStep()
+        // Step 2: Initialize BarcodeDecoder Settings
+        if (_coordinatorState.value == CoordinatorState.AI_VISION_SDK_INITIALIZED) {
+            initializeBarcodeDecoderSettingsStep(appSettings)
+        }
 
-            // Step 2: Initialize barcode decoder and entity tracker
-            initializeBarcodeDecoderStep(appSettings)
-                ?.thenRun { initializeEntityTrackerStep() }
-                ?.join()
+        // Step 3: Initialize BarcodeDecoder
+        if (_coordinatorState.value == CoordinatorState.BARCODE_DECODER_SETTINGS_INITIALIZED) {
+            initializeBarcodeDecoderStep()
+                .thenRun {
+                    // Step 4: Initialize EntityTracker Step
+                    if (_coordinatorState.value == CoordinatorState.BARCODE_DECODER_INITIALIZED) {
+                        initializeEntityTrackerStep()
+                    }
 
-            // Step 3: Check camera permissions
-            checkCameraPermissionStep()
+                    // Step 5: Check Camera Permission Step
+                    if (_coordinatorState.value == CoordinatorState.ENTITY_TRACKER_INITIALIZED) {
+                        checkCameraPermissionStep()
+                    }
 
-            // Step 4: Initialize camera
-            initializeCameraStep(appSettings.resolution.width, appSettings.resolution.height)
+                    // Step 6: Initialize Camera Step
+                    if (_coordinatorState.value == CoordinatorState.CAMERA_PERMISSION_RECEIVED) {
+                        initializeCameraStep(
+                            appSettings.resolution.width,
+                            appSettings.resolution.height
+                        )
+                    }
 
-            println("ProcessName completed: $processName")
-        } catch (e: Exception) {
-            println("Error during SDK configuration workflow: ${e.message}")
-            e.printStackTrace()
-            throw e // Re-throw the exception if necessary
+                    if (_coordinatorState.value == CoordinatorState.COORDINATOR_READY) {
+                        Log.d(TAG, "$processName completed successfully")
+                    } else {
+                        Log.w(
+                            TAG,
+                            "$processName did not complete. Current state: ${_coordinatorState.value}"
+                        )
+                    }
+                }
         }
     }
 
@@ -156,40 +181,58 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
             if (!aiVisionSDK!!.init()) {
                 throw SDKInitializationException("Failed to initialize AI Vision SDK")
             }
+            _coordinatorState.value = CoordinatorState.AI_VISION_SDK_INITIALIZED
             Log.d(TAG, "AI Vision SDK initialized successfully")
         } catch (e: Exception) {
-            throw SDKInitializationException("Error initializing AI Vision SDK", e)
+            _coordinatorState.value = CoordinatorState.ERROR_AI_VISION_SDK
+            Log.e(TAG, "SDK initialization failed: ${e.message}", e)
         }
     }
 
-    private fun initializeBarcodeDecoderStep(appSettings: AppSettings): CompletableFuture<Int?>? {
-        return try {
-            val barcodeDecoderSettings: BarcodeDecoder.Settings = BarcodeDecoderSettingsBuilder()
+    private fun initializeBarcodeDecoderSettingsStep(appSettings: AppSettings) {
+        try {
+            barcodeDecoderSettings = BarcodeDecoderSettingsBuilder()
                 .configureSymbologies(appSettings.barcodeSymbology)
                 .configureProcessorType(appSettings.processorType)
-                .configureModelInput(appSettings.modelInput.width, appSettings.modelInput.height)
+                .configureModelInput(
+                    appSettings.modelInput.width,
+                    appSettings.modelInput.height
+                )
                 .build()
-
-            BarcodeDecoder.getBarcodeDecoder(barcodeDecoderSettings, cameraExecutor)
-                .thenApply { decoderInstance ->
-                    barcodeDecoder = decoderInstance
-                    _coordinatorState.value = CoordinatorState.BARCODE_DECODER_INITIALIZED
-                    Log.d(TAG, "Barcode decoder initialized successfully")
-                }
-                .exceptionally { ex ->
-                    throw BarcodeDecoderInitializationException(
-                        "Error initializing barcode decoder",
-                        ex
-                    )
-                }
+            _coordinatorState.value = CoordinatorState.BARCODE_DECODER_SETTINGS_INITIALIZED
         } catch (e: Exception) {
-            throw BarcodeDecoderInitializationException("Error initializing barcode decoder", e)
+            _coordinatorState.value = CoordinatorState.ERROR_BARCODE_DECODER_SETTINGS
+            Log.e(TAG, "Error creating barcode decoder settings: ${e.message}", e)
         }
+    }
+
+    private fun initializeBarcodeDecoderStep(): CompletableFuture<BarcodeDecoder> {
+        return BarcodeDecoder.getBarcodeDecoder(barcodeDecoderSettings, cameraExecutor)
+            .thenApply { decoderInstance ->
+                barcodeDecoder = decoderInstance
+                _coordinatorState.value = CoordinatorState.BARCODE_DECODER_INITIALIZED
+                Log.d(TAG, "Barcode decoder initialized successfully")
+                decoderInstance
+            }
+            .exceptionally { e ->
+                val rootCause = getRootCause(e)
+                if (rootCause is com.zebra.ai.vision.detector.AIVisionSDKException &&
+                    rootCause.message?.contains("Given runtimes are not available") == true
+                ) {
+                    // ToDo: The filtering done to identify the Unsupported runtime is dependant on the SDK Exception message. It makes it unreliable and fragile. A dedicated exception type or error code from the SDK would be much more robust.
+                    Log.e(TAG, "Unsupported processor configuration: ${rootCause.message}", e)
+                    _coordinatorState.value = CoordinatorState.ERROR_UNSUPPORTED_PROCESSOR
+                } else {
+                    Log.e(TAG, "Barcode decoder initialization failed: ${e.message}", e)
+                    _coordinatorState.value = CoordinatorState.ERROR_BARCODE_DECODER
+                }
+                null
+            }
     }
 
     private fun initializeEntityTrackerStep() {
         if (barcodeDecoder == null) {
-            throw EntityTrackerInitializationException("Barcode decoder is not initialized")
+            Log.e(TAG, "Barcode decoder is not initialized")
         }
 
         try {
@@ -197,17 +240,18 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                 listOf(barcodeDecoder!!),
                 ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED,
                 entityExecutor
-            ) { result ->
-                val entities = result.getValue(barcodeDecoder!!)
-                _entityTrackingResults.tryEmit(entities ?: emptyList())
+            ) resultCallback@ { result ->
+                // Gate: skip callbacks after unbind.
+                if (!isViewFinderActive) return@resultCallback
+                // ?.let handles dispose() nullifying the field between gate check and getValue().
+                val entities = barcodeDecoder?.let { result.getValue(it) } ?: emptyList()
+                _entityTrackingResults.tryEmit(entities)
             }
             _coordinatorState.value = CoordinatorState.ENTITY_TRACKER_INITIALIZED
             Log.d(TAG, "Entity tracker analyzer initialized successfully")
         } catch (e: Exception) {
-            throw EntityTrackerInitializationException(
-                "Error initializing entity tracker analyzer",
-                e
-            )
+            _coordinatorState.value = CoordinatorState.ERROR_ENTITY_TRACKER
+            Log.e(TAG, "Error initializing entity tracker analyzer", e)
         }
     }
 
@@ -226,21 +270,31 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                     Log.d(TAG, "Camera permission granted.")
                     // Proceed with camera initialization
                 }
+
                 CoordinatorState.CAMERA_PERMISSION_REQUIRED -> {
-                    Log.e(TAG, "Camera permission required. Cannot proceed with camera initialization.")
+                    Log.e(
+                        TAG,
+                        "Camera permission required. Cannot proceed with camera initialization."
+                    )
                     throw CameraInitializationException("Camera permission required.")
                 }
+
                 CoordinatorState.CAMERA_PERMISSION_DENIED -> {
-                    Log.e(TAG, "Camera permission denied. Cannot proceed with camera initialization.")
+                    Log.e(
+                        TAG,
+                        "Camera permission denied. Cannot proceed with camera initialization."
+                    )
                     throw CameraInitializationException("Camera permission denied.")
                 }
+
                 else -> {
                     Log.e(TAG, "Unexpected permission state: $permissionState")
                     throw CameraInitializationException("Unexpected permission state: $permissionState")
                 }
             }
         } catch (e: Exception) {
-            throw CameraInitializationException("Error checking camera permission", e)
+            _coordinatorState.value = CoordinatorState.ERROR_CAMERA
+            Log.e(TAG, "Camera permission check failed: ${e.message}", e)
         }
     }
 
@@ -282,18 +336,23 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
-                    imageAnalysis?.setAnalyzer(cameraExecutor, entityTrackerAnalyzer as ImageAnalysis.Analyzer)
+                    imageAnalysis?.setAnalyzer(
+                        cameraExecutor,
+                        entityTrackerAnalyzer as ImageAnalysis.Analyzer
+                    )
 
                     _coordinatorState.value = CoordinatorState.CAMERA_INITIALIZED
+                    Log.d(TAG, "Camera initialized successfully")
+
                     _coordinatorState.value = CoordinatorState.COORDINATOR_READY
 
-                    Log.d(TAG, "Camera initialized successfully")
                 } catch (e: Exception) {
-                    throw CameraInitializationException("Error initializing camera", e)
+                    Log.e(TAG, "Error initializing camera", e)
                 }
             }, ContextCompat.getMainExecutor(application))
         } catch (e: Exception) {
-            throw CameraInitializationException("Error setting up camera", e)
+            _coordinatorState.value = CoordinatorState.ERROR_CAMERA
+            Log.e(TAG, "Camera initialization failed: ${e.message}", e)
         }
     }
 
@@ -334,8 +393,15 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                         entityTrackerAnalyzer?.updateTransform(previewView.sensorToViewTransform)
                     }
                 }
+
+                // Mark view finder as active only after successful binding and setup
+                isViewFinderActive = true
+            } ?: run {
+                // Ensure flag is not incorrectly set when provider is unavailable
+                isViewFinderActive = false
             }
         } catch (e: Exception) {
+            isViewFinderActive = false
             Log.e(TAG, "Camera binding failed", e)
         }
     }
@@ -345,6 +411,8 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
      */
     fun unbindCamera() {
         try {
+            // Gate off before unbindAll() to skip in-flight callbacks.
+            isViewFinderActive = false
             cameraProvider?.unbindAll()
             _entityTrackingResults.tryEmit(emptyList())  // clear out if there is any residual data in previous scanning session
             Log.d(TAG, "All camera use cases unbound successfully")
@@ -367,13 +435,31 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
     fun observeEntityTrackingResults(): Flow<List<Entity>> = entityTrackingResults
 
     /**
-     * Disposes the Coordinator resources and resets the state.
+     * Recursively unwraps exceptions to find the root cause.
+     * CompletableFuture often wraps exceptions in CompletionException.
      */
+    private fun getRootCause(throwable: Throwable): Throwable {
+        val visited = mutableSetOf<Throwable>()
+        var cause = throwable
+
+        while (cause.cause != null && cause.cause != cause) {
+            val next = cause.cause!!
+            // Prevent infinite loops in case of circular exception chains
+            if (!visited.add(next)) {
+                break
+            }
+            cause = next
+        }
+        return cause
+    }
+
     /**
      * Disposes the Coordinator resources and resets the state.
      */
     fun dispose() {
         try {
+            // Gate off first (dispose can bypass unbindCamera).
+            isViewFinderActive = false
             // Unbind all camera use cases and release the camera provider
             cameraProvider?.unbindAll()
             cameraProvider = null
@@ -389,6 +475,7 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
             _coordinatorState.value = CoordinatorState.NOT_INITIALIZED
             Log.d(TAG, "Disposed coordinator resources successfully")
         } catch (e: Exception) {
+            _coordinatorState.value = CoordinatorState.ERROR_DISPOSE
             Log.e(TAG, "Error disposing resources: ${e.message}", e)
         }
     }

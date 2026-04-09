@@ -12,7 +12,7 @@ material = "1.12.0"
 lifecycleLivedataKtx = "2.9.2"
 lifecycleViewmodelKtx = "2.9.2"
 barcodeLocalizer = "5.0.2"
-zebraAIVisionSdk = "3.1.10"
+zebraAIVisionSdk = "3.2.8"
 navigationCompose = "2.9.6"
 uiautomator = "2.3.0"
 composeBom = "2025.08.00"
@@ -27,6 +27,7 @@ uiVersion = "1.9.2"
 roomKtx = "2.8.3"
 navigationRuntimeKtx = "2.9.6"
 lifecycleViewmodelKtxVersion = "2.9.4"
+pendo = "3.12.+"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -65,6 +66,7 @@ ui = { group = "androidx.compose.ui", name = "ui", version.ref = "uiVersion" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
 lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtxVersion" }
+pendo-io = { group = "sdk.pendo.io", name = "pendoIO", version.ref = "pendo" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

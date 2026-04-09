@@ -83,7 +83,9 @@ class ScanResultsViewModel(application: Application): AndroidViewModel(applicati
      * Clear out the action completed barcode list
      */
     fun clearBarcodeResults() {
-        actionableBarcodeJsonRepository.clearActionCompletedBarcodes()
+        viewModelScope.launch {
+            actionableBarcodeJsonRepository.clearActionCompletedBarcodes()
+        }
         barcodeScanSessionManager.resetSessionState()
     }
 }

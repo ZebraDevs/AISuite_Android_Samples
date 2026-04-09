@@ -11,9 +11,6 @@ import com.zebra.ai.barcodefinder.application.domain.model.BarcodeOverlayItem
 import com.zebra.ai.barcodefinder.sdkcoordinator.EntityTrackerCoordinator
 import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.ai.vision.entity.Entity
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 
 class ConfigureBarcodeProcessor(
     entityTrackerCoordinator: EntityTrackerCoordinator,
@@ -21,16 +18,15 @@ class ConfigureBarcodeProcessor(
     private val settingsRepository: SettingsRepository,
 ) : BaseBarcodeProcessor(entityTrackerCoordinator) {
 
-    override suspend fun processScreenSpecificLogic(entities: List<Entity>): BarcodeProcessingResult = coroutineScope {
-        // Concurrently process all barcode entities to create overlay items.
-        val overlayItems = entities.filterIsInstance<BarcodeEntity>()
-            .map { entity ->
-                async { createBarcodeOverlayItem(entity) }
-            }
-            .awaitAll()
-            .filterNotNull()
-
-        BarcodeProcessingResult(overlayItems = overlayItems.toMutableList())
+    override suspend fun processScreenSpecificLogic(entities: List<Entity>): BarcodeProcessingResult {
+        // Single-pass overlay creation — no coroutine scheduling overhead per entity
+        val barcodeEntities = entities.filterIsInstance<BarcodeEntity>()
+        val overlayItems = ArrayList<BarcodeOverlayItem>(barcodeEntities.size)
+        for (entity in barcodeEntities) {
+            val item = createBarcodeOverlayItem(entity)
+            if (item != null) overlayItems.add(item)
+        }
+        return BarcodeProcessingResult(overlayItems = overlayItems)
     }
 
     private fun createBarcodeOverlayItem(entity: BarcodeEntity): BarcodeOverlayItem? {

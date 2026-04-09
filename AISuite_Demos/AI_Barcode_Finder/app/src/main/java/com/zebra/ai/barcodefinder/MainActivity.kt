@@ -2,6 +2,7 @@ package com.zebra.ai.barcodefinder
 
 import android.R
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,12 @@ class MainActivity : AppCompatActivity() {
 
         // Set status bar content to light (white icons/text) since we're using dark background
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
+
+        val pendoApiKey = BuildConfig.PendoApiKey
+        if (pendoApiKey.isNotEmpty()) {
+            Log.d(TAG, "pendoApiKey is NotEmpty")
+            PendoInitializer.init(application, pendoApiKey, true)
+        }
 
         // Show the main application content
         setContent {
@@ -59,5 +66,9 @@ class MainActivity : AppCompatActivity() {
     override fun finish() {
         isFinishing = true
         super.finish()
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }

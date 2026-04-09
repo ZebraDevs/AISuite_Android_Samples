@@ -48,6 +48,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     // Flag to ensure the coordinator is only initialized once.
     private var isCoordinatorInitialized = false
 
+    // Guard against concurrent SDK reconfiguration (e.g. rapid button taps).
+    // Set synchronously before the coroutine launches so the UI disables immediately.
+    private var isApplyingSettings = false
+
     init {
         try {
             observerEntityTrackerInitState()
@@ -100,16 +104,43 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun initializeCoordinatorIfCameraPermissionGranted() {
         if (hasCameraPermission() && !isCoordinatorInitialized) {
-            homeUseCase.initializeEntityTrackerCoordinator()
-            isCoordinatorInitialized = true
+            viewModelScope.launch {
+                homeUseCase.initializeEntityTrackerCoordinator()
+                isCoordinatorInitialized = true
+            }
         }
     }
 
     /**
-     * Apply the settings to the SDK and reinitialize SDK
+     * Apply the settings to the SDK and reinitialize SDK.
+     *
+     * Sets isInitialized=false synchronously before launching the coroutine so the
+     * UI disables on the same frame as the tap, preventing a second tap from
+     * sneaking through before Compose recomposes.
+     *
+     * isApplyingSettings is NOT cleared here — configureSdk() returns as soon as
+     * it creates the CompletableFuture, well before the async pipeline finishes.
+     * The flag is cleared in observerEntityTrackerInitState() when coordinatorState
+     * reaches a terminal value, which marks the true end of reconfiguration.
      */
     fun applySettingsToSDK() {
-        homeUseCase.updateEntityTrackerCoordinator()
+        if (isApplyingSettings) {
+            Log.d(TAG, "applySettingsToSDK() ignored — reconfiguration already in progress")
+            return
+        }
+        isApplyingSettings = true
+        // Disable the button synchronously on this frame, before the coroutine
+        // is scheduled, to prevent a second tap sneaking through.
+        _entityTrackerInitState.update { it.copy(isInitialized = false) }
+        viewModelScope.launch {
+            try {
+                homeUseCase.updateEntityTrackerCoordinator()
+            } catch (e: Exception) {
+                Log.e(TAG, "applySettingsToSDK() failed to trigger reconfiguration", e)
+                // isApplyingSettings will be cleared by the coordinatorState observer
+                // reacting to the terminal error state emitted by the coordinator.
+            }
+        }
     }
 
     /**
@@ -141,17 +172,28 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * observe the EntityTrackerCoordinator state in EntityTrackerCoordinator and update the EntityTrackerInitState
+     * Observes the EntityTrackerCoordinator state and updates EntityTrackerInitState.
+     *
+     * This is also the single point where isApplyingSettings is cleared, because
+     * terminal coordinator states mark the true end of the async CompletableFuture
+     * pipeline — not the return of configureSdk().
      */
     fun observerEntityTrackerInitState() {
         homeUseCase.observeEntityTrackerCoordinatorState()
             .map { coordinatorState ->
-                if(coordinatorState == CoordinatorState.COORDINATOR_READY) {
+                if (coordinatorState == CoordinatorState.COORDINATOR_READY) {
+                    isApplyingSettings = false
                     _entityTrackerInitState.update { it.copy(isInitialized = true) }
                     Log.d(TAG, "Entity tracker init state is updated to true")
+                } else if (coordinatorState.isTerminal()) {
+                    // Terminal error state: pipeline done (failed), release the guard
+                    // so the user can retry. isInitialized stays false.
+                    isApplyingSettings = false
+                    _entityTrackerInitState.update { it.copy(isInitialized = false) }
+                    Log.d(TAG, "Entity tracker reached terminal error state: $coordinatorState")
                 } else {
                     _entityTrackerInitState.update { it.copy(isInitialized = false) }
-                    Log.d(TAG, "Entity tracker init state is updated to false")
+                    Log.d(TAG, "Entity tracker init state is updated to false, coordinatorState=$coordinatorState")
                 }
             }
             .launchIn(viewModelScope)

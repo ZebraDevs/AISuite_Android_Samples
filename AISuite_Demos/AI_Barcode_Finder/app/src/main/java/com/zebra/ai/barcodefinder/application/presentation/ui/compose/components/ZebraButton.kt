@@ -80,8 +80,9 @@ fun ZebraButton(
 
         ButtonType.Text -> ButtonDefaults.buttonColors(
             containerColor = Color.Transparent,  // Ensure background is transparent
-            contentColor = textColor
-                ?: defaultTextColor // This should be borderPrimaryMain by default
+            contentColor = textColor ?: defaultTextColor, // This should be borderPrimaryMain by default
+            disabledContainerColor = Color.Transparent,  // Keep transparent when disabled
+            disabledContentColor = disabledMain  // Gray text when disabled
         )
 
         ButtonType.Outlined -> ButtonDefaults.buttonColors(

@@ -41,7 +41,7 @@ class ConfigureUseCase(
     /**
      * Applies the current barcode configurations.
      */
-    fun applyConfigurations() {
+    suspend fun applyConfigurations() {
         repository.applyConfigurations()
     }
 
@@ -104,14 +104,12 @@ class ConfigureUseCase(
     fun initializeEntityTrackerCoordinator() {
         settingsRepository.loadSettings()
         val appSettings = settingsRepository.settings.value
-
         entityTrackerCoordinator.configureSdk(appSettings, reset = false)
     }
 
     fun updateEntityTrackerCoordinator() {
         settingsRepository.loadSettings()
         val appSettings = settingsRepository.settings.value
-
         entityTrackerCoordinator.configureSdk(appSettings, reset = true)
     }
 

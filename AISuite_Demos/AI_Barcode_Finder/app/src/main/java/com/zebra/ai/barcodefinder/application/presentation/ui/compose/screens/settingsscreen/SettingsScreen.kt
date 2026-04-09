@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,9 +46,15 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import android.widget.Toast
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zebra.ai.barcodefinder.R
+import com.zebra.ai.barcodefinder.application.domain.model.SettingsApplicationResult
 import com.zebra.ai.barcodefinder.application.presentation.enums.ButtonType
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ProcessorType
@@ -88,8 +97,11 @@ fun SettingsScreen(
     onBackPressed: () -> Unit = {}
 ) {
     val settingsViewModel: SettingsViewModel = viewModel()
+    val context = LocalContext.current
 
-    val settings by settingsViewModel.settings.collectAsState()
+    // Bind the Settings UI to draft settings (not persisted until Apply succeeds)
+    val settings by settingsViewModel.draftSettings.collectAsState()
+    val applicationState by settingsViewModel.applicationState.collectAsState()
     var modelInputSizeExpanded by remember { mutableStateOf(false) }
     var resolutionExpanded by remember { mutableStateOf(false) }
     var inferenceExpanded by remember { mutableStateOf(false) }
@@ -101,6 +113,27 @@ fun SettingsScreen(
     var showResolutionDialog by remember { mutableStateOf(false) }
     var showInferenceDialog by remember { mutableStateOf(false) }
     var showBarcodeSymbologyDialog by remember { mutableStateOf(false) }
+
+    // Navigate back only once the ViewModel confirms the SDK accepted the settings.
+    // This keeps the screen alive during reconfiguration so the loading indicator
+    // and any error toast are visible to the user.
+    LaunchedEffect(Unit) {
+        settingsViewModel.navigationEvents.collect { event ->
+            when (event) {
+                is SettingsViewModel.NavigationEvent.NavigateBack -> onBackClick()
+            }
+        }
+    }
+
+    // Show a toast and clear error state whenever the SDK rejects the settings.
+    LaunchedEffect(applicationState) {
+        if (applicationState is SettingsApplicationResult.Error) {
+            val message = (applicationState as SettingsApplicationResult.Error).message
+                ?: "An error occurred"
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            settingsViewModel.resetApplicationState()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -118,14 +151,14 @@ fun SettingsScreen(
                 )
             },
             navigationIcon = {
-                IconButton(onClick = {
-                    onBackClick()
-                    settingsViewModel.applySettingsToSDK()
-                }) {
+                IconButton(
+                    onClick = { settingsViewModel.applySettingsToSDK() },
+                    enabled = applicationState !is SettingsApplicationResult.InProgress
+                ) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(id = R.string.setting_screen_back_icon_description),
-                        tint = white // Changed from Color.White
+                        tint = white
                     )
                 }
             },
@@ -1215,9 +1248,24 @@ fun SettingsScreen(
         }
     }
 
-    BackHandler {
-        onBackPressed()
+    // Disabled during reconfiguration so rapid back presses cannot queue
+    // multiple configureSdk() calls while the SDK pipeline is in flight.
+    BackHandler(enabled = applicationState !is SettingsApplicationResult.InProgress) {
         settingsViewModel.applySettingsToSDK()
+    }
+
+    // Loading indicator — renders as a floating dialog over the full screen
+    // window so it covers the content without requiring a Box wrapper.
+    if (applicationState is SettingsApplicationResult.InProgress) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        ) {
+            CircularProgressIndicator(color = white)
+        }
     }
 
 }

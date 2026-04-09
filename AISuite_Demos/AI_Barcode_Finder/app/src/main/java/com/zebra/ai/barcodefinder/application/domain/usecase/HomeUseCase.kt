@@ -20,10 +20,7 @@ class HomeUseCase(
     fun initializeEntityTrackerCoordinator() {
         settingsRepository.loadSettings()
         val appSettings = settingsRepository.settings.value
-
-        CoroutineScope(Dispatchers.Main).launch {
-            entityTrackerCoordinator.configureSdk(appSettings, reset = false)
-        }
+        entityTrackerCoordinator.configureSdk(appSettings, reset = false)
     }
 
     /**
@@ -39,10 +36,7 @@ class HomeUseCase(
     fun updateEntityTrackerCoordinator() {
         settingsRepository.loadSettings()
         val appSettings = settingsRepository.settings.value
-
-        CoroutineScope(Dispatchers.Main).launch {
-            entityTrackerCoordinator.configureSdk(appSettings, reset = true)
-        }
+        entityTrackerCoordinator.configureSdk(appSettings, reset = true)
     }
 
     /**
