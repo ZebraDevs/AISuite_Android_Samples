@@ -2,18 +2,21 @@
 package com.zebra.aisuite_quickstart.kotlin
 
 import android.content.SharedPreferences
+import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.RectF
 import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.util.Log
-import android.util.Size
 import android.view.Display
 import android.view.Surface
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
@@ -37,15 +40,15 @@ import com.zebra.aisuite_quickstart.kotlin.analyzers.tracker.Tracker
 import com.zebra.aisuite_quickstart.kotlin.camera.CameraManager
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeHandler
+import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionHandler
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRHandler
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.TextOCRAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseAnalyzer
+import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseLocalizerHandler
 import com.zebra.aisuite_quickstart.kotlin.handlers.BoundingBoxMapper
 import com.zebra.aisuite_quickstart.kotlin.handlers.DetectionResultHandler
 import com.zebra.aisuite_quickstart.kotlin.handlers.UIHandler
-import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionAnalyzer
-import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseAnalyzer
-import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseLocalizerHandler
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionSample
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample.ProductRecognitionSampleAnalyzer
 import com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample.BarcodeSample
@@ -55,10 +58,12 @@ import com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample.OCRSample
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityBarcodeTracker
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 import com.zebra.aisuite_quickstart.utils.CommonUtils
+import com.zebra.aisuite_quickstart.utils.CommonUtils.WAREHOUSE_LOCALIZER
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.DetectionCallback,
     TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
@@ -82,8 +87,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var ocrHandler: OCRHandler? = null
     private var ocrSample: OCRSample? = null
     private var productRecognitionHandler: ProductRecognitionHandler? = null
-    private var wareHouseLocalizerHandler: WareHouseLocalizerHandler? = null
     private var productRecognitionSample: ProductRecognitionSample? = null
+    private var wareHouseLocalizerHandler: WareHouseLocalizerHandler? = null
     private var tracker: Tracker? = null
     private var barcodeLegacySample: BarcodeSample? = null
     private var entityBarcodeTracker: EntityBarcodeTracker? = null
@@ -96,7 +101,6 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var initialRotation = Surface.ROTATION_0
     private var displayManager: DisplayManager? = null
     private var displayListener: DisplayManager.DisplayListener? = null
-    private var selectedSize: Size = Size(1920, 1080)
 
     // Orientation constants for clarity
     val ROTATION_0: Int = Surface.ROTATION_0 // 0
@@ -106,7 +110,14 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private var pendingTransformMatrix: Matrix? = null
     private var pendingCropRegion: RectF? = null
     private var sharedPreferences: SharedPreferences? = null
+    private var isModelLoading = false
+    var isModelLoaded = false
+    val capturedBitmap: Bitmap? get() = lastCapturedBitmap
 
+    private var lastCapturedBitmap: Bitmap? = null
+    private val modelLoadGeneration = AtomicInteger(0)
+    @Volatile
+    private var isActivityVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -138,7 +149,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private fun initializeComponents() {
         cameraManager = CameraManager(this, this, this)
         boundingBoxMapper = BoundingBoxMapper(this, this)
-        detectionHandler = DetectionResultHandler(this, boundingBoxMapper)
+        detectionHandler = DetectionResultHandler(this, boundingBoxMapper, cameraManager)
         uiHandler = UIHandler(this, cameraManager, sharedPreferences)
         cameraManager.setUIHandler(uiHandler)
 
@@ -275,11 +286,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     }
 
     fun bindAnalysisUseCase() {
-        if (cameraManager.getCameraProvider() == null) {
-            return
-        }
-        selectedModel = uiHandler.getSelectedModel()
-        analysisUseCase = cameraManager.getAnalysisUseCase()
+        if (cameraManager.cameraProvider == null) return
+        val loadGeneration = modelLoadGeneration.incrementAndGet()
+        isModelLoaded = false
+        showModelLoadingProgress(true)
+        selectedModel = uiHandler.selectedModel
+        analysisUseCase = cameraManager.analysisUseCase
         previousSelectedModel = selectedModel
         val filterItems = FilterDialog.trackerArray
         val selectedFilterItems: MutableList<String?> = ArrayList()
@@ -288,22 +300,29 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             val isChecked = sharedPreferences!!.getBoolean(filterItem, defaultValue)
             if (isChecked) selectedFilterItems.add(filterItem)
         }
+        binding.graphicOverlay.clear()
 
         try {
             when (selectedModel) {
                 BARCODE_DETECTION -> {
                     Log.i(tag, "Using Barcode Decoder")
                     executors.execute {
-                        barcodeHandler =
-                            BarcodeHandler(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                        barcodeHandler = BarcodeHandler(
+                            this,
+                            this@CameraXLivePreviewActivity,
+                            analysisUseCase!!
+                        ) { success -> handleModelLoadResult(loadGeneration, success) }
                     }
                 }
 
                 TEXT_OCR_DETECTION -> {
                     Log.i(tag, "Using Text OCR")
                     executors.execute {
-                        ocrHandler =
-                            OCRHandler(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                        ocrHandler = OCRHandler(
+                            this,
+                            this@CameraXLivePreviewActivity,
+                            analysisUseCase!!
+                        ) { success -> handleModelLoadResult(loadGeneration, success) }
                     }
                 }
 
@@ -311,8 +330,11 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     Log.i(tag, "Using Entity View Analyzer")
                     executors.execute {
                         analysisUseCase?.let {
-                            entityBarcodeTracker =
-                                EntityBarcodeTracker(this, this, it)
+                            entityBarcodeTracker = EntityBarcodeTracker(
+                                this,
+                                this,
+                                it
+                            ) { success -> showModelLoadingProgress(false) }
                         }
                     }
                 }
@@ -320,38 +342,58 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 ENTITY_ANALYZER -> {
                     Log.i(tag, "Using Entity Analyzer")
                     executors.execute {
-                        analysisUseCase?.let { tracker = Tracker(this, this, it, selectedFilterItems) }
+                        analysisUseCase?.let {
+                            tracker = Tracker(
+                                this,
+                                this,
+                                it,
+                                selectedFilterItems
+                            ) { success -> handleModelLoadResult(loadGeneration, success) }
+                        }
                     }
                 }
 
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Using Product Recognition")
                     executors.execute {
-                            productRecognitionHandler = ProductRecognitionHandler(this, this, analysisUseCase!!)
+                        productRecognitionHandler = ProductRecognitionHandler(
+                            this,
+                            this,
+                            analysisUseCase!!
+                        ) { success -> handleModelLoadResult(loadGeneration, success) }
                     }
                 }
 
                 LEGACY_BARCODE_DETECTION -> {
                     Log.i(tag, "Using Legacy Barcode Decoder")
                     executors.execute {
-                        barcodeLegacySample =
-                            BarcodeSample(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                        barcodeLegacySample = BarcodeSample(
+                            this,
+                            this@CameraXLivePreviewActivity,
+                            analysisUseCase!!
+                        ) { success -> showModelLoadingProgress(false) }
                     }
                 }
 
                 LEGACY_OCR_DETECTION -> {
                     Log.i(tag, "Using Legacy Text OCR")
                     executors.execute {
-                        ocrSample =
-                            OCRSample(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
-
+                        ocrSample = OCRSample(
+                            this,
+                            this@CameraXLivePreviewActivity,
+                            analysisUseCase!!
+                        ) { success -> showModelLoadingProgress(false) }
                     }
                 }
+
                 LEGACY_PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Using Product Recognition")
                     executors.execute {
-                        productRecognitionSample =
-                            ProductRecognitionSample(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                        productRecognitionSample = ProductRecognitionSample(
+                            this,
+                            this@CameraXLivePreviewActivity,
+                            analysisUseCase!!
+                        ) { success -> showModelLoadingProgress(false) }
                     }
                 }
 
@@ -359,13 +401,22 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     Log.i(tag, "Using WareHouse Localizer")
                     executors.execute {
                         wareHouseLocalizerHandler =
-                            WareHouseLocalizerHandler(this, this@CameraXLivePreviewActivity, analysisUseCase!!)
+                            WareHouseLocalizerHandler(
+                                this,
+                                this@CameraXLivePreviewActivity,
+                                analysisUseCase!!
+                            ){ success -> handleModelLoadResult(loadGeneration, success) }
                     }
                 }
 
-                else -> throw IllegalStateException("Invalid model name")
+                else -> {
+                    showModelLoadingProgress(false)
+                    throw IllegalStateException("Invalid model name")
+                }
             }
         } catch (e: Exception) {
+            showModelLoadingProgress(false)
+            handleModelLoadResult(loadGeneration, false)
             Log.e(tag, "Cannot create model for: $selectedModel", e)
             return
         }
@@ -374,7 +425,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     public override fun onResume() {
         super.onResume()
         Log.v(tag, "OnResume called")
+        isActivityVisible = true
         clearGraphicOverlay()
+        restoreLiveUiState()
 
         val currentRotation = display?.rotation ?: Surface.ROTATION_0
         if (currentRotation != initialRotation) {
@@ -405,12 +458,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             when (previousSelectedModel) {
                 BARCODE_DETECTION -> {
                     Log.i(tag, "Stopping the barcode analyzer")
-                    barcodeHandler?.getBarcodeAnalyzer()?.stop()
+                    barcodeHandler?.barcodeAnalyzer?.stop()
                 }
 
                 TEXT_OCR_DETECTION -> {
                     Log.i(tag, "Stopping the ocr analyzer")
-                    ocrHandler?.getOCRAnalyzer()?.stop()
+                    ocrHandler?.ocrAnalyzer?.stop()
                 }
 
                 ENTITY_VIEW_FINDER -> {
@@ -425,7 +478,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Stopping the recognition analyzer")
-                    productRecognitionHandler?.getProductRecognitionAnalyzer()?.stopAnalyzing()
+                    productRecognitionHandler?.productRecognitionAnalyzer?.stopAnalyzing()
                 }
 
                 LEGACY_BARCODE_DETECTION -> {
@@ -445,7 +498,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
                 WAREHOUSE_LOCALIZER -> {
                     Log.i(tag, "Stopping the warehouse analyzer")
-                    wareHouseLocalizerHandler?.getWareHouseAnalyzer()?.stop()
+                    wareHouseLocalizerHandler?.wareHouseAnalyzer?.stop()
                 }
 
                 else -> Log.e(tag, "Invalid stop analyzer option")
@@ -459,8 +512,16 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         detectionHandler.handleBarcodeDetection(result)
     }
 
+    override fun onCaptureDetectionResult(entities: List<BarcodeEntity>) {
+        detectionHandler.handleImageCaptureBarcodeResult(entities)
+    }
+
     override fun onDetectionTextResult(list: List<ParagraphEntity>) {
         detectionHandler.handleTextOCRDetection(list)
+    }
+
+    override fun onCaptureDetectionTextResult(list: List<ParagraphEntity>) {
+        detectionHandler.handleImageCaptureTextResult(list)
     }
 
     override fun handleEntities(result: EntityTrackerAnalyzer.Result) {
@@ -470,6 +531,10 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             val moduleEntities = tracker?.getModuleRecognizer()?.let { result.getValue(it) }
             detectionHandler.handleEntityTrackerDetection(barcodeEntities, ocrEntities, moduleEntities)
 
+    }
+
+    override fun handleCaptureFrameEntities(barcodeEntities: List<Entity>?, ocrEntities: List<Entity>?, moduleEntities: List<Entity>?) {
+        detectionHandler.handleCaptureEntityTrackerDetection(barcodeEntities, ocrEntities, moduleEntities)
     }
 
     override fun handleEntitiesForEntityView(result: EntityTrackerAnalyzer.Result) {
@@ -505,6 +570,23 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         detectionHandler.handleDetectionRecognitionResult(result)
     }
 
+    override fun onCaptureRecognitionResult(result: List<Entity>?) {
+        runOnUiThread {
+            binding.graphicOverlay.setOnTouchListener(null)
+            binding.graphicOverlay.setClickable(false)
+
+            binding.capturedImageView.post({
+                detectionHandler.enableShelfTapOnCapturedBitmap(
+                    result,
+                    lastCapturedBitmap,
+                    binding.capturedImageView
+                )
+            }
+            )
+            detectionHandler.handleImageCaptureRecognitionResult(result)
+        }
+    }
+
     override fun onDetectionResult(list: Array<BarcodeDecoder.Result>) {
         detectionHandler.handleLegacyBarcodeDetection(list)
     }
@@ -513,16 +595,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         detectionHandler.handleLegacyTextOCRDetection(list)
     }
 
-    override fun onDetectionRecognitionResult(
-        detections: Array<BBox>,
-        products: Array<BBox>,
-        recognitions: Array<Recognizer.Recognition>
-    ) {
-        detectionHandler.handleLegacyDetectionRecognitionResult(detections, products, recognitions)
-    }
-
     override fun onLocalizerDetectionResult(result: List<LocalizerEntity>) {
         detectionHandler.handleWareHouseLocalizerDetectionResult(result)
+    }
+
+    override fun onCaptureWareHouseDetectionResult(entities: List<LocalizerEntity>) {
+        detectionHandler.handleImageCaptureWareHouseResult(entities)
     }
 
     fun disposeModels() {
@@ -581,6 +659,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
     }
 
+
     companion object {
         private const val BARCODE_DETECTION = "Barcode"
         private const val TEXT_OCR_DETECTION = "OCR"
@@ -590,13 +669,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         private const val LEGACY_BARCODE_DETECTION = "Legacy Barcode"
         private const val LEGACY_OCR_DETECTION = "Legacy OCR"
         private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
-        private const val WAREHOUSE_LOCALIZER = "Warehouse Localizer(beta)"
 
     }
 
     fun getPreviewSurfaceProvider(): Preview.SurfaceProvider {
-        uiHandler.updatePreviewVisibility(uiHandler.isEntityViewFinder())
-        if (uiHandler.isEntityViewFinder()) {
+        uiHandler.updatePreviewVisibility(uiHandler.isEntityViewFinder)
+        if (uiHandler.isEntityViewFinder) {
             return entityViewController!!.surfaceProvider
         }
         return binding.previewView.getSurfaceProvider()
@@ -609,6 +687,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     public override fun onPause() {
         super.onPause()
         Log.v(tag, "onPause called")
+        isActivityVisible = false
+        modelLoadGeneration.incrementAndGet()
+        isModelLoaded = false
         clearGraphicOverlay()
         stopAnalyzing()
         cameraManager.unbindAll()
@@ -622,4 +703,211 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         super.onDestroy()
     }
 
+    override fun onDetectionRecognitionResult(
+        detections: Array<BBox>,
+        products: Array<BBox>,
+        recognitions: Array<Recognizer.Recognition>
+    ) {
+    detectionHandler.handleLegacyDetectionRecognitionResult(detections, products, recognitions)
+    }
+    /**
+     * Shows or hides the model loading progress bar and enables/disables the spinner
+     * @param show true to show progress bar and disable spinner, false to hide and enable
+     */
+    private fun showModelLoadingProgress(show: Boolean) {
+        runOnUiThread {
+            isModelLoading = show
+            binding.modelLoadingProgressBar.visibility = if (show) View.VISIBLE else View.GONE
+
+            // Notify UIHandler to enable/disable the spinner
+            uiHandler.setSpinnerEnabled(!show)
+        }
+    }
+
+    fun setBarcodeAnalysis() {
+        barcodeHandler?.barcodeAnalyzer?.let { analyzer ->
+            analyzer.startAnalyzing()
+            cameraManager.analysisUseCase?.setAnalyzer(ContextCompat.getMainExecutor(this), analyzer)
+        }
+    }
+
+    fun processCaptureOCR(image: ImageProxy) {
+        updateUIImageView(image)
+        ocrHandler?.ocrAnalyzer?.let { ocrAnalyzer ->
+            ocrHandler?.captureOCR?.let { captureOCR ->
+                ocrAnalyzer.processImageWithCaptureOCR(image, captureOCR)
+            }
+        }
+    }
+
+    fun setOCRAnalysis() {
+        ocrHandler?.ocrAnalyzer?.let { analyzer ->
+            analyzer.startAnalyzing()
+            cameraManager.analysisUseCase?.setAnalyzer(ContextCompat.getMainExecutor(this), analyzer)
+        }
+    }
+
+    fun processCaptureRecognition(image: ImageProxy) {
+        updateUIImageView(image)
+        productRecognitionHandler?.productRecognitionAnalyzer?.let { analyzer ->
+            productRecognitionHandler?.captureRecognizer?.let { recognizer ->
+                analyzer.processImage(image, recognizer)
+            }
+        }
+    }
+
+    fun processCaptureTracker(image: ImageProxy) {
+        updateUIImageView(image)
+        if (tracker?.captureModelsLoaded == true) {
+            tracker?.processImage(image)
+        }
+    }
+
+    fun setRecognitionAnalysis() {
+        productRecognitionHandler?.productRecognitionAnalyzer?.let { analyzer ->
+            analyzer.startAnalyzing()
+            cameraManager.analysisUseCase?.setAnalyzer(ContextCompat.getMainExecutor(this), analyzer)
+        }
+    }
+
+    fun setTrackerAnalysis() {
+        tracker?.let {
+            it.startAnalyzing()
+            cameraManager.analysisUseCase?.setAnalyzer(ContextCompat.getMainExecutor(this), it.entityTrackerAnalyzer as ImageAnalysis.Analyzer)
+        }
+    }
+
+    private fun updateUIImageView(image: ImageProxy) {
+        // Store the captured bitmap so the handler can map tap coordinates properly
+        lastCapturedBitmap = CommonUtils.rotateBitmapIfNeeded(image)
+
+        runOnUiThread {
+            binding.apply {
+                previewView.visibility = android.view.View.GONE
+                capturedImageView.visibility = android.view.View.VISIBLE
+                capturedImageView.scaleType = android.widget.ImageView.ScaleType.FIT_XY
+                capturedImageView.setAdjustViewBounds(true)
+                capturedImageView.setImageBitmap(lastCapturedBitmap)
+            }
+        }
+    }
+
+    /**
+     * Initialize capture decoder for barcode detection
+     */
+    fun initializeCaptureDecoder(onComplete: () -> Unit) {
+        binding.graphicOverlay.clear()
+        // Assuming you have a reference to your BarcodeHandler
+        if (barcodeHandler?.captureDecoder != null) {
+            onComplete()
+        }
+    }
+
+    /**
+     * Initialize text ocr capture for text detection
+     */
+    fun initializeCaptureOCR(onComplete: () -> Unit) {
+        binding.graphicOverlay.clear()
+        // Assuming you have a reference to your OcrHandler
+        if (ocrHandler?.captureOCR != null) {
+            onComplete()
+        }
+    }
+
+    fun initializeCaptureRecognition(onComplete: () -> Unit) {
+        binding.graphicOverlay.clear()
+        // Assuming you have a reference to your productRecognitionHandler
+        if (productRecognitionHandler?.captureRecognizer != null) {
+            onComplete()
+        }
+    }
+
+    fun initializeCaptureTracker(onComplete: () -> Unit) {
+        binding.graphicOverlay.clear()
+        if (tracker?.captureModelsLoaded == true) {
+            onComplete()
+        }
+    }
+
+    fun initializeCaptureWareHouse(onComplete: () -> Unit) {
+        binding.graphicOverlay.clear()
+        if (wareHouseLocalizerHandler?.captureLocalizer != null) {
+            onComplete()
+        }
+    }
+
+    /**
+     * Process barcode detection using the capture decoder instead of live preview decoder
+     */
+    fun processBarcodeWithCaptureDecoder(imageProxy: ImageProxy) {
+        updateUIImageView(imageProxy)
+        barcodeHandler?.let { handler ->
+            handler.captureDecoder?.let { decoder ->
+                handler.barcodeAnalyzer?.processImage(imageProxy, decoder)
+            }
+        }
+    }
+
+    fun processCaptureWareHouseLocalizer(imageProxy: ImageProxy) {
+        updateUIImageView(imageProxy)
+        wareHouseLocalizerHandler?.let { handler ->
+            handler.captureLocalizer?.let { localizer ->
+                handler.wareHouseAnalyzer?.processImage(imageProxy, localizer)
+            }
+        }
+    }
+
+    fun setWareHouseAnalysis() {
+        wareHouseLocalizerHandler?.wareHouseAnalyzer?.let { analyzer ->
+            analyzer.startAnalyzing()
+            cameraManager.analysisUseCase?.setAnalyzer(ContextCompat.getMainExecutor(this), analyzer)
+        }
+    }
+    private fun handleModelLoadResult(loadGeneration: Int, success: Boolean) {
+        runOnUiThread {
+            if (!isActivityVisible || isFinishing || isDestroyed ||
+                loadGeneration != modelLoadGeneration.get()
+            ) {
+                Log.d(tag, "Ignoring stale model-load callback. generation=$loadGeneration, current=${modelLoadGeneration.get()}")
+                return@runOnUiThread
+            }
+
+            isModelLoaded = success
+            showModelLoadingProgress(false)
+        }
+    }
+    private fun restoreLiveUiState() {
+        if (::binding.isInitialized.not()) return
+
+        runOnUiThread {
+            selectedModel = uiHandler.selectedModel
+            lastCapturedBitmap = null
+            uiHandler.isInCaptureMode = false
+
+            binding.capturedImageView.visibility = View.GONE
+            binding.capturedImageView.setImageBitmap(null)
+            binding.backToLiveButton.visibility = View.GONE
+            binding.graphicOverlay.visibility = View.VISIBLE
+            binding.control.visibility = View.VISIBLE
+
+            uiHandler.updatePreviewVisibility(uiHandler.isEntityViewFinder)
+
+            val supportsCapture =
+                selectedModel.equals(BARCODE_DETECTION, true) ||
+                        selectedModel.equals(TEXT_OCR_DETECTION, true) ||
+                        selectedModel.equals(PRODUCT_RECOGNITION, true) ||
+                        selectedModel.equals(ENTITY_ANALYZER, true) ||
+                        selectedModel.equals(WAREHOUSE_LOCALIZER, true)
+
+            binding.captureLayout.visibility = if (supportsCapture) View.VISIBLE else View.GONE
+            binding.trackerFilter.visibility =
+                if (selectedModel.equals(ENTITY_ANALYZER, true)) View.VISIBLE else View.GONE
+        }
+    }
+
+    fun clearCaptureListener() {
+        if (::detectionHandler.isInitialized) {
+            detectionHandler.clearCaptureTapListener()
+        }
+    }
 }

@@ -12,6 +12,7 @@ import com.zebra.ai.vision.detector.FeatureExtractor;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.Localizer;
 import com.zebra.ai.vision.detector.Recognizer;
+import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeHandler;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -36,6 +37,14 @@ public class ProductRecognitionSample {
     private boolean recognizerInitialized = false;
     private ProductRecognitionSampleAnalyzer analyzer;
     private final String mavenModelName = "product-and-shelf-recognizer";
+    private final ModelLoadingCallback loadingCallback;
+
+    /**
+     * Callback interface for model loading completion
+     */
+    public interface ModelLoadingCallback {
+        void onLoadingComplete(boolean success);
+    }
 
     /**
      * Constructs a new ProductRecognitionSample with the specified context, callback, and image analysis configuration.
@@ -45,10 +54,11 @@ public class ProductRecognitionSample {
      * @param imageAnalysis The image analysis configuration for processing image data.
      *                      Constructs a new ProductRecognitionHandler.
      */
-    public ProductRecognitionSample(Context context, ProductRecognitionSampleAnalyzer.SampleDetectionCallback callback, ImageAnalysis imageAnalysis) {
+    public ProductRecognitionSample(Context context, ProductRecognitionSampleAnalyzer.SampleDetectionCallback callback, ImageAnalysis imageAnalysis, ModelLoadingCallback loadingCallback) {
         this.context = context;
         this.imageAnalysis = imageAnalysis;
         this.executor = Executors.newFixedThreadPool(3); // Create a thread pool for parallel execution
+        this.loadingCallback = loadingCallback;
         initializeProductRecognition(callback);
     }
 
@@ -96,6 +106,10 @@ public class ProductRecognitionSample {
                         } else {
                             Log.e(TAG, "Localizer load failed: " + e.getMessage());
                         }
+                        // Notify failed loading
+                        if (loadingCallback != null) {
+                            loadingCallback.onLoadingComplete(false);
+                        }
                         return null;
                     });
 
@@ -112,6 +126,10 @@ public class ProductRecognitionSample {
                         } else {
                             Log.e(TAG, "FeatureExtractor creation failed: " + e.getMessage());
                         }
+                        // Notify failed loading
+                        if (loadingCallback != null) {
+                            loadingCallback.onLoadingComplete(false);
+                        }
                         return null;
                     });
 
@@ -123,6 +141,10 @@ public class ProductRecognitionSample {
                         recognizer = recognizerInstance;
                         tryInitializeProductRecognition(callback);
                     }).exceptionally(e -> {
+                        // Notify failed loading
+                        if (loadingCallback != null) {
+                            loadingCallback.onLoadingComplete(false);
+                        }
                         Log.e(TAG, "Recognizer creation failed: " + e.getMessage());
                         return null;
                     });
@@ -130,6 +152,10 @@ public class ProductRecognitionSample {
             CompletableFuture.allOf(localizerFuture, extractorFuture, recognizerFuture).join();
 
         } catch (Exception e) {
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
             Log.e(TAG, "Fatal error during initialization: " + e.getMessage());
         }
     }
@@ -141,6 +167,10 @@ public class ProductRecognitionSample {
      */
     private synchronized void tryInitializeProductRecognition(ProductRecognitionSampleAnalyzer.SampleDetectionCallback callback) {
         if (localizerInitialized && featureExtractorInitialized && recognizerInitialized) {
+            // Notify successful loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(true);
+            }
             analyzer = new ProductRecognitionSampleAnalyzer(callback, localizer, featureExtractor, recognizer);
             imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer);
         }

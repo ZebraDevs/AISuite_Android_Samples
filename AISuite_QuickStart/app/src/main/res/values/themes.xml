@@ -3,9 +3,13 @@
     <style name="Base.Theme.AISuite_QuickStart" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="android:statusBarColor">@color/blue</item>
     </style>
 
-    <style name="Theme.AISuite_QuickStart" parent="Base.Theme.AISuite_QuickStart" />
+    <style name="Theme.AISuite_QuickStart" parent="Base.Theme.AISuite_QuickStart" >
+        <item name="android:statusBarColor">@color/blue</item>
+    </style>
+
         <style name="MyAlertDialogTheme" parent="Theme.AppCompat.Dialog.Alert">
             <item name="android:windowFrame">@null</item>
             <item name="android:windowIsFloating">true</item>

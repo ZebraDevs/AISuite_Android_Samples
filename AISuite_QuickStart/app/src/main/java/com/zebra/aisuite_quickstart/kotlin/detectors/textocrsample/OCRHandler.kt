@@ -5,7 +5,6 @@ import android.content.Context
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
-import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.TextOCR
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
@@ -46,27 +45,38 @@ import java.util.concurrent.Executors
 class OCRHandler(
     private val context: Context,
     private val callback: CameraXLivePreviewActivity,
-    private val imageAnalysis: ImageAnalysis
+    private val imageAnalysis: ImageAnalysis,
+    private val loadingCallback: ((Boolean) -> Unit)? = null
 ) {
 
-    private val TAG = "OCRHandler"
-    private var textOCR: TextOCR? = null
+    private val tag = "OCRHandler"
+    private var textOCR: TextOCR? = null // For live preview
+    var captureOCR: TextOCR? = null // For capture mode
 
-    private lateinit var ocrAnalyzer: TextOCRAnalyzer
+    lateinit var ocrAnalyzer: TextOCRAnalyzer
     private val executor = Executors.newSingleThreadExecutor()
+    private val captureExecutor = Executors.newSingleThreadExecutor()
     private val mavenModelName = "text-ocr-recognizer"
+
+    // Model input sizes
+    companion object {
+        private const val LIVE_PREVIEW_SIZE = 640
+        private const val CAPTURE_SIZE = 1280 // Higher resolution for capture
+    }
 
     init {
         initializeTextOCR()
+        initializeCaptureOCR()
     }
 
     /**
-     * Initializes the TextOCR with predefined settings for text detection and recognition.
-     * This method sets up the necessary components for analyzing and recognizing text from
-     * image data asynchronously using coroutines.
+     * Creates OCR settings with specified input size.
+     *
+     * @param inputSize The input dimension size for the OCR model.
+     * @return Configured TextOCR.Settings instance.
      */
-    private fun initializeTextOCR() {
-        val textOCRSettings = TextOCR.Settings(mavenModelName).apply {
+    private fun createOCRSettings(inputSize: Int): TextOCR.Settings {
+        return TextOCR.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
                 InferencerOptions.CPU,
@@ -75,51 +85,117 @@ class OCRHandler(
 
             detectionInferencerOptions.runtimeProcessorOrder = rpo
             recognitionInferencerOptions.runtimeProcessorOrder = rpo
+
             detectionInferencerOptions.defaultDims.apply {
-                height = 640
-                width = 640
-            }
-        }
-
-        val startTime = System.currentTimeMillis()
-
-        CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
-                textOCR = ocrInstance
-                ocrAnalyzer = TextOCRAnalyzer(callback, ocrInstance)
-                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer)
-
-                Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
-            }
-            catch (e: AIVisionSDKLicenseException) {
-                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
-            }
-            catch (e: Exception) {
-                Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
+                height = inputSize
+                width = inputSize
             }
         }
     }
 
     /**
-     * Stops the executor service and disposes of the TextOCR, releasing any resources held.
+     * Initializes the live preview TextOCR with smaller input size for real-time processing.
+     */
+    private fun initializeTextOCR() {
+        try {
+            val liveOCRSettings = createOCRSettings(LIVE_PREVIEW_SIZE)
+            CoroutineScope(executor.asCoroutineDispatcher()).launch {
+                createTextOCRWithFallback(liveOCRSettings)
+            }
+        } catch (e: Exception) {
+            loadingCallback?.invoke(false)
+            Log.e(tag, "Fatal error: load failed - ${e.message}")
+        }
+    }
+
+    /**
+     * Initializes the capture OCR with higher resolution settings.
+     */
+    fun initializeCaptureOCR() {
+        try {
+            val captureOCRSettings = createOCRSettings(CAPTURE_SIZE)
+            CoroutineScope(captureExecutor.asCoroutineDispatcher()).launch {
+                createCaptureOCRWithFallback(captureOCRSettings)
+            }
+        } catch (ex: Exception) {
+            loadingCallback?.invoke(false)
+            Log.e(tag, "Capture OCR initialization failed: ${ex.message}")
+        }
+    }
+
+    /**
+     * Creates the live preview TextOCR instance with fallback error handling.
+     * Only notifies loading complete and attaches analyzer when both models are loaded.
+     */
+    private suspend fun createTextOCRWithFallback(textOCRSettings: TextOCR.Settings) {
+        val startTime = System.currentTimeMillis()
+        try {
+            val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
+            textOCR = ocrInstance
+
+            if (captureOCR != null) {
+                loadingCallback?.invoke(true)
+                attachAnalysisAfterModelLoading()
+            }
+
+            Log.d(
+                tag,
+                "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms" +
+                        " and input size: ${textOCRSettings.detectionInferencerOptions.defaultDims.width}"
+            )
+        } catch (e: Exception) {
+            loadingCallback?.invoke(false)
+            Log.e(tag, "Fatal error: TextOCR creation failed - ${e.message}")
+        }
+    }
+
+    /**
+     * Creates the capture TextOCR instance with fallback error handling.
+     * Only notifies loading complete and attaches analyzer when both models are loaded.
+     */
+    private suspend fun createCaptureOCRWithFallback(textOCRSettings: TextOCR.Settings) {
+        val startTime = System.currentTimeMillis()
+        try {
+            val ocrInstance = TextOCR.getTextOCR(textOCRSettings, captureExecutor).await()
+            captureOCR = ocrInstance
+
+            if (textOCR != null) {
+                loadingCallback?.invoke(true)
+                attachAnalysisAfterModelLoading()
+            }
+
+            Log.d(tag, "Capture TextOCR created in ${System.currentTimeMillis() - startTime} ms")
+        } catch (e: Exception) {
+            loadingCallback?.invoke(false)
+            Log.e(tag, "Capture OCR creation failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Attaches the TextOCRAnalyzer to the ImageAnalysis once both models are loaded.
+     */
+    private fun attachAnalysisAfterModelLoading() {
+        ocrAnalyzer = TextOCRAnalyzer(callback, textOCR)
+        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer)
+    }
+
+    /**
+     * Stops the executor services and disposes of both TextOCR instances, releasing any resources held.
      * This method should be called when OCR processing is no longer needed.
      */
     fun stop() {
         executor.shutdownNow()
+        captureExecutor.shutdownNow()
         textOCR?.let {
             it.dispose()
-            Log.v(TAG, "OCR is disposed")
+            Log.v(tag, "Live preview OCR is disposed")
             textOCR = null
+        }
+        captureOCR?.let {
+            it.dispose()
+            Log.v(tag, "Capture OCR is disposed")
+            captureOCR = null
         }
     }
 
-    /**
-     * Retrieves the current instance of the TextOCRAnalyzer.
-     *
-     * @return The TextOCRAnalyzer instance.
-     */
-    fun getOCRAnalyzer(): TextOCRAnalyzer {
-        return ocrAnalyzer
-    }
 }

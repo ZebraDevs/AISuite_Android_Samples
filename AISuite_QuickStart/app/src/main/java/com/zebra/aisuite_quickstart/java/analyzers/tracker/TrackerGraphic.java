@@ -119,13 +119,13 @@ public class TrackerGraphic extends GraphicOverlay.Graphic {
                 // Draw the rectangle for barcode content
                 canvas.drawRect(contentRectBoxes.get(i), contentRectPaint);
 
-                // Draw the text
-                canvas.drawText(
-                        decodedValues.get(i),
-                        boundingBoxes.get(i).left + contentPadding,
-                        boundingBoxes.get(i).bottom + contentPadding * 2,
-                        contentTextPaint
-                );
+                    // Draw the text
+                    canvas.drawText(
+                            decodedValues.get(i),
+                            boundingBoxes.get(i).left + contentPadding,
+                            boundingBoxes.get(i).bottom + contentPadding * 2,
+                            contentTextPaint
+                    );
             }
         }
     }

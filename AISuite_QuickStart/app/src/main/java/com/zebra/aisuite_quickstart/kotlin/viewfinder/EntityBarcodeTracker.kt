@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
-import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
@@ -51,7 +50,8 @@ import java.util.concurrent.Executors
 class EntityBarcodeTracker(
     private val context: Context,
     private val callback: CameraXLivePreviewActivity,
-    private val imageAnalysis: ImageAnalysis
+    private val imageAnalysis: ImageAnalysis,
+    private val loadingCallback: ((Boolean) -> Unit)? = null
 ) {
 
     /**
@@ -80,6 +80,7 @@ class EntityBarcodeTracker(
      * and detection parameters. This method sets up the necessary components for analyzing
      * and decoding barcodes from image data asynchronously using coroutines.
      */
+    // Assuming 'callback' is a member variable or passed as a parameter to the class
     private fun initializeBarcodeDecoder() {
         val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
             val rpo = arrayOf(
@@ -98,31 +99,51 @@ class EntityBarcodeTracker(
             }
         }
 
-        val startTime = System.currentTimeMillis()
-
+        // Launch a coroutine to handle the async initialization with fallback
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                val decoderInstance = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
-                barcodeDecoder = decoderInstance
-                entityTrackerAnalyzer = EntityTrackerAnalyzer(
-                    listOf(decoderInstance),
-                    ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED,
-                    executor,
-                    ::handleEntities
-                )
-                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer!!)
+            createBarcodeDecoderForEntityTrackerWithFallback(
+                decoderSettings,
+                System.currentTimeMillis()
+            )
+        }
+    }
 
-                Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} milli sec")
+    private suspend fun createBarcodeDecoderForEntityTrackerWithFallback(
+        decoderSettings: BarcodeDecoder.Settings,
+        startTime: Long
+    ) {
+        try {
+            // Await the decoder instance from the suspend function
+            val decoderInstance =
+                BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
 
-                // Notify that the tracker is ready
-                callback.onEntityBarcodeTrackerReady()
-            }
-            catch (e: AIVisionSDKLicenseException) {
-                Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
-            }
-            catch (e: Exception) {
-                Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
-            }
+            // --- On Success ---
+            barcodeDecoder = decoderInstance
+            // Notify successful loading
+            loadingCallback?.invoke(true)
+            entityTrackerAnalyzer = EntityTrackerAnalyzer(
+                listOf(decoderInstance),
+                ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED,
+                executor,
+                ::handleEntities // Assumes handleEntities is a compatible function reference
+            )
+            imageAnalysis.setAnalyzer(
+                ContextCompat.getMainExecutor(context),
+                entityTrackerAnalyzer!!
+            )
+
+            Log.d(
+                TAG,
+                "Entity Tracker BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms"
+            )
+
+            // Notify that the tracker is ready
+            callback.onEntityBarcodeTrackerReady()
+
+        } catch (e: Exception) {
+            // Notify failed loading
+            loadingCallback?.invoke(false)
+            Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
         }
     }
 

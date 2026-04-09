@@ -2,6 +2,7 @@
 package com.zebra.aisuite_quickstart.java.camera;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.hardware.camera2.CameraMetadata;
 import android.util.Log;
 import android.util.Size;
@@ -13,6 +14,7 @@ import androidx.camera.core.Camera;
 import androidx.camera.core.CameraProvider;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageCapture;
 import androidx.camera.core.Preview;
 import androidx.camera.core.resolutionselector.AspectRatioStrategy;
 import androidx.camera.core.resolutionselector.ResolutionSelector;
@@ -23,6 +25,7 @@ import androidx.lifecycle.LifecycleOwner;
 import com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity;
 import com.zebra.aisuite_quickstart.java.handlers.UIHandler;
 import com.zebra.aisuite_quickstart.utils.CameraUtil;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 /**
  * CameraManager handles all CameraX related operations including initialization,
@@ -46,6 +49,9 @@ public class CameraManager {
     private boolean isFrontCamera = false;
     private UIHandler uiHandler;
     private CameraXLivePreviewActivity activity;
+    private ImageCapture imageCapture;
+    private boolean isInCaptureMode = false;
+    private Bitmap currentCapture;
 
     public CameraManager(CameraXLivePreviewActivity activity, Context context, LifecycleOwner lifecycleOwner) {
         this.context = context;
@@ -119,9 +125,28 @@ public class CameraManager {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(rotation)
                 .build();
+        if (uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.BARCODE_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.TEXT_OCR_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.PRODUCT_RECOGNITION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.ENTITY_ANALYZER) || uiHandler.getSelectedModel().equalsIgnoreCase(CommonUtils.WAREHOUSE_LOCALIZER)) {
+            // Build ImageCapture with ResolutionSelector
+            ResolutionSelector imageResolutionSelector = new ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                            new AspectRatioStrategy(AspectRatio.RATIO_16_9,
+                                    AspectRatioStrategy.FALLBACK_RULE_NONE)
+                    ).setResolutionStrategy(
+                            new ResolutionStrategy(new Size(4608, 2592),ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
 
-        camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector,
-                previewUseCase, analysisUseCase);
+                    ).setAllowedResolutionMode(ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE).build();
+
+            ImageCapture.Builder imageCaptureBuilder = new ImageCapture.Builder();
+
+            imageCapture = imageCaptureBuilder.setResolutionSelector(imageResolutionSelector).build();
+
+            camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector,
+                    previewUseCase, analysisUseCase, imageCapture);
+        } else {
+            camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector,
+                    previewUseCase, analysisUseCase);
+        }
+
         if(uiHandler.isEntityViewFinder()) activity.getEntityViewController().setCameraController(camera);
     }
 
@@ -132,12 +157,26 @@ public class CameraManager {
         }
     }
 
+    public void unbindImageAnalysis() {
+        if (cameraProvider!=null && analysisUseCase != null) {
+            cameraProvider.unbind(analysisUseCase);
+        }
+    }
+
+    public void clearAnalyzer() {
+        if (analysisUseCase != null) {
+            analysisUseCase.clearAnalyzer();
+        }
+    }
     public void updateTargetRotation(int rotation) {
         if (analysisUseCase != null) {
             analysisUseCase.setTargetRotation(rotation);
         }
         if (previewUseCase != null) {
             previewUseCase.setTargetRotation(rotation);
+        }
+        if (imageCapture != null) {
+            imageCapture.setTargetRotation(rotation);
         }
     }
 
@@ -148,10 +187,8 @@ public class CameraManager {
     public Size getSelectedSize() {
         return selectedSize;
     }
-    public CameraProvider getCameraProvider(){
-        return cameraProvider;
-    }
     public ImageAnalysis getAnalysisUseCase(){
         return analysisUseCase;
     }
+    public ImageCapture getImageCapture(){ return imageCapture; }
 }

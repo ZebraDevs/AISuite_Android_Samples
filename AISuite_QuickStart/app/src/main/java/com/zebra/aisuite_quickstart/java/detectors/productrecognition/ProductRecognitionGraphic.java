@@ -39,11 +39,14 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
     private final Paint contentTextPaint;
     private final Paint labelShelfPaint;
     private final Paint shelfPaint;
+    private final Paint barPaint;
     private final List<Rect> labelShelfBBoxes = new ArrayList<>();
     private final List<Rect> labelPegBBoxes = new ArrayList<>();
     private final List<Rect> shelfBBoxes = new ArrayList<>();
     private final List<Rect> productBBoxes = new ArrayList<>();
     private final List<String> decodedProducts = new ArrayList<>();
+    private final List<Rect> barcodeBBoxes = new ArrayList<>();
+    private final List<String> barcodeTexts = new ArrayList<>();
 
     /**
      * Constructs a new ProductRecognitionGraphic object, initializing the Paint objects used for drawing
@@ -56,7 +59,7 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
      * @param recognizedRects A list of Rect objects representing the bounding boxes of recognized products.
      * @param decodedStrings A list of strings representing the decoded product names.
      */
-    public ProductRecognitionGraphic(GraphicOverlay overlay, List<Rect> labelShelfRects, List<Rect> labelPegRects, List<Rect> shelfRects, List<Rect> recognizedRects, List<String> decodedStrings) {
+    public ProductRecognitionGraphic(GraphicOverlay overlay, List<Rect> labelShelfRects, List<Rect> labelPegRects, List<Rect> shelfRects, List<Rect> recognizedRects, List<String> decodedStrings, List<Rect> barcodeRects, List<String> barcodeStrings) {
         super(overlay);
 
         // Initialize the paint for drawing bounding boxes around products
@@ -69,6 +72,7 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
         labelShelfPaint = new Paint();
         labelShelfPaint.setColor(Color.BLUE);
         labelShelfPaint.setStyle(Paint.Style.STROKE);
+        labelShelfPaint.setStrokeWidth(6f);
         labelShelfPaint.setAlpha(255);
 
         // Initialize the paint for drawing shelves
@@ -83,6 +87,12 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
         contentTextPaint.setColor(Color.WHITE);
         contentTextPaint.setAlpha(255);
         contentTextPaint.setTextSize(20F);
+
+        barPaint = new Paint();
+        barPaint.setColor(Color.RED);
+        barPaint.setStyle(Paint.Style.STROKE);
+        barPaint.setAlpha(255);
+        barPaint.setStrokeWidth(6f);
 
         // Populate bounding boxes and decoded product names
         labelShelfBBoxes.clear();
@@ -108,6 +118,16 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
         decodedProducts.clear();
         if (decodedStrings != null) {
             decodedProducts.addAll(decodedStrings);
+        }
+
+        barcodeBBoxes.clear();
+        if(barcodeRects != null) {
+            barcodeBBoxes.addAll(barcodeRects);
+        }
+
+        barcodeTexts.clear();
+        if(barcodeStrings != null) {
+            barcodeTexts.addAll(barcodeStrings);
         }
 
         // Trigger a redraw of the overlay
@@ -150,6 +170,15 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
                     productBBoxes.get(i).bottom,
                     contentTextPaint
             );
+        }
+
+        for (int i = 0; i < barcodeBBoxes.size(); i++) {
+            Rect rect = barcodeBBoxes.get(i);
+            canvas.drawRect(rect, barPaint);
+            if (barcodeTexts != null && i < barcodeTexts.size()) {
+                getTextSizeWithinBounds(barcodeTexts.get(i), rect.left, rect.top, rect.right, rect.bottom, contentTextPaint);
+                canvas.drawText(barcodeTexts.get(i), rect.left, rect.bottom, contentTextPaint);
+            }
         }
     }
 

@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat;
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.TextOCR;
+import com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample.BarcodeSample;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,6 +51,14 @@ public class OCRSample {
     private final ImageAnalysis imageAnalysis;
     private OCRAnalyzer ocrAnalyzer;
     private final String mavenModelName = "text-ocr-recognizer";
+    private final ModelLoadingCallback loadingCallback;
+
+    /**
+     * Callback interface for model loading completion
+     */
+    public interface ModelLoadingCallback {
+        void onLoadingComplete(boolean success);
+    }
 
     /**
      * Constructs a new OCRSample with the specified context, callback, and image analysis configuration.
@@ -58,11 +67,12 @@ public class OCRSample {
      * @param callback The callback for handling OCR text detection results.
      * @param imageAnalysis The image analysis configuration for processing image data.
      */
-    public OCRSample(Context context, OCRAnalyzer.DetectionCallback callback, ImageAnalysis imageAnalysis) {
+    public OCRSample(Context context, OCRAnalyzer.DetectionCallback callback, ImageAnalysis imageAnalysis, ModelLoadingCallback loadingCallback) {
         this.context = context;
         this.callback = callback;
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
+        this.loadingCallback = loadingCallback;
         initializeTextOCR();
     }
 
@@ -86,19 +96,31 @@ public class OCRSample {
             long m_Start = System.currentTimeMillis();
             TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
                 textOCR = OCRInstance;
+                Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
+
+                // Notify successful loading
+                if (loadingCallback != null) {
+                    loadingCallback.onLoadingComplete(true);
+                }
                  ocrAnalyzer = new OCRAnalyzer(callback, textOCR);
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer);
-
-                Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
             }).exceptionally(e -> {
                 if (e instanceof AIVisionSDKLicenseException) {
                     Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
                 } else {
                     Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
                 }
+                // Notify failed loading
+                if (loadingCallback != null) {
+                    loadingCallback.onLoadingComplete(false);
+                }
                 return null;
             });
         } catch (Exception e) {
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
             Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
     }

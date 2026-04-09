@@ -48,7 +48,8 @@ import java.util.concurrent.Executors
 class BarcodeSample(
     private val context: Context,
     private val callback: BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback,
-    private val imageAnalysis: ImageAnalysis
+    private val imageAnalysis: ImageAnalysis,
+    private val loadingCallback: ((Boolean) -> Unit)? = null
 ) {
 
     private val TAG = "BarcodeSample"
@@ -91,8 +92,12 @@ class BarcodeSample(
                     localizer = Localizer.getLocalizer(locSettings, executor).await()
                     Log.d(TAG, "Barcode Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - start} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                     Log.e(TAG, "AIVisionSDKLicenseException: Barcode Localizer object creation failed, ${e.message}")
                 } catch (e: Exception) {
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                     Log.e(TAG, "Fatal error: load failed - ${e.message}")
                 }
 
@@ -101,12 +106,18 @@ class BarcodeSample(
                 val mStartDecoder = System.currentTimeMillis()
                 try {
                     barcodeDecoder = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
+                    // Notify successful loading
+                    loadingCallback?.invoke(true)
                     barcodeAnalyzer = BarcodeSampleAnalyzer(callback, localizer!!, barcodeDecoder!!)
                     imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), barcodeAnalyzer!!)
                     Log.d(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - mStartDecoder} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                     Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
                 } catch (e: Exception) {
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                     Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
                 }
             } catch (e: Exception) {

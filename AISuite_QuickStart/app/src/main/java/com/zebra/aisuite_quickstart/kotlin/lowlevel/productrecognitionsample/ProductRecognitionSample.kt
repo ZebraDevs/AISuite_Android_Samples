@@ -54,7 +54,8 @@ import java.util.concurrent.Executors
 class ProductRecognitionSample(
     private val context: Context,
     private val callback: CameraXLivePreviewActivity,
-    private val imageAnalysis: ImageAnalysis
+    private val imageAnalysis: ImageAnalysis,
+    private val loadingCallback: ((Boolean) -> Unit)? = null
 ) {
     private val TAG = "ProductRecognitionSample"
     private var localizer: Localizer? = null
@@ -119,8 +120,12 @@ class ProductRecognitionSample(
                     Log.d(TAG, "Shelf Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - mStartLocalizer} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
                     Log.e(TAG, "AIVisionSDKLicenseException: Shelf Localizer object creation failed, ${e.message}")
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                 } catch (e: Exception) {
                     Log.e(TAG, "Fatal error: load failed - ${e.message}")
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                 }
             }
 
@@ -140,8 +145,12 @@ class ProductRecognitionSample(
                         TAG,
                         "AIVisionSDKLicenseException: Feature Extractor object creation failed, ${e.message}"
                     )
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                 } catch (e: Exception) {
                     Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
+                    // Notify failed loading
+                    loadingCallback?.invoke(false)
                 }
             }
 
@@ -153,6 +162,8 @@ class ProductRecognitionSample(
                         setupAnalyzerIfReady()
                         Log.d(TAG, "Recognizer(reSettings) obj creation time = ${System.currentTimeMillis() - mStartRecognizer} milli sec")
                     } catch (e: Exception) {
+                        // Notify failed loading
+                        loadingCallback?.invoke(false)
                         Log.e(TAG, "Fatal error: recognizer creation failed - ${e.message}")
                     }
                 }
@@ -167,6 +178,8 @@ class ProductRecognitionSample(
          */
         private fun setupAnalyzerIfReady() {
             if (localizerInitialized && featureExtractorInitialized && recognizerInitialized) {
+                // Notify successful loading
+                loadingCallback?.invoke(true)
                 productRecognitionSampleAnalyzer = ProductRecognitionSampleAnalyzer(callback, localizer, featureExtractor, recognizer)
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), productRecognitionSampleAnalyzer!!)
             }

@@ -47,7 +47,8 @@ import java.util.concurrent.Executors
 class OCRSample(
     private val context: Context,
     private val callback: OCRAnalyzer.DetectionCallback,
-    private val imageAnalysis: ImageAnalysis
+    private val imageAnalysis: ImageAnalysis,
+    private val loadingCallback: ((Boolean) -> Unit)? = null
 ) : OCRAnalyzer.DetectionCallback {
 
     private val TAG = "OCRSample"
@@ -87,15 +88,21 @@ class OCRSample(
             try {
                 val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
                 textOCR = ocrInstance
+                // Notify successful loading
+                loadingCallback?.invoke(true)
                 ocrAnalyzer = OCRAnalyzer(callback, ocrInstance)
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer!!)
 
                 Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
             }
             catch (e: AIVisionSDKLicenseException) {
+                // Notify failed loading
+                loadingCallback?.invoke(false)
                 Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
             }
             catch (e: Exception) {
+                // Notify failed loading
+                loadingCallback?.invoke(false)
                 Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
             }
         }

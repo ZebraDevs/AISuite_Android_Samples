@@ -55,15 +55,16 @@ class TextOCRAnalyzer(
      */
     interface DetectionCallback {
         fun onDetectionTextResult(list: List<ParagraphEntity>)
+        fun onCaptureDetectionTextResult(list: List<ParagraphEntity>)
     }
 
     private val TAG = "TextOCRAnalyzer"
     private var isAnalyzing = true
-    private val job = Job()
+    private var job = Job()
     private var isStopped = false
 
     // Create a CoroutineScope with the IO dispatcher and the Job
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private var scope = CoroutineScope(Dispatchers.IO + job)
 
     /**
      * Analyzes the given image to perform OCR. This method is called by the camera
@@ -91,6 +92,43 @@ class TextOCRAnalyzer(
             } catch (ex: Exception) {
                 Log.e(TAG, "Error during image processing: ${ex.message}")
                 isAnalyzing = true
+                image.close()
+            }
+        }
+    }
+
+    /**
+     * Processes a captured image using the provided capture OCR decoder and delivers
+     * results via the onCaptureDetectionTextResult callback.
+     *
+     * @param image The ImageProxy containing the captured image data to process.
+     * @param captureOCR The TextOCR instance to use for capture processing.
+     */
+    fun processImageWithCaptureOCR(image: ImageProxy, captureOCR: TextOCR) {
+        val captureScope = CoroutineScope(Dispatchers.IO + Job())
+        captureScope.launch {
+            try {
+                Log.d(TAG, "Starting image capture OCR analysis")
+                val result = suspendCancellableCoroutine<List<ParagraphEntity>> { cont ->
+                    try {
+                        captureOCR.process(ImageData.fromImageProxy(image))
+                            .thenAccept { result ->
+                                cont.resume(result)
+                            }
+                            .exceptionally { ex ->
+                                cont.resumeWithException(ex)
+                                null
+                            }
+                    } catch (e: AIVisionSDKException) {
+                        cont.resumeWithException(e)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    callback.onCaptureDetectionTextResult(result)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error in capture OCR processing: ${ex.message}")
+            } finally {
                 image.close()
             }
         }
@@ -130,5 +168,16 @@ class TextOCRAnalyzer(
     fun stop() {
         isStopped = true
         job.cancel()
+    }
+
+    /**
+     * Starts or restarts the analysis process. This method resets the stopped state
+     * and creates a new coroutine scope for processing.
+     */
+    fun startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called.")
+        isStopped = false
+        job = Job()
+        scope = CoroutineScope(Dispatchers.IO + job)
     }
 }

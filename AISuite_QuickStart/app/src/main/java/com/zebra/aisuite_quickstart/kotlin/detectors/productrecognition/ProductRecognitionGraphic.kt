@@ -36,7 +36,9 @@ class ProductRecognitionGraphic(
     labelPegRects: List<Rect>?,
     shelfRects: List<Rect>?,
     recognizedRects: List<Rect>?,
-    decodedStrings: List<String>?
+    decodedStrings: List<String>?,
+    barcodeRects: List<Rect>?,
+    barcodeStrings: List<String>?
 ) : GraphicOverlay.Graphic(overlay) {
 
     private val boxPaint = Paint().apply {
@@ -54,6 +56,13 @@ class ProductRecognitionGraphic(
 
     private val shelfPaint = Paint().apply {
         color = Color.MAGENTA
+        style = Paint.Style.STROKE
+        alpha = 255
+        strokeWidth = 6f
+    }
+
+    private val barPaint = Paint().apply {
+        color = Color.RED
         style = Paint.Style.STROKE
         alpha = 255
         strokeWidth = 6f
@@ -90,6 +99,14 @@ class ProductRecognitionGraphic(
     private val decodedProducts = mutableListOf<String>().apply {
         decodedStrings?.let { addAll(it) }
     }
+    
+    private val barcodeBboxes = mutableListOf<Rect>().apply{
+        barcodeRects?.let { addAll(it) }
+    }
+    
+    private val barcodeTexts = mutableListOf<String>().apply{
+        barcodeStrings?.let{ addAll(it) }
+    }
 
     init {
         postInvalidate() // Redraw the overlay, as this graphic has been added.
@@ -124,6 +141,15 @@ class ProductRecognitionGraphic(
             canvas.drawRect(rect, boxPaint)
             getTextSizeWithinBounds(product, rect.left.toFloat(), rect.top.toFloat(), rect.right.toFloat(), rect.bottom.toFloat(), contentTextPaint)
             canvas.drawText(product, rect.left.toFloat(), rect.bottom.toFloat(), contentTextPaint)
+        }
+        
+        barcodeBboxes.forEachIndexed { index, rect -> 
+            val rect = barcodeBboxes[index]
+            canvas.drawRect(rect, barPaint)
+            getTextSizeWithinBounds(barcodeTexts.get(index), rect.left.toFloat(), rect.top.toFloat(), rect.right.toFloat(), rect.bottom.toFloat(), contentTextPaint)
+            canvas.drawText(barcodeTexts.get(index), rect.left.toFloat(), rect.bottom.toFloat(), contentTextPaint
+            )
+            
         }
     }
 

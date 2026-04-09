@@ -15,64 +15,149 @@ import java.util.function.Function
 class WareHouseLocalizerHandler (
     private val context: Context,
     private val callback: CameraXLivePreviewActivity,
-    private val imageAnalysis: ImageAnalysis
+    private val imageAnalysis: ImageAnalysis,
+    private val loadingCallback: ((Boolean) -> Unit)? = null
 )  {
-    private val TAG = "WareHouseLocalizerHandler"
-    private var localizer: Localizer? = null
+    companion object {
+        private const val TAG = "WareHouseLocalizerHandler"
+        private const val LIVE_PREVIEW_SIZE = 640
+        private const val CAPTURE_SIZE = 1280 // Higher resolution for capture
+    }
+
+    private var wareHouseLocalizer: Localizer? = null // For live preview
+    var captureLocalizer: Localizer? = null // For capture mode
     private val executor = Executors.newSingleThreadExecutor()
-    private var wareHouseAnalyzer: WareHouseAnalyzer? = null
+    private val captureExecutor = Executors.newSingleThreadExecutor()
+    var wareHouseAnalyzer: WareHouseAnalyzer? = null
     private val mavenModelName = "warehouse-localizer"
 
     init {
-        initializeLocalizer()
+        initializeWareHouseLocalizer()
+        initializeCaptureLocalizer()
     }
 
-    private fun initializeLocalizer() {
-        try {
-            val mStart = System.currentTimeMillis()
-            val locSettings = Localizer.Settings(mavenModelName)
-            val diff = System.currentTimeMillis() - mStart
-            Log.e("Profiling", "WareHouse Localizer.settings() obj creation time =$diff milli sec")
-
-            val rpo = arrayOfNulls<Int>(3)
-            rpo[0] = InferencerOptions.DSP
-            rpo[1] = InferencerOptions.CPU
-            rpo[2] = InferencerOptions.GPU
-
-            locSettings.inferencerOptions.runtimeProcessorOrder = rpo
-            locSettings.inferencerOptions.defaultDims.height = 640
-            locSettings.inferencerOptions.defaultDims.width = 640
-
-            val start = System.currentTimeMillis()
-            Localizer.getLocalizer(locSettings, executor)
-                .thenAccept(Consumer { localizerInstance: Localizer? ->
-                    localizer = localizerInstance
-                    Log.e("Profiling", "WareHouse Localizer(locSettings) obj creation / model loading time =" + (System.currentTimeMillis() - start) + " milli sec")
-                    val classes = localizer?.supportedClasses
-                    val list = listOf(classes)
-                    Log.e(TAG, "classes=$list")
-                    wareHouseAnalyzer = WareHouseAnalyzer(callback, localizer)
-                    imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), wareHouseAnalyzer!!)
-                }).exceptionally(Function { e: Throwable? ->
-                    Log.e(TAG, "Error occurred :" + e!!.message)
-                    null
-                })
-            Log.e("Profiling", "WareHouse Localizer model archive info=" + AIVisionSDK.getInstance(context).getModelArchiveInfo(mavenModelName))
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Fatal error: load failed - " + e.message)
+    /**
+     * Creates localizer settings with specified input size.
+     *
+     * @param inputSize The input dimension size for the localizer model.
+     * @return Configured Localizer.Settings instance.
+     */
+    private fun createLocalizerSettings(inputSize: Int): Localizer.Settings {
+        return Localizer.Settings(mavenModelName).apply {
+            val rpo = arrayOf(
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+            )
+            inferencerOptions.runtimeProcessorOrder = rpo
+            inferencerOptions.defaultDims.height = inputSize
+            inferencerOptions.defaultDims.width = inputSize
         }
     }
 
+    /**
+     * Initializes the live preview WareHouse localizer with smaller input size for real-time processing.
+     */
+    private fun initializeWareHouseLocalizer() {
+        try {
+            val liveLocalizerSettings = createLocalizerSettings(LIVE_PREVIEW_SIZE)
+            createWareHouseLocalizerWithFallback(liveLocalizerSettings)
+        } catch (ex: Exception) {
+            loadingCallback?.invoke(false)
+            Log.e(TAG, "Model Loading: WareHouse localizer returned with exception ${ex.message}")
+        }
+    }
+
+    /**
+     * Initializes the capture localizer with higher resolution settings.
+     */
+    fun initializeCaptureLocalizer() {
+        try {
+            val captureLocalizerSettings = createLocalizerSettings(CAPTURE_SIZE)
+            createCaptureLocalizerWithFallback(captureLocalizerSettings)
+        } catch (ex: Exception) {
+            loadingCallback?.invoke(false)
+            Log.e(TAG, "Capture localizer initialization failed: ${ex.message}")
+        }
+    }
+
+    /**
+     * Creates the live preview WareHouse Localizer instance with fallback error handling.
+     * Only notifies loading complete and attaches analyzer when both models are loaded.
+     */
+    private fun createWareHouseLocalizerWithFallback(localizerSettings: Localizer.Settings) {
+        val startTime = System.currentTimeMillis()
+        Localizer.getLocalizer(localizerSettings, executor)
+            .thenAccept { localizerInstance ->
+                wareHouseLocalizer = localizerInstance
+
+                if (captureLocalizer != null) {
+                    loadingCallback?.invoke(true)
+                    attachAnalysisAfterModelLoading()
+                }
+
+                Log.d(
+                    TAG,
+                    "WareHouseLocalizer() obj creation time = ${System.currentTimeMillis() - startTime} ms" +
+                            " and input size: ${localizerSettings.inferencerOptions.defaultDims.width}"
+                )
+            }
+            .exceptionally { e ->
+                loadingCallback?.invoke(false)
+                Log.e(TAG, "Fatal error: localizer creation failed - ${e.message}")
+                null
+            }
+    }
+
+    /**
+     * Creates the capture WareHouse Localizer instance with fallback error handling.
+     * Only notifies loading complete and attaches analyzer when both models are loaded.
+     */
+    private fun createCaptureLocalizerWithFallback(localizerSettings: Localizer.Settings) {
+        val startTime = System.currentTimeMillis()
+        Localizer.getLocalizer(localizerSettings, captureExecutor)
+            .thenAccept { localizerInstance ->
+                captureLocalizer = localizerInstance
+
+                if (wareHouseLocalizer != null) {
+                    loadingCallback?.invoke(true)
+                    attachAnalysisAfterModelLoading()
+                }
+
+                Log.d(TAG, "Capture WareHouseLocalizer created in ${System.currentTimeMillis() - startTime} ms")
+            }
+            .exceptionally { e ->
+                loadingCallback?.invoke(false)
+                Log.e(TAG, "Capture localizer creation failed: ${e.message}")
+                null
+            }
+    }
+
+    /**
+     * Attaches the WareHouseAnalyzer to the ImageAnalysis once both models are loaded.
+     */
+    private fun attachAnalysisAfterModelLoading() {
+        wareHouseAnalyzer = WareHouseAnalyzer(callback, wareHouseLocalizer)
+        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), wareHouseAnalyzer!!)
+    }
+
+    /**
+     * Stops the executor services and disposes of both WareHouse Localizer instances,
+     * releasing any resources held.
+     */
     fun stop() {
         executor.shutdownNow()
-        localizer?.let {
+        captureExecutor.shutdownNow()
+        wareHouseLocalizer?.let {
             it.dispose()
-            Log.d(TAG, "WareHouse Localizer is disposed")
-            localizer = null
+            Log.d(TAG, "Live preview warehouse localizer disposed")
+            wareHouseLocalizer = null
+        }
+        captureLocalizer?.let {
+            it.dispose()
+            Log.d(TAG, "Capture warehouse localizer disposed")
+            captureLocalizer = null
         }
     }
-    fun getWareHouseAnalyzer(): WareHouseAnalyzer? {
-        return wareHouseAnalyzer
-    }
+
 }

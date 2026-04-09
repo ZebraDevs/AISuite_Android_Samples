@@ -55,16 +55,16 @@ class BarcodeAnalyzer(
      */
     interface DetectionCallback {
         fun onDetectionResult(result: List<BarcodeEntity>)
+        fun onCaptureDetectionResult(entities: List<BarcodeEntity>)
     }
 
     private val TAG = "BarcodeAnalyzer"
     private var isAnalyzing = true
-    private val job = Job()
-
+    private var job = Job()
     private var isStopped = false
 
     // Create a CoroutineScope with the IO dispatcher and the Job
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private var scope = CoroutineScope(Dispatchers.IO + job)
 
     /**
      * Analyzes the given image to detect barcodes. This method is called by the camera
@@ -91,6 +91,44 @@ class BarcodeAnalyzer(
             } finally {
                 isAnalyzing = true
                 image.close() // Ensure image is closed
+            }
+        }
+    }
+
+    /**
+     * Processes a captured image using the provided capture decoder and delivers
+     * results via the onCaptureDetectionResult callback.
+     *
+     * @param image The ImageProxy containing the captured image data to process.
+     * @param captureDecoder The BarcodeDecoder instance to use for capture processing.
+     */
+    fun processImage(image: ImageProxy, captureDecoder: BarcodeDecoder) {
+        val captureScope = CoroutineScope(Dispatchers.IO + Job())
+        captureScope.launch {
+            try {
+                Log.d(TAG, "Starting image capture analysis")
+                val result = suspendCancellableCoroutine<List<BarcodeEntity>> { cont ->
+                    try {
+                        captureDecoder.process(ImageData.fromImageProxy(image))
+                            .thenAccept { result ->
+                                cont.resume(result)
+                            }
+                            .exceptionally { ex ->
+                                cont.resumeWithException(ex)
+                                null
+                            }
+                    } catch (e: AIVisionSDKException) {
+                        cont.resumeWithException(e)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    callback.onCaptureDetectionResult(result)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error in capture image processing: ${ex.message}")
+            } finally {
+                image.close()
+                isAnalyzing = true
             }
         }
     }
@@ -125,5 +163,16 @@ class BarcodeAnalyzer(
     fun stop() {
         isStopped = true
         job.cancel()
+    }
+
+    /**
+     * Starts or restarts the analysis process. This method resets the stopped state
+     * and creates a new coroutine scope for processing.
+     */
+    fun startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called.")
+        isStopped = false
+        job = Job()
+        scope = CoroutineScope(Dispatchers.IO + job)
     }
 }

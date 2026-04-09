@@ -7,7 +7,7 @@ import android.graphics.Rect
 import com.zebra.aisuite_quickstart.GraphicOverlay
 
 class WareHouseLocalizerGraphic(overlay: GraphicOverlay,
-                       boxes: List<Rect>?,) : GraphicOverlay.Graphic(overlay) {
+                                boxes: List<Rect>?,) : GraphicOverlay.Graphic(overlay) {
 
     private val boxPaint: Paint = Paint().apply {
         color = Color.GREEN

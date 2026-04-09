@@ -53,12 +53,13 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
      */
     public interface DetectionCallback {
         void onDetectionResult(List<BarcodeEntity> list, long processingTime);
+        void onCaptureDetectionResult(List<BarcodeEntity> entities);
     }
 
     private static final String TAG = "BarcodeAnalyzer";
     private final DetectionCallback callback;
     private final BarcodeDecoder barcodeDecoder;
-    private final ExecutorService executorService;
+    private ExecutorService executorService;
     private volatile boolean isAnalyzing = true;
     private volatile boolean isStopped = false;
 
@@ -122,6 +123,24 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
         }
     }
 
+    public void processImage(ImageProxy image, BarcodeDecoder captureDecoder){
+        try {
+            Log.d(TAG, "Starting image capture analysis");
+            captureDecoder.process(ImageData.fromImageProxy(image))
+                    .thenAccept(callback::onCaptureDetectionResult)
+                    .exceptionally(ex -> {
+                        Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                        return null;
+                    });
+        } catch (AIVisionSDKException e) {
+            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+        }finally {
+            image.close();
+            isAnalyzing = true;
+        }
+    }
+
+
     /**
      * Stops the analysis process and terminates any ongoing tasks. This method should be
      * called to release resources and halt image analysis when it is no longer required.
@@ -129,5 +148,11 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
     public void stopAnalyzing() {
         isStopped = true;
         executorService.shutdownNow(); // Attempt to cancel ongoing tasks
+    }
+
+    public void startAnalyzing(){
+        Log.d(TAG, "startAnalyzing() called. ");
+        isStopped = false;
+        executorService = Executors.newSingleThreadExecutor();
     }
 }

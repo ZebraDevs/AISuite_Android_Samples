@@ -11,8 +11,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class ProductRecognitionAnalyzer(
     private val callback: DetectionCallback,
@@ -21,14 +23,14 @@ class ProductRecognitionAnalyzer(
 
     interface DetectionCallback {
         fun onRecognitionResult(result: List<Entity>?)
+        fun onCaptureRecognitionResult(result: List<Entity>?)
     }
 
     private val TAG = "ProductRecognitionAnalyzer"
     private var isAnalyzing = true
     private var isStopped = false
-    private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
-    private val job = Job()
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private var job = Job()
+    private var scope = CoroutineScope(Dispatchers.IO + job)
 
     override fun analyze(image: ImageProxy) {
         if (moduleRecognizer == null) {
@@ -68,9 +70,62 @@ class ProductRecognitionAnalyzer(
         }
     }
 
+    /**
+     * Processes a captured image using the provided capture recognizer and delivers
+     * results via the onCaptureRecognitionResult callback.
+     *
+     * @param image The ImageProxy containing the captured image data to process.
+     * @param captureRecognizer The ModuleRecognizer instance to use for capture processing.
+     */
+    fun processImage(image: ImageProxy, captureRecognizer: ModuleRecognizer) {
+        val captureScope = CoroutineScope(Dispatchers.IO + Job())
+        captureScope.launch {
+            try {
+                Log.d(TAG, "Starting image capture recognition analysis")
+                val result = suspendCancellableCoroutine<List<Entity>> { cont ->
+                    try {
+                        val imageData = ImageData.fromImageProxy(image)
+                        captureRecognizer.process(imageData)
+                            .thenAccept { entityList ->
+                                cont.resume(entityList)
+                            }
+                            .exceptionally { ex ->
+                                cont.resumeWithException(ex)
+                                null
+                            }
+                    } catch (e: Exception) {
+                        cont.resumeWithException(e)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    callback.onCaptureRecognitionResult(result)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error in capture recognition processing: ${ex.message}", ex)
+            } finally {
+                image.close()
+                isAnalyzing = true
+            }
+        }
+    }
+
+    /**
+     * Stops the analysis process and cancels the coroutine job.
+     */
     fun stopAnalyzing() {
         isStopped = true
         job.cancel()
-        executorService.shutdownNow()
     }
+
+    /**
+     * Starts or restarts the analysis process. This method resets the stopped state
+     * and creates a new coroutine scope for processing.
+     */
+    fun startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called.")
+        isStopped = false
+        job = Job()
+        scope = CoroutineScope(Dispatchers.IO + job)
+    }
+
 }

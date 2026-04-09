@@ -7,8 +7,10 @@ import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
 import com.zebra.ai.vision.detector.AIVisionSDKException;
+import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.detector.Localizer;
+import com.zebra.ai.vision.entity.BarcodeEntity;
 import com.zebra.ai.vision.entity.LocalizerEntity;
 
 import java.util.List;
@@ -24,11 +26,12 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
      */
     public interface DetectionCallback {
         void onWareHouseLocalizerDetectionResult(List<LocalizerEntity> result);
+        void onCaptureWareHouseDetectionResult(List<LocalizerEntity> entities);
     }
     private static final String TAG = "WareHouseAnalyzer";
     private final WareHouseAnalyzer.DetectionCallback callback;
     private final Localizer localizer;
-    private final ExecutorService executorService;
+    private ExecutorService executorService;
     private volatile boolean isAnalyzing = true;
     private volatile boolean isStopped = false;
 
@@ -74,6 +77,23 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
             future.cancel(true);
         }
     }
+
+    public void processImage(ImageProxy image, Localizer localizer){
+        try {
+            Log.d(TAG, "Starting image capture analysis");
+            localizer.process(ImageData.fromImageProxy(image))
+                    .thenAccept(callback::onCaptureWareHouseDetectionResult)
+                    .exceptionally(ex -> {
+                        Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                        return null;
+                    });
+        } catch (AIVisionSDKException e) {
+            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+        }finally {
+            image.close();
+            isAnalyzing = true;
+        }
+    }
     /**
      * Stops the analysis process and terminates any ongoing tasks. This method should be
      * called to release resources and halt image analysis when it is no longer required.
@@ -81,5 +101,11 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
     public void stopAnalyzing() {
         isStopped = true;
         executorService.shutdownNow(); // Attempt to cancel ongoing tasks
+    }
+
+    public void startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called. ");
+        isStopped = false;
+        executorService = Executors.newSingleThreadExecutor();
     }
 }

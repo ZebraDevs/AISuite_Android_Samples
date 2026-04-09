@@ -11,6 +11,7 @@ import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.Localizer;
+import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeHandler;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,6 +55,14 @@ public class BarcodeSample {
     private final BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
     private String mavenModelName = "barcode-localizer";
+    private final ModelLoadingCallback loadingCallback;
+
+    /**
+     * Callback interface for model loading completion
+     */
+    public interface ModelLoadingCallback {
+        void onLoadingComplete(boolean success);
+    }
 
     /**
      * Constructs a new BarcodeSample with the specified context, callback, and image analysis configuration.
@@ -62,11 +71,12 @@ public class BarcodeSample {
      * @param callback The callback for handling barcode detection results.
      * @param imageAnalysis The image analysis configuration for processing image data.
      */
-    public BarcodeSample(Context context, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback callback, ImageAnalysis imageAnalysis) {
+    public BarcodeSample(Context context, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback callback, ImageAnalysis imageAnalysis, ModelLoadingCallback loadingCallback) {
         this.context = context;
         this.callback = callback;
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
+        this.loadingCallback = loadingCallback;
         initializeBarcodeDecoder();
     }
 
@@ -102,6 +112,10 @@ public class BarcodeSample {
                 } else {
                     Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
                 }
+                // Notify failed loading
+                if (loadingCallback != null) {
+                    loadingCallback.onLoadingComplete(false);
+                }
                 return null;
             });
 
@@ -110,18 +124,30 @@ public class BarcodeSample {
             long m_Start = System.currentTimeMillis();
             BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
                 barcodeDecoder = decoderInstance;
+                Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+                // Notify successful loading
+                if (loadingCallback != null) {
+                    loadingCallback.onLoadingComplete(true);
+                }
                 barcodeAnalyzer = new BarcodeSampleAnalyzer(callback, localizer, barcodeDecoder);
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), barcodeAnalyzer);
-                Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
             }).exceptionally(e -> {
                 if (e instanceof AIVisionSDKLicenseException) {
                     Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
                 } else {
                     Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
                 }
+                // Notify failed loading
+                if (loadingCallback != null) {
+                    loadingCallback.onLoadingComplete(false);
+                }
                 return null;
             });
         } catch (Exception e) {
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
             Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
     }

@@ -55,6 +55,7 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
      */
     public interface DetectionCallback {
         void onRecognitionResult(List<Entity> result);
+        void onCaptureRecognitionResult(List<Entity> result);
     }
 
     private static final String TAG = "ProductRecognitionAnalyzer";
@@ -62,7 +63,7 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
     private final DetectionCallback callback;
     private BBox[] detections, products;
     private volatile boolean isStopped = false;
-    private final ExecutorService executorService;
+    private ExecutorService executorService;
     private final ModuleRecognizer productRecognizer;
 
 
@@ -133,6 +134,29 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
         }
     }
 
+    /**
+     * Process image for capture mode using a different recognizer
+     *
+     * @param image The captured image to process
+     * @param captureRecognizer The high-resolution recognizer for capture mode
+     */
+    public void processImage(ImageProxy image, ModuleRecognizer captureRecognizer) {
+        try {
+            Log.d(TAG, "Starting image capture analysis");
+            captureRecognizer.process(ImageData.fromImageProxy(image))
+                    .thenAccept(callback::onCaptureRecognitionResult)
+                    .exceptionally(ex -> {
+                        Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                        return null;
+                    });
+        } catch (AIVisionSDKException e) {
+            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+        } finally {
+            image.close();
+            isAnalyzing = true;
+        }
+    }
+
 
     /**
      * Stops the analysis process and terminates any ongoing tasks. This method should be
@@ -143,5 +167,11 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
         Log.d(TAG, "stopAnalyzing() called. Shutting down executor.");
         isStopped = true;
         executorService.shutdownNow();
+    }
+
+    public void startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called. ");
+        isStopped = false;
+        executorService = Executors.newSingleThreadExecutor();
     }
 }

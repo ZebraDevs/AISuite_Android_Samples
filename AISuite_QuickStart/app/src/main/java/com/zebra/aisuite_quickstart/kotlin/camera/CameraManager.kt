@@ -9,6 +9,7 @@ import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
 import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
@@ -23,7 +24,11 @@ import com.zebra.aisuite_quickstart.utils.CameraUtil
  * CameraManager handles all CameraX related operations including initialization,
  * binding use cases, and lifecycle management.
  */
-class CameraManager(private val activity: CameraXLivePreviewActivity, private val context: Context, private val lifecycleOwner: LifecycleOwner) {
+class CameraManager(
+    private val activity: CameraXLivePreviewActivity,
+    private val context: Context,
+    private val lifecycleOwner: LifecycleOwner
+) {
 
     companion object {
         private const val TAG = "CameraManager"
@@ -33,13 +38,16 @@ class CameraManager(private val activity: CameraXLivePreviewActivity, private va
 
     private var camera: Camera? = null
     private var previewUseCase: Preview? = null
-    private var analysisUseCase: ImageAnalysis? = null
+    var analysisUseCase: ImageAnalysis? = null
 
-    private var uiHandler: UIHandler ?= null
-    private var cameraProvider: ProcessCameraProvider? = null
+    private var uiHandler: UIHandler? = null
+    var cameraProvider: ProcessCameraProvider? = null
+        private set
     private lateinit var cameraSelector: CameraSelector
     private lateinit var resolutionSelector: ResolutionSelector
     private var isFrontCamera: Boolean = false
+    var imageCapture: ImageCapture? = null
+
 
     init {
         initializeCameraSelector()
@@ -67,7 +75,10 @@ class CameraManager(private val activity: CameraXLivePreviewActivity, private va
                 AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO)
             )
             .setResolutionStrategy(
-                ResolutionStrategy(selectedSize, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
+                ResolutionStrategy(
+                    selectedSize,
+                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                )
             )
             .build()
     }
@@ -76,7 +87,7 @@ class CameraManager(private val activity: CameraXLivePreviewActivity, private va
         this.cameraProvider = provider
     }
 
-    fun setUIHandler(uiHandler: UIHandler){
+    fun setUIHandler(uiHandler: UIHandler) {
         this.uiHandler = uiHandler
     }
 
@@ -107,9 +118,29 @@ class CameraManager(private val activity: CameraXLivePreviewActivity, private va
             .build()
 
 
-        camera = cameraProvider?.bindToLifecycle(lifecycleOwner, cameraSelector, previewUseCase, analysisUseCase)
+        val imageResolutionSelector = ResolutionSelector.Builder()
+            .setAspectRatioStrategy(
+                AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_NONE)
+            ).setResolutionStrategy(
+                ResolutionStrategy(
+                    Size(4608, 2592),
+                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                )
+            )
+            .setAllowedResolutionMode(ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE)
+            .build()
 
-        if(uiHandler?.isEntityViewFinder() == true) activity.entityViewController?.setCameraController(camera)
+        imageCapture = ImageCapture.Builder()
+            .setResolutionSelector(imageResolutionSelector)
+            .build()
+
+        camera = cameraProvider?.bindToLifecycle(
+            lifecycleOwner, cameraSelector, previewUseCase, analysisUseCase, imageCapture
+        )
+
+        if (uiHandler?.isEntityViewFinder == true) activity.entityViewController?.setCameraController(
+            camera
+        )
     }
 
     fun unbindAll() {
@@ -117,16 +148,21 @@ class CameraManager(private val activity: CameraXLivePreviewActivity, private va
         Log.v(TAG, "Camera Unbound")
     }
 
+    fun unbindImageAnalysis() {
+        if (analysisUseCase != null) {
+            cameraProvider?.unbind(analysisUseCase)
+        }
+    }
+
     fun updateTargetRotation(rotation: Int) {
         analysisUseCase?.targetRotation = rotation
         previewUseCase?.targetRotation = rotation
+        imageCapture?.targetRotation = rotation
     }
 
     fun isFrontCamera(): Boolean = isFrontCamera
 
     fun getSelectedSize(): Size = selectedSize
 
-    fun getCameraProvider(): ProcessCameraProvider? = cameraProvider
 
-    fun getAnalysisUseCase(): ImageAnalysis? = analysisUseCase
 }

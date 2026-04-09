@@ -8,7 +8,6 @@ import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
-import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
 
@@ -68,7 +67,15 @@ public class EntityBarcodeTracker {
     private EntityTrackerAnalyzer entityTrackerAnalyzer;
     private final DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private String mavenModelName = "barcode-localizer";
+    private final String mavenModelName = "barcode-localizer";
+    private final ModelLoadingCallback loadingCallback;
+
+    /**
+     * Callback interface for model loading completion
+     */
+    public interface ModelLoadingCallback {
+        void onLoadingComplete(boolean success);
+    }
 
     /**
      * Constructs a new EntityBarcodeTracker with the specified context, callback, and image analysis configuration.
@@ -77,11 +84,12 @@ public class EntityBarcodeTracker {
      * @param callback The callback for handling detection results and tracker readiness.
      * @param imageAnalysis The image analysis configuration for processing image data.
      */
-    public EntityBarcodeTracker(Context context, DetectionCallback callback, ImageAnalysis imageAnalysis) {
+    public EntityBarcodeTracker(Context context, DetectionCallback callback, ImageAnalysis imageAnalysis,ModelLoadingCallback loadingCallback) {
         this.context = context;
         this.callback = callback;
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
+        this.loadingCallback = loadingCallback;
         initializeBarcodeDecoder();
     }
 
@@ -105,31 +113,47 @@ public class EntityBarcodeTracker {
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640;
 
-            long m_Start = System.currentTimeMillis();
-            BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
-                barcodeDecoder = decoderInstance;
-                entityTrackerAnalyzer = new EntityTrackerAnalyzer(
-                        List.of(barcodeDecoder),
-                        ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED,
-                        executor,
-                        this::handleEntities
-                );
-                imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
-                Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+            // Call the helper function to create the decoder with fallback logic
+            createBarcodeDecoderForEntityTrackerWithFallback(decoderSettings);
 
-                // Notify that the tracker is ready
-                callback.onEntityBarcodeTrackerReady();
-            }).exceptionally(e -> {
-                if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
-                } else {
-                    Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
-                }
-                return null;
-            });
         } catch (Exception ex) {
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
             Log.e(TAG, "Model Loading: Entity Tracker Barcode decoder returned with exception " + ex.getMessage());
         }
+    }
+
+    private void createBarcodeDecoderForEntityTrackerWithFallback(BarcodeDecoder.Settings decoderSettings) {
+        long m_Start = System.currentTimeMillis();
+        BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
+            barcodeDecoder = decoderInstance;
+            // Notify successful loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(true);
+            }
+            entityTrackerAnalyzer = new EntityTrackerAnalyzer(
+                    List.of(barcodeDecoder),
+                    ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED,
+                    executor,
+                    this::handleEntities
+            );
+            imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
+            Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+
+            // Notify that the tracker is ready
+            if (callback != null) {
+                callback.onEntityBarcodeTrackerReady();
+            }
+        }).exceptionally(e -> {
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
+            Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+            return null;
+        });
     }
 
     /**

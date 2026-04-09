@@ -27,16 +27,17 @@ class WareHouseAnalyzer(
      */
     interface DetectionCallback {
         fun onLocalizerDetectionResult(result: List<LocalizerEntity>)
+        fun onCaptureWareHouseDetectionResult(entities: List<LocalizerEntity>)
     }
 
     private val TAG = "WareHouseAnalyzer"
     private var isAnalyzing = true
-    private val job = Job()
+    private var job = Job()
 
     private var isStopped = false
 
     // Create a CoroutineScope with the IO dispatcher and the Job
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private var scope = CoroutineScope(Dispatchers.IO + job)
     /**
      * Analyzes the given image to detect pallets. This method is called by the camera
      * framework to process image frames asynchronously.
@@ -66,6 +67,7 @@ class WareHouseAnalyzer(
         }
     }
 
+
     /**
      * Processes the image asynchronously using the BarcodeDecoder.
      *
@@ -90,11 +92,59 @@ class WareHouseAnalyzer(
     }
 
     /**
+     * Processes a captured image using the provided capture localizer and delivers
+     * results via the onCaptureWareHouseDetectionResult callback.
+     *
+     * @param image The ImageProxy containing the captured image data to process.
+     * @param captureLocalizer The Localizer instance to use for capture processing.
+     */
+    fun processImage(image: ImageProxy, captureLocalizer: Localizer) {
+        val captureScope = CoroutineScope(Dispatchers.IO + Job())
+        captureScope.launch {
+            try {
+                Log.d(TAG, "Starting image capture analysis")
+                val result = suspendCancellableCoroutine<List<LocalizerEntity>> { cont ->
+                    try {
+                        captureLocalizer.process(ImageData.fromImageProxy(image))
+                            .thenAccept { result ->
+                                cont.resume(result)
+                            }
+                            .exceptionally { ex ->
+                                cont.resumeWithException(ex)
+                                null
+                            }
+                    } catch (e: AIVisionSDKException) {
+                        cont.resumeWithException(e)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    callback.onCaptureWareHouseDetectionResult(result)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error in capture image processing: ${ex.message}")
+            } finally {
+                image.close()
+                isAnalyzing = true
+            }
+        }
+    }
+
+    /**
      * Stops the analysis process and cancels the coroutine job. This method should be
      * called to release resources and halt image analysis when it is no longer required.
      */
     fun stop() {
         isStopped = true
         job.cancel()
+    }
+    /**
+     * Starts or restarts the analysis process. This method resets the stopped state
+     * and creates a new coroutine scope for processing.
+     */
+    fun startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called.")
+        isStopped = false
+        job = Job()
+        scope = CoroutineScope(Dispatchers.IO + job)
     }
 }

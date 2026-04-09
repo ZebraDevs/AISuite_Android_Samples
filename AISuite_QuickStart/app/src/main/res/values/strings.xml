@@ -2,4 +2,6 @@
     <string name="app_name">AI DC QuickStart Sample</string>
     <string name="java_entry_title" translatable="false">Java</string>
     <string name="kotlin_entry_title" translatable="false">Kotlin</string>
+    <string name="burst_mode_error_msg" translatable="false">PerformanceMode = BURST, is not supported</string>
+    <string name="return_to_preview">Return to Preview</string>
 </resources>

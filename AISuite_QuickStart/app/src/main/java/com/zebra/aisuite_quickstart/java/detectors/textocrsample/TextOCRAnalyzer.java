@@ -55,12 +55,13 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
      */
     public interface DetectionCallback {
         void onDetectionTextResult(List<ParagraphEntity> list, long processingTime);
+        void onCaptureDetectionTextResult(List<ParagraphEntity> list);
     }
 
     private static final String TAG = "TextOCRAnalyzer";
     private final DetectionCallback callback;
     private final TextOCR textOCR;
-    private final ExecutorService executorService;
+    private ExecutorService executorService;
     private boolean isAnalyzing = true;
     private volatile boolean isStopped = false;
 
@@ -126,6 +127,22 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
         }
     }
 
+    public void processImageWithCaptureOCR(ImageProxy image, TextOCR captureOCR) {
+        try {
+            Log.d(TAG, "Starting image capture OCR analysis");
+            captureOCR.process(ImageData.fromImageProxy(image))
+                    .thenAccept(callback::onCaptureDetectionTextResult)
+                    .exceptionally(ex -> {
+                        Log.e(TAG, "Error in capture OCR processing: " + ex.getMessage());
+                        return null;
+                    });
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in capture OCR processing: " + e.getMessage());
+        } finally {
+            image.close();
+        }
+    }
+
     /**
      * Stops the analysis process and terminates any ongoing tasks. This method should be
      * called to release resources and halt image analysis when it is no longer required.
@@ -133,5 +150,11 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
     public void stopAnalyzing() {
         isStopped = true;
         executorService.shutdownNow(); // Attempt to cancel ongoing tasks
+    }
+
+    public void startAnalyzing() {
+        Log.d(TAG, "startAnalyzing() called. ");
+        isStopped = false;
+        executorService = Executors.newSingleThreadExecutor();
     }
 }

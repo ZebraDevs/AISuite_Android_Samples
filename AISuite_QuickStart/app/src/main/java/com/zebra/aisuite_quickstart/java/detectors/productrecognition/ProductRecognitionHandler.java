@@ -7,6 +7,9 @@ import android.util.Log;
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
 
+import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
+import com.zebra.ai.vision.detector.BarcodeDecoder;
+import com.zebra.ai.vision.detector.EntityType;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
 
@@ -16,6 +19,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -25,76 +30,158 @@ import java.util.concurrent.Executors;
 public class ProductRecognitionHandler {
     private static final String TAG = "ProductRecognitionHandler";
     private final ExecutorService executor;
+    private final ExecutorService captureExecutor = Executors.newFixedThreadPool(3);
     private final Context context;
     private final ImageAnalysis imageAnalysis;
     private ProductRecognitionAnalyzer analyzer;
-    private ModuleRecognizer moduleRecognizer;
+    private ModuleRecognizer moduleRecognizer; // For live preview
+    private ModuleRecognizer captureRecognizer; // For capture mode
     private final String mavenModelName = "product-and-shelf-recognizer";
+    private final String barcodeMavenModelName = "barcode-localizer";
+    private final ModelLoadingCallback loadingCallback;
+    private final ProductRecognitionAnalyzer.DetectionCallback callback;
+
+    // Model input sizes
+    private static final int LIVE_PREVIEW_SIZE = 640;
+    private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
+    String indexFilename = "product.index";
+    String labelsFilename = "product.txt";
+    String toPath;
+
+    /**
+     * Callback interface for model loading completion
+     */
+    public interface ModelLoadingCallback {
+        void onLoadingComplete(boolean success);
+    }
 
     /**
      * Constructs a new ProductRecognitionHandler.
      */
-    public ProductRecognitionHandler(Context context, ProductRecognitionAnalyzer.DetectionCallback callback, ImageAnalysis imageAnalysis) {
+    public ProductRecognitionHandler(Context context, ProductRecognitionAnalyzer.DetectionCallback callback, ImageAnalysis imageAnalysis, ModelLoadingCallback loadingCallback) {
         this.context = context;
+        this.callback = callback;
         this.imageAnalysis = imageAnalysis;
         this.executor = Executors.newFixedThreadPool(3);
-        initializeModuleRecognizer(callback);
+        this.loadingCallback = loadingCallback;
+        toPath = context.getFilesDir() + "/";
+        copyFromAssets(indexFilename, toPath);
+        copyFromAssets(labelsFilename, toPath);
+        initializeModuleRecognizer();
+        initializeCaptureRecognizer();
     }
 
     /**
      * Initializes the ModuleRecognizer with product recognition enabled.
      */
-    private void initializeModuleRecognizer(ProductRecognitionAnalyzer.DetectionCallback callback) {
+    private void initializeModuleRecognizer() {
         try {
-            // Copy assets
-            String indexFilename = "product.index";
-            String labelsFilename = "product.txt";
-            String toPath = context.getFilesDir() + "/";
-            copyFromAssets(indexFilename, toPath);
-            copyFromAssets(labelsFilename, toPath);
 
-            // Create settings with base model
-            ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
+            // Create settings for live preview
+            ModuleRecognizer.Settings liveRecognizerSettings = createRecognizerSettings(LIVE_PREVIEW_SIZE, toPath, indexFilename, labelsFilename);
 
-            // Configure InferencerOptions
-            settings.inferencerOptions.runtimeProcessorOrder = new Integer[]{
-                    InferencerOptions.DSP,
-                    InferencerOptions.CPU,
-                    InferencerOptions.GPU
-            };
-            settings.inferencerOptions.defaultDims.height = 640;
-            settings.inferencerOptions.defaultDims.width = 640;
-
-            // Enable product recognition with the same model and recognition data
-            settings.enableProductRecognitionWithIndex(
-                    mavenModelName,
-                    toPath + indexFilename,
-                    toPath + labelsFilename
-            );
-
-            // Initialize ModuleRecognizer
-            long startTime = System.currentTimeMillis();
-            ModuleRecognizer.getModuleRecognizer(settings, executor)
-                    .thenAccept(recognizerInstance -> {
-                        long creationTime = System.currentTimeMillis() - startTime;
-                        Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms");
-                        Log.i(TAG, "ModuleRecognizer instance created successfully");
-
-                        moduleRecognizer = recognizerInstance;
-                        analyzer = new ProductRecognitionAnalyzer(callback, moduleRecognizer);
-                        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer);
-                    })
-                    .exceptionally(throwable -> {
-                        Log.e(TAG, "Failed to initialize ModuleRecognizer: " + throwable.getMessage());
-                        throwable.printStackTrace();
-                        return null;
-                    });
+            // Call the helper function to create the recognizer with fallback logic
+            createModuleRecognizerWithFallback(liveRecognizerSettings);
 
         } catch (Exception e) {
-            Log.e(TAG, "Fatal error during initialization: " + e.getMessage());
-            e.printStackTrace();
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
+            Log.e(TAG, "Fatal error during initialization setup: " + e.getMessage());
         }
     }
+
+    /**
+     * Initializes the capture recognizer with higher resolution settings
+     */
+    public void initializeCaptureRecognizer() {
+        try {
+
+            // Create settings for capture
+            ModuleRecognizer.Settings captureRecognizerSettings = createRecognizerSettings(CAPTURE_SIZE, toPath, indexFilename, labelsFilename);
+            createCaptureRecognizerWithFallback(captureRecognizerSettings);
+        } catch (Exception ex) {
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
+            Log.e(TAG, "Capture recognizer initialization failed: " + ex.getMessage());
+        }
+    }
+
+    private ModuleRecognizer.Settings createRecognizerSettings(int inputSize, String toPath, String indexFilename, String labelsFilename) {
+        // Create settings with base model
+        ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
+
+        // Configure InferencerOptions
+        settings.inferencerOptions.runtimeProcessorOrder = new Integer[]{
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+        };
+        settings.inferencerOptions.defaultDims.height = inputSize;
+        settings.inferencerOptions.defaultDims.width = inputSize;
+
+        // Enable product recognition with the same model and recognition data
+        settings.enableProductRecognitionWithIndex(
+                mavenModelName,
+                toPath + indexFilename,
+                toPath + labelsFilename
+        );
+
+        BarcodeDecoder.Settings labelBarcodeSettings = new BarcodeDecoder.Settings(barcodeMavenModelName);
+        Map<EntityType, BarcodeDecoder.Settings> barcodeSettingsMap = new HashMap<>();
+        barcodeSettingsMap.put(EntityType.LABEL, labelBarcodeSettings);
+        settings.enableBarcodeRecognition(barcodeSettingsMap);
+
+        return settings;
+    }
+
+    private void createModuleRecognizerWithFallback(ModuleRecognizer.Settings settings) {
+        long startTime = System.currentTimeMillis();
+        ModuleRecognizer.getModuleRecognizer(settings, executor)
+                .thenAccept(recognizerInstance -> {
+                    moduleRecognizer = recognizerInstance;
+                    if(captureRecognizer!=null) {
+                        if (loadingCallback != null) {
+                            loadingCallback.onLoadingComplete(true);
+                        }
+                        attachAnalysisAfterModelLoading();
+                    }
+                    long creationTime = System.currentTimeMillis() - startTime;
+                    Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms and input size: " + settings.inferencerOptions.defaultDims.width);
+                })
+                .exceptionally(throwable -> {
+                    // Notify failed loading
+                    if (loadingCallback != null) {
+                        loadingCallback.onLoadingComplete(false);
+                    }
+                    Log.e(TAG, "Failed to initialize ModuleRecognizer: " + throwable.getMessage());
+                    return null;
+                });
+    }
+
+    private void createCaptureRecognizerWithFallback(ModuleRecognizer.Settings decoderSettings) {
+        long m_Start = System.currentTimeMillis();
+        ModuleRecognizer.getModuleRecognizer(decoderSettings, captureExecutor).thenAccept(decoderInstance -> {
+            captureRecognizer = decoderInstance;
+            if(moduleRecognizer!=null) {
+                if (loadingCallback != null) {
+                    loadingCallback.onLoadingComplete(true);
+                }
+                attachAnalysisAfterModelLoading();
+            }
+            Log.d(TAG, "Capture ModuleRecognizer created in " + (System.currentTimeMillis() - m_Start) + " ms");
+        }).exceptionally(e -> {
+            // Notify failed loading
+            if (loadingCallback != null) {
+                loadingCallback.onLoadingComplete(false);
+            }
+            Log.e(TAG, "Capture recognizer creation failed: " + e.getMessage());
+            return null;
+        });
+    }
+
 
     /**
      * Copies files from the assets folder to the specified path.
@@ -123,14 +210,32 @@ public class ProductRecognitionHandler {
     }
 
     /**
+     * Retrieves the capture instance of the ModuleRecognizer.
+     */
+    public ModuleRecognizer getCaptureRecognizer() {
+        return captureRecognizer;
+    }
+
+    /**
      * Stops the executor service and disposes of the ModuleRecognizer.
      */
     public void stop() {
         executor.shutdownNow();
+        captureExecutor.shutdownNow();
         if (moduleRecognizer != null) {
             moduleRecognizer.dispose();
             Log.d(TAG, "ModuleRecognizer disposed");
             moduleRecognizer = null;
         }
+        if (captureRecognizer != null) {
+            captureRecognizer.dispose();
+            Log.d(TAG, "Capture module recognizer disposed");
+            captureRecognizer = null;
+        }
+    }
+
+    public void attachAnalysisAfterModelLoading(){
+        analyzer = new ProductRecognitionAnalyzer(callback, moduleRecognizer);
+        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer);
     }
 }
