@@ -11,7 +11,12 @@ import com.zebra.aidatacapturedemo.ui.view.Variables.mainIcon1
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainIcon2
 import com.zebra.aidatacapturedemo.ui.view.Variables.secondaryIcon1
 import com.zebra.aidatacapturedemo.ui.view.Variables.secondaryIcon2
-
+/**
+ * Variables is an object that holds constant values for colors, dimensions, and text styles
+ * used throughout the AI Data Capture Demo app.
+ * It centralizes the design tokens to maintain consistency in the UI and allows for
+ * easy updates to the app's visual elements.
+ */
 object Variables {
     val surfaceDefault: Color = Color(0xFFFFFFFF)
     val mainDefault: Color = Color(0xFF1D1E23)
@@ -30,6 +35,7 @@ object Variables {
     val borderPrimaryMain: Color = Color(0xFF0073E6)
     val uncheckedThumbColor: Color = Color(0xFFAFB6C2)
     val uncheckedTrackColor: Color = Color(0xFFE8EBF1)
+    val colorsSurfaceDisabled: Color = Color(0xFFE0E3E9)
 
     val blackText: Color = Color(0xFF000000)
     val spacingSmall: Dp = 8.dp
@@ -43,7 +49,7 @@ object Variables {
     val mainLight: Color = Color(0xFFE0E3E9)
     val inverseDefault: Color = Color(0xFFFFFFFF)
     val textSubtle: Color = Color(0xFF646A78)
-
+    val borderSubtle: Color = Color(0xFFE0E3E9)
     val colorsBorderPrimaryLegacy: Color = Color(0xFF3886FF)
     val radiusMinimal: Dp = 4.dp
 
@@ -62,6 +68,21 @@ object Variables {
 
     val colorsSurfacePrimary: Color = Color(0xFF1F69FF)
 
+    val backgroundDark : Color = Color(0xBF1D1E23)
+
+    val TypefaceFontSize14 = 14.sp
+    val TypefaceFontSize16 = 16.sp
+    val TypefaceLineHeight18 = 18.sp
+    val TypefaceLineHeight20 = 20.sp
+
+    val TypefaceLetterSpacingTitle = 0.38.sp
+    val colorsSurfaceSelected: Color = Color(0xFFF1F8FF)
+    val spacingNone: Dp = 0.dp
+    val radiusRounded: Dp = 8.dp
+
+    val colorsIconNegative: Color = Color(0xFFF36170)
+
+    val colorsMainNegative: Color = Color(0xFFD70015)
 }
 
 fun getIconMainColor(demo: String): Color {
@@ -89,6 +110,7 @@ fun getIconMainColor(demo: String): Color {
     }
     return mainColor
 }
+
 
 fun getIconSecondaryColor(demo: String): Color {
     var secondaryColor: Color = secondaryIcon2
@@ -322,4 +344,13 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
         }
     }
     return descString
+}
+
+object RegexConstant {
+    val ALPHA_ONLY = Regex(pattern = "^[A-Za-z]+\$")
+    val NUMERIC_ONLY = Regex(pattern = "^[0-9]*\$")
+    val SPECIAL_CHARACTERS_ONLY = Regex(pattern = "[^a-zA-Z0-9 ]+")
+    val ALPHA_AND_NUMERIC_ONLY = Regex(pattern = "^[A-Za-z0-9]+\$")
+    val ALPHA_AND_SPECIAL_CHARACTERS_ONLY = Regex(pattern = "[^0-9 ]+")
+    val NUMERIC_AND_SPECIAL_CHARACTERS_ONLY = Regex(pattern = "[^A-Za-z ]+")
 }

@@ -7,6 +7,9 @@ import android.text.Spanned
 import android.text.style.BulletSpan
 import org.xml.sax.XMLReader
 
+/**
+ * Custom Html.TagHandler to handle <li> tags and apply BulletSpan for list items.
+ */
 class BulletHandler : Html.TagHandler {
     class Bullet
 

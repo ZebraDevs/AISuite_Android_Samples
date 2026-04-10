@@ -81,11 +81,10 @@ import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlin.math.min
 
-private const val TAG = "CameraCapturedImageScreen"
+private const val TAG = "ProductsResultCapturedScreen"
 
-//describe the composable function
 /**
- * CameraCapturedImageScreen composable function to display the captured high resolution
+ * ProductsResultCapturedScreen composable function to display the captured high resolution
  * image with bounding boxes and product SKU's
  * The user can tap on the product bounding boxes that brings up a dialog box.
  *      The dialog box displays cropped product image displayed and an edit box wherein the user can
@@ -97,7 +96,7 @@ private const val TAG = "CameraCapturedImageScreen"
  * within which Product SKU folder is created and the product image crops are saved that folder.
  */
 @Composable
-fun CameraCapturedImageScreen(
+fun ProductsResultCapturedScreen(
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavController,
     activityInnerPadding: PaddingValues,

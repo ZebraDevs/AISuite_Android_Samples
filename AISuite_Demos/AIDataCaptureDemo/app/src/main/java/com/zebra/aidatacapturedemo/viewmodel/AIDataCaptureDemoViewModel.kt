@@ -46,12 +46,14 @@ import com.zebra.ai.vision.detector.BBox
 import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.data.BarcodeFilterData
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
 import com.zebra.aidatacapturedemo.data.BarcodeSymbology
 import com.zebra.aidatacapturedemo.data.CommonSettings
-import com.zebra.aidatacapturedemo.data.OCRFilterData
-import com.zebra.aidatacapturedemo.data.OCRFilterType
+import com.zebra.aidatacapturedemo.data.FilterType
+import com.zebra.aidatacapturedemo.data.ModuleData
 import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
+import com.zebra.aidatacapturedemo.data.OcrFilterData
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
 import com.zebra.aidatacapturedemo.data.ResultData
@@ -60,6 +62,7 @@ import com.zebra.aidatacapturedemo.data.TextOcrSettings
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.model.BarcodeAnalyzer
 import com.zebra.aidatacapturedemo.model.FileUtils
+import com.zebra.aidatacapturedemo.model.FileUtils.Companion.clearOcrBarcodeCaptureSessionPrefs
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.databaseFile
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.mCacheDir
 import com.zebra.aidatacapturedemo.model.GenericEntityTrackerAnalyzer
@@ -140,6 +143,7 @@ class AIDataCaptureDemoViewModel(
         // Get the SDK version
         val sdkVersion = AIVisionSDK.getInstance(context).sdkVersion
         Log.i(TAG, "AI Vision SDK Version = $sdkVersion")
+
     }
 
     /**
@@ -165,7 +169,8 @@ class AIDataCaptureDemoViewModel(
                 UsecaseState.Retail.value -> {
                     retailShelfAnalyzer = RetailShelfAnalyzer(
                         uiState = uiState,
-                        viewModel = this@AIDataCaptureDemoViewModel
+                        viewModel = this@AIDataCaptureDemoViewModel,
+                        cacheDir = context.filesDir.absolutePath
                     )
                     retailShelfAnalyzer?.initialize()
                 }
@@ -246,23 +251,8 @@ class AIDataCaptureDemoViewModel(
      * This function is used to start processing
      */
     fun startProcessing() {
-        when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
-
-            }
-
-            UsecaseState.Retail.value -> {
-                retailShelfAnalyzer?.startAnalyzing()
-            }
-
-            UsecaseState.Product.value -> {
-                productEnrollmentRecognition?.startAnalyzing()
-            }
-
-            UsecaseState.OCRBarcodeFind.value,
-            UsecaseState.OCR.value -> {
-
-            }
+        if (uiState.value.usecaseSelected == UsecaseState.Product.value ) {
+            productEnrollmentRecognition?.startAnalyzing()
         }
     }
 
@@ -270,27 +260,12 @@ class AIDataCaptureDemoViewModel(
      * This function is used to stop processing
      */
     fun stopProcessing() {
-        when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
-
-            }
-
-            UsecaseState.Retail.value -> {
-                retailShelfAnalyzer?.stopAnalyzing()
-            }
-
-            UsecaseState.Product.value -> {
-                productEnrollmentRecognition?.stopAnalyzing()
-            }
-
-            UsecaseState.OCRBarcodeFind.value,
-            UsecaseState.OCR.value -> {
-
-            }
+        if (uiState.value.usecaseSelected == UsecaseState.Product.value ) {
+            productEnrollmentRecognition?.stopAnalyzing()
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint("ClickableViewAccessibility", "RestrictedApi")
     public fun setupCameraController(
         previewView: PreviewView,
         analysisUseCaseCameraResolution: Size,
@@ -355,7 +330,8 @@ class AIDataCaptureDemoViewModel(
                 cameraProvider?.unbindAll()
 
                 // Bind an additional Capture Use Case only for Product Recognition UsecaseState
-                camera = if (uiState.value.usecaseSelected == UsecaseState.Product.value) {
+                camera = if ((uiState.value.usecaseSelected == UsecaseState.Product.value) ||
+                    ((uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.value.isCaptureOrLiveEnabled == 0))){
                     // HIGH-RES CAPTURE CASE
                     imageCaptureResolutionSelector = ResolutionSelector.Builder()
                         .setAspectRatioStrategy(
@@ -1267,6 +1243,33 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+    fun updateFeedback(name: String, enabled: Boolean) {
+        if(_uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
+            var currentFeedback = _uiState.value.ocrBarcodeFindSettings.feedbackSettings
+
+            val updatedFeedback = when (name) {
+                getString(context, R.string.audio) -> currentFeedback.copy(
+                    audioBeep = enabled
+                )
+                getString(context, R.string.haptic) -> {
+                    currentFeedback.copy(
+                        vibration = enabled
+                    )
+                }
+
+                getString(context, R.string.show_all_detected_barcodes) -> {
+                    currentFeedback.copy(
+                        showDetectedBarcode = enabled
+                    )
+                }
+                else -> {
+                    currentFeedback
+                }
+            }
+            _uiState.value.ocrBarcodeFindSettings.feedbackSettings = updatedFeedback
+        }
+    }
+
     fun updateBarcodeModelEnabled(enabled: Boolean) {
         _uiState.update { currentState ->
             currentState.copy(
@@ -1274,7 +1277,13 @@ class AIDataCaptureDemoViewModel(
             )
         }
     }
-
+    fun updateCaptureOrLiveEnabled(mode: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isCaptureOrLiveEnabled = mode
+            )
+        }
+    }
     fun updateOCRModelEnabled(enabled: Boolean) {
         _uiState.update { currentState ->
             currentState.copy(
@@ -1282,7 +1291,13 @@ class AIDataCaptureDemoViewModel(
             )
         }
     }
-
+    fun updateAllBarcodeOCRCaptureFilter(mode: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                allBarcodeOCRCaptureFilter = mode
+            )
+        }
+    }
     /**
      * Update the current bitmap used for processing by the models
      */
@@ -1313,8 +1328,7 @@ class AIDataCaptureDemoViewModel(
                 cameraExecutor,
                 object : ImageCapture.OnImageCapturedCallback() {
                     override fun onCaptureSuccess(image: ImageProxy) {
-                        val highResBitmap: Bitmap =
-                            productEnrollmentRecognition?.rotateBitmapIfNeeded(imageProxy = image)!!
+                        val highResBitmap: Bitmap = rotateBitmapIfNeeded(imageProxy = image)!!
                         image.close()
                         continuation.resume(highResBitmap)
                     }
@@ -1326,19 +1340,53 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+    fun rotateBitmapIfNeeded(imageProxy: ImageProxy): Bitmap? {
+        try {
+            val bitmap = imageProxy.toBitmap()
+            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+            return rotateBitmap(bitmap, rotationDegrees)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting image to bitmap: " + e.message)
+            return null
+        }
+    }
+
+    private fun rotateBitmap(bitmap: Bitmap?, degrees: Int): Bitmap? {
+        if (degrees == 0 || bitmap == null) return bitmap
+
+        try {
+            val matrix = Matrix()
+            matrix.postRotate(degrees.toFloat())
+            return Bitmap.createBitmap(
+                bitmap,
+                0,
+                0,
+                bitmap.getWidth(),
+                bitmap.getHeight(),
+                matrix,
+                true
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error rotating bitmap: " + e.message)
+            return bitmap
+        }
+    }
+
     private fun setAnalyzer(activityLifecycle: Lifecycle) {
         when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
                 barcodeAnalyzer?.let {
                     genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
                     val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
-                    analysisUseCase?.setAnalyzer(executor!!, analyzer!!)
+                    analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
                 }
             }
 
             UsecaseState.Retail.value -> {
                 retailShelfAnalyzer?.let {
-                    analysisUseCase?.setAnalyzer(executor!!, it)
+                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                    val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
+                    analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
                 }
             }
 
@@ -1349,20 +1397,25 @@ class AIDataCaptureDemoViewModel(
             }
 
             UsecaseState.OCRBarcodeFind.value -> {
-                ocrAnalyzer?.let {
-                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                // Setup Analyzer only if Live mode is enabled.
+                // In case of Captured Image mode, Barcode and OCR decoders process captured image instead of using the GenericEntityTrackerAnalyzer
+                if(uiState.value.isCaptureOrLiveEnabled == 1) {
+                    ocrAnalyzer?.let {
+                        genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                    }
+                    barcodeAnalyzer?.let {
+                        genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
+                    }
+                    val analyzer =
+                        genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
+                    analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
                 }
-                barcodeAnalyzer?.let {
-                    genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
-                }
-                val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
-                analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
             }
             UsecaseState.OCR.value -> {
                 ocrAnalyzer?.let {
                     genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
                     val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
-                    analysisUseCase?.setAnalyzer(executor!!, analyzer!!)
+                    analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
                 }
             }
         }
@@ -1541,7 +1594,28 @@ class AIDataCaptureDemoViewModel(
             }
         _uiState.value.textOCRSettings.advancedOCRSetting = updatedOCRSetting
     }
+    fun updateSimilarityThreshold(threshold : Float) {
+        when (_uiState.value.usecaseSelected) {
+            UsecaseState.Retail.value -> {
+                val retailShelfSettings = _uiState.value.retailShelfSettings
+                val updatedRetailShelfSettings =
+                    retailShelfSettings.copy(
+                        similarityThreshold = threshold
+                    )
+                _uiState.value.retailShelfSettings = updatedRetailShelfSettings
+            }
 
+            UsecaseState.Product.value -> {
+                val productRecognitionSettings = _uiState.value.productRecognitionSettings
+                val updatedProductRecognitionSettings =
+                    productRecognitionSettings.copy(
+                        similarityThreshold = threshold
+                    )
+                _uiState.value.productRecognitionSettings = updatedProductRecognitionSettings
+            }
+        }
+
+    }
     fun applySettings() {
         deinitModel()
         saveSettings()
@@ -1594,7 +1668,7 @@ class AIDataCaptureDemoViewModel(
                 _uiState.value.ocrBarcodeFindSettings = OcrBarcodeFindSettings()
                 updateOCRModelEnabled(true)
                 updateBarcodeModelEnabled(true)
-                updateOcrFilterData(OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL))
+                restoreFiltersToDefault()
             }
 
             UsecaseState.OCR.value -> {
@@ -1605,6 +1679,11 @@ class AIDataCaptureDemoViewModel(
 
             }
         }
+    }
+
+    private fun restoreFiltersToDefault(){
+        updateOcrFilterData(ocrFilterData = OcrFilterData())
+        updateBarcodeFilterData(barcodeFilterData = BarcodeFilterData())
     }
 
     fun getString(resId: Int): String {
@@ -1664,6 +1743,22 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+    fun updateOcrBarcodeCaptureSessionCount(count: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                ocrBarcodeCaptureSessionCount = count
+            )
+        }
+    }
+
+    fun updateOcrBarcodeCaptureSessionIndex(index: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                ocrBarcodeCaptureSessionIndex = index
+            )
+        }
+    }
+
     fun updateProductEnrollmentState(state: Boolean) {
         _uiState.update { currentState ->
             currentState.copy(
@@ -1686,6 +1781,14 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 bboxes = bBoxesResult
+            )
+        }
+    }
+
+    fun updateModuleRecognitionResult(results: ModuleData) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                moduleResults = results
             )
         }
     }
@@ -1716,6 +1819,7 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+
 //    fun updateExactMatchString(exactMatchString: String) {
 //        _uiState.update { selectedExactMatchString ->
 //            selectedExactMatchString.copy(
@@ -1724,14 +1828,6 @@ class AIDataCaptureDemoViewModel(
 //        }
 //    }
 
-    fun updateOcrFilterData(ocrFilterData: OCRFilterData) {
-        _uiState.update { selectedOcrFilterData ->
-            selectedOcrFilterData.copy(
-                selectedOCRFilterData = ocrFilterData
-            )
-        }
-    }
-    
     fun loadInputStreamFromAsset(fileName: String): String {
         try {
             val inputStream = assetManager.open(fileName)
@@ -1756,6 +1852,7 @@ class AIDataCaptureDemoViewModel(
 
         if (currentScreen == Screen.DemoStart) {
             deinitModel()
+            clearOcrBarcodeCaptureSession()
             updateSelectedUsecase(UsecaseState.Main.value)
             updateAppBarTitle(context.getString(R.string.app_name))
         } else if (currentScreen == Screen.DemoSetting) {
@@ -1763,7 +1860,7 @@ class AIDataCaptureDemoViewModel(
         } else if (currentScreen == Screen.Preview) {
             updateCameraReady(isReady = false)
             updateCameraErrorMessage(errorMessage = null)
-        } else if (currentScreen == Screen.Capture) {
+        } else if (currentScreen == Screen.ProductsCapture) {
             if (uiState.value.usecaseSelected == UsecaseState.Product.value) {
                 // clear all the previous results
                 updateProductRecognitionResult(results = null)
@@ -1772,6 +1869,10 @@ class AIDataCaptureDemoViewModel(
                 startPreviewAnalysis()
                 startProcessing()
             }
+        } else if (currentScreen == Screen.OCRFindFilterHome) {
+            updateSelectedFilterType(filterType = FilterType.NONE)
+        } else if (currentScreen == Screen.BarcodeFindFilterHome) {
+            updateSelectedFilterType(filterType = FilterType.NONE)
         }
         setZoom(1.0f)
         navController.navigateUp()
@@ -1790,15 +1891,82 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun stopPreviewAnalysis() {
-        productEnrollmentRecognition!!.stopPreviewAnalysis()
+        when (uiState.value.usecaseSelected) {
+            UsecaseState.Barcode.value -> {
+
+            }
+
+            UsecaseState.Retail.value -> {
+
+            }
+
+            UsecaseState.Product.value -> {
+                productEnrollmentRecognition!!.stopPreviewAnalysis()
+            }
+
+            UsecaseState.OCRBarcodeFind.value -> {
+
+            }
+
+            UsecaseState.OCR.value -> {
+
+            }
+        }
     }
 
     fun startPreviewAnalysis() {
-        productEnrollmentRecognition!!.startPreviewAnalysis()
+        when (uiState.value.usecaseSelected) {
+            UsecaseState.Barcode.value -> {
+
+            }
+
+            UsecaseState.Retail.value -> {
+
+            }
+
+            UsecaseState.Product.value -> {
+                productEnrollmentRecognition!!.startPreviewAnalysis()
+            }
+
+            UsecaseState.OCRBarcodeFind.value -> {
+
+            }
+
+            UsecaseState.OCR.value -> {
+
+            }
+        }
     }
 
     fun executeHighRes(highResBitmap: Bitmap) {
-        productEnrollmentRecognition!!.executeHighRes(highResBitmap)
+        when (uiState.value.usecaseSelected) {
+            UsecaseState.Barcode.value -> {
+
+            }
+
+            UsecaseState.Retail.value -> {
+
+            }
+
+            UsecaseState.Product.value -> {
+                productEnrollmentRecognition!!.executeHighRes(highResBitmap)
+            }
+
+            UsecaseState.OCRBarcodeFind.value -> {
+                if (uiState.value.isCaptureOrLiveEnabled == 0) {
+                    if (uiState.value.isOCRModelEnabled) {
+                        ocrAnalyzer!!.executeHighRes(highResBitmap)
+                    }
+                    if (uiState.value.isBarcodeModelEnabled) {
+                        barcodeAnalyzer!!.executeHighRes(highResBitmap)
+                    }
+                }
+            }
+
+            UsecaseState.OCR.value -> {
+
+            }
+        }
     }
 
     fun updateToastMessage(message: String?) {
@@ -1823,5 +1991,40 @@ class AIDataCaptureDemoViewModel(
                 cameraError = errorMessage
             )
         }
+    }
+
+    fun updateSelectedFilterType(filterType: FilterType) {
+        _uiState.update { uiStateData ->
+            uiStateData.copy(
+                selectedFilterType = filterType
+            )
+        }
+    }
+    fun clearOcrBarcodeCaptureSession(){
+        updateOcrBarcodeCaptureSessionIndex(0)
+        updateOcrBarcodeCaptureSessionCount(0)
+        clearOcrBarcodeCaptureSessionPrefs(context)
+    }
+
+    fun updateOcrFilterData(ocrFilterData: OcrFilterData) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                ocrFilterData = ocrFilterData
+            )
+        }
+
+        // Automatically save to the local cache file
+        FileUtils.saveOcrFilterData(ocrFilterData = ocrFilterData)
+    }
+
+    fun updateBarcodeFilterData(barcodeFilterData: BarcodeFilterData) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                barcodeFilterData = barcodeFilterData
+            )
+        }
+
+        // Automatically save to the local cache file
+        FileUtils.saveBarcodeFilterData(barcodeFilterData = barcodeFilterData)
     }
 }

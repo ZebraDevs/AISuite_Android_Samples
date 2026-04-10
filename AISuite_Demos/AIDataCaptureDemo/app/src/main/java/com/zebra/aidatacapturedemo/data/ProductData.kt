@@ -22,12 +22,12 @@ class ProductData(var text: String, var bBox: BBox, var crop : Bitmap)
  * @param recognitions: Array<Recognition>
  * @return MutableList<ProductData>
  */
-fun toProductData(inputBitmap:Bitmap, products: Array<BBox>, recognitions: Array<Recognition>): MutableList<ProductData> {
+fun toProductData(similarityThreshold : Float, inputBitmap:Bitmap, products: Array<BBox>, recognitions: Array<Recognition>): MutableList<ProductData> {
     val ProductData = mutableListOf<ProductData>()
     for (i in products.indices) {
         if((products[i].xmin.toInt() + (products[i].xmax - products[i].xmin).toInt() < inputBitmap.width) &&
             (products[i].ymin.toInt() + (products[i].ymax - products[i].ymin).toInt() < inputBitmap.height)) {
-            if (recognitions[i].similarity.first() > 0.80) {
+            if (recognitions[i].similarity.first() > similarityThreshold) {
                 ProductData += ProductData(
                     recognitions[i].sku.first(),
                     products[i],

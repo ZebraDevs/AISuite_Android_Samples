@@ -2,11 +2,17 @@
 
 package com.zebra.aidatacapturedemo.model
 
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.Lifecycle
+import com.zebra.ai.vision.detector.AIVisionSDKException
 import com.zebra.ai.vision.detector.BarcodeDecoder
+import com.zebra.ai.vision.detector.ImageData
+import com.zebra.ai.vision.detector.InvalidInputException
+import com.zebra.ai.vision.entity.BarcodeEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.PROFILING
+import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +38,10 @@ class BarcodeAnalyzer(
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
 
     /**
-     * To initialize the BarcodeAnalyzer
+     * initialize function is used to initialize the BarcodeDecoder for Barcode Analyzer
+     * use case. It configures the model settings based on the current UI state and creates an
+     * instance of BarcodeDecoder. If the initialization fails due to unsupported inference type,
+     * it updates the UI with appropriate messages and takes corrective actions.
      */
     fun initialize() {
         barcodeDecoder?.dispose()
@@ -77,6 +86,29 @@ class BarcodeAnalyzer(
     }
     fun getDetector() : BarcodeDecoder? {
         return barcodeDecoder
+    }
+
+    /** executeHighRes function takes a high resolution bitmap as input and processes it using the
+     * BarcodeDecoder instance. It runs the processing in a background thread using an ExecutorService.
+     * The function handles exceptions that may occur during processing and logs appropriate messages.
+     * Upon successful processing, it calls the onDetectionBarcodeResult function with the results.
+     */
+    fun executeHighRes(highResBitmap: Bitmap) {
+        executorService.submit {
+            try {
+                Log.d(TAG, "Starting image analysis")
+                val highResImageData: ImageData = ImageData.fromBitmap(highResBitmap, 0)
+                barcodeDecoder?.process(highResImageData)
+                    ?.thenAccept { result ->
+                        onDetectionBarcodeResult(result)
+                    }
+            } catch (e: InvalidInputException) {
+                Log.e(TAG, e.message ?: "InvalidInputException occurred")
+            } catch (e: AIVisionSDKException) {
+                Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
+            } finally {
+            }
+        }
     }
     private fun configure() {
         try {
@@ -220,5 +252,28 @@ class BarcodeAnalyzer(
 
     private fun updateBarcodeModelDemoReady(isReady: Boolean) {
         viewModel.updateBarcodeModelDemoReady(isReady = isReady)
+    }
+
+    private fun onDetectionBarcodeResult(entityList: List<BarcodeEntity?>?) {
+        var rectList: MutableList<ResultData> = mutableListOf()
+        entityList?.forEach { entity ->
+            if (entity != null) {
+                val value = entity.value
+                val rect = entity.boundingBox
+                rectList += ResultData(boundingBox = rect, text = value)
+            }
+        }
+
+        // If feedbackSettings.showDetectedBarcode is false -> then don't show the undecoded barcodes on the display
+        if (!uiState.value.ocrBarcodeFindSettings.feedbackSettings.showDetectedBarcode){
+            rectList.retainAll { it.text.isNotBlank() }
+        }
+
+        viewModel.updateBarcodeResultData(
+            results = FilterUtils.getBarcodeFilteredResultData(
+                uiState = uiState.value,
+                outputBarcodeResultData = rectList
+            )
+        )
     }
 }

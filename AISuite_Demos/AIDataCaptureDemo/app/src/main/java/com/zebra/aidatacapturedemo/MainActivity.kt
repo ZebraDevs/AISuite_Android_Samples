@@ -3,6 +3,7 @@ package com.zebra.aidatacapturedemo
 import android.Manifest
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,11 +20,21 @@ import com.zebra.aidatacapturedemo.ui.view.AIDataCaptureDemoApp
 import com.zebra.aidatacapturedemo.ui.view.FeedbackUtils
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+/**
+ * MainActivity is the entry point of the AI Data Capture Demo application.
+ * It sets up the UI and handles permissions.
+ */
 @OptIn(ExperimentalPermissionsApi::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val pendoApiKey = BuildConfig.PendoApiKey
+        if (pendoApiKey.isNotEmpty()) {
+            Log.d(TAG, "pendoApiKey is NotEmpty")
+            PendoInitializer.init(application, pendoApiKey, true)
+        }
 
         FileUtils(application.filesDir.absolutePath, application as Context)
         val viewModel: AIDataCaptureDemoViewModel by viewModels { AIDataCaptureDemoViewModel.factory() }
@@ -54,5 +65,9 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         FeedbackUtils.deinitialize()
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }

@@ -49,6 +49,18 @@ import com.zebra.aidatacapturedemo.ui.view.Variables.warningBorder
 import com.zebra.aidatacapturedemo.ui.view.Variables.warningColor
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+/**
+ * AdvancedOCRSettingsScreen is a Composable function that displays the advanced settings for the
+ * OCR model in the AI Data Capture Demo app. It includes options for detection parameters,
+ * recognition parameters, and grouping settings. The screen also provides a warning message and
+ * a link to TechDocs for more information. The settings are displayed in an expandable list format,
+ * allowing users to easily navigate and modify the OCR settings as needed.
+ *
+ * @param viewModel The ViewModel instance that holds the UI state and handles user interactions for the AI Data Capture Demo.
+ * @param navController The NavController used for navigation between screens in the app.
+ * @param innerPadding The padding values to be applied to the content of the screen, typically provided by Scaffold.
+ * @param context The Context of the current state of the application, used for actions such as opening URLs.
+ */
 @Composable
 fun AdvancedOCRSettingsScreen(
     viewModel: AIDataCaptureDemoViewModel,

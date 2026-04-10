@@ -79,6 +79,15 @@ import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
+/**
+ * SettingsMoreInfoScreen.kt
+ *
+ * This file contains the implementation of the SettingsMoreInfoScreen composable function,
+ * which displays a modal bottom sheet with detailed information and recommendations for a
+ * specific document. The screen includes expandable list items that show additional details and
+ * tips when expanded. The content is dynamically loaded from the provided Document object,
+ * allowing for flexible and rich information display.
+ */
 val itemsTitle: MutableList<String> = mutableStateListOf()
 
 @OptIn(ExperimentalMaterial3Api::class)

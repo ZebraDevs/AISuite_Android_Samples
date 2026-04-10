@@ -89,7 +89,7 @@ class ProductEnrollmentRecognition(
         scope.launch {
             try {
                 Log.d(TAG, "Starting image analysis")
-                val bitmap = rotateBitmapIfNeeded(image)!!
+                val bitmap = viewModel.rotateBitmapIfNeeded(image)!!
                 execute(bitmap)
                 image.close()
             } catch (e: InvalidInputException) {
@@ -160,38 +160,6 @@ class ProductEnrollmentRecognition(
                     isCapturedUseCase = isCapturedUseCase
                 )
             }
-        }
-    }
-
-    fun rotateBitmapIfNeeded(imageProxy: ImageProxy): Bitmap? {
-        try {
-            val bitmap = imageProxy.toBitmap()
-            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-            return rotateBitmap(bitmap, rotationDegrees)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error converting image to bitmap: " + e.message)
-            return null
-        }
-    }
-
-    private fun rotateBitmap(bitmap: Bitmap?, degrees: Int): Bitmap? {
-        if (degrees == 0 || bitmap == null) return bitmap
-
-        try {
-            val matrix = Matrix()
-            matrix.postRotate(degrees.toFloat())
-            return Bitmap.createBitmap(
-                bitmap,
-                0,
-                0,
-                bitmap.getWidth(),
-                bitmap.getHeight(),
-                matrix,
-                true
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error rotating bitmap: " + e.message)
-            return bitmap
         }
     }
 
@@ -467,7 +435,7 @@ class ProductEnrollmentRecognition(
                     Log.i(TAG, "Recognitions - ${recognitions?.size}")
 
                     recognitions?.let { it1 ->
-                        toProductData(
+                        toProductData(viewModel.uiState.value.productRecognitionSettings.similarityThreshold/100f,
                             bitmap!!, products,
                             it1
                         )
@@ -523,10 +491,6 @@ class ProductEnrollmentRecognition(
 
     fun updateProductEnrollmentState(state: Boolean) {
         viewModel.updateProductEnrollmentState(state = state)
-    }
-
-    fun updateCaptureBitmap(bitmap: Bitmap) {
-        viewModel.updateCaptureBitmap(bitmap)
     }
 
     private fun updateRetailShelfDetectionResult(result: Array<BBox?>?) {

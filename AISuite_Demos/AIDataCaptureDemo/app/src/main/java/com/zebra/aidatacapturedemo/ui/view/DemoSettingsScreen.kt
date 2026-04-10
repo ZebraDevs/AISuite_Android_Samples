@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.zebra.aidatacapturedemo.BuildConfig
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.UsecaseState
@@ -59,7 +61,12 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-
+/**
+ * Data class representing an expandable settings item with a title and expansion state.
+ *
+ * @param title The title of the settings item.
+ * @param isExpanded A boolean indicating whether the item is currently expanded or not. Default is false.
+ */
 data class ExpandableSettingsItem(
     val title: String,
     var isExpanded: Boolean = false
@@ -84,7 +91,7 @@ fun ExpandableSettingsItemsList.AddAboutSettings() {
 @Composable
 fun DemoSettingsScreen(
     viewModel: AIDataCaptureDemoViewModel,
-    navController: NavController,
+    navController: NavHostController,
     innerPadding: PaddingValues
 ) {
 
@@ -99,11 +106,16 @@ fun DemoSettingsScreen(
     val settingsItemsList = ExpandableSettingsItemsList()
     settingsItemsList.AddCommonSettings()
 
-    if ((demo == UsecaseState.Barcode.value) ||
-        (demo == UsecaseState.OCRBarcodeFind.value) ) {
+    if (demo == UsecaseState.Barcode.value) {
         settingsItemsList.AddBarcodeSettings()
+    }
+    else if (demo == UsecaseState.OCRBarcodeFind.value){
+        settingsItemsList.AddBarcodeSettings()
+        settingsItemsList.AddFeedbackSettings()
+    } else if (demo == UsecaseState.Retail.value) {
+        settingsItemsList.AddProductRecognitionSettings()
     } else if (demo == UsecaseState.Product.value) {
-        settingsItemsList.AddProductSettings()
+        settingsItemsList.AddProductEnrollmentSettings()
     }
     settingsItemsList.AddAboutSettings()
 
@@ -122,6 +134,15 @@ fun DemoSettingsScreen(
         }
         val expandedStates =
             remember { mutableStateListOf(*BooleanArray(items.size) { false }.toTypedArray()) }
+        // If user selected Go button during DemoStartScreen -> CameraPreviewScreen -> BarcodeFindFilterHomeScreen,
+        // now find the Barcode Symbology ExpandableSettingsItem and make the view expandable.
+        LaunchedEffect(key1 = "Make Barcode Symbology view expand") {
+            // Check if Screen.Preview exists inside the navigation Controller Stack.
+            if (checkIfScreenExistsInStack(navController, Screen.Preview.route)) {
+                expandedStates[3] = true
+            }
+        }
+
         val listState = rememberLazyListState()
 
         LazyColumn(
@@ -358,7 +379,6 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            //SettingHeader(viewModel = viewModel,"This is where the description lives, that explains to the user what the different option are and what they do")
             AddOCRDetectionOptions(viewModel)
         }
     } else if (item.title.equals(stringResource(R.string.recognition_parameters))) {
@@ -366,7 +386,6 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            //SettingHeader(viewModel = viewModel,"This is where the description lives, that explains to the user what the different option are and what they do")
             AddOCRRecognitionOptions(viewModel)
         }
     } else if (item.title.equals(stringResource(R.string.grouping))) {
@@ -374,7 +393,6 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            //SettingHeader(viewModel = viewModel,"This is where the description lives, that explains to the user what the different option are and what they do")
             AddEnableOCRGroupingOptions(viewModel)
         }
     } else if (item.title.equals(stringResource(R.string.import_database))) {
@@ -404,6 +422,26 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AddAboutInformation(viewModel)
+        }
+    } else if (item.title.equals(stringResource(R.string.similarity_threshold))) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val fileName = "product_similaritythreshold.html"
+
+            val htmlString = viewModel.loadInputStreamFromAsset(fileName = fileName)
+            val document: Document = Jsoup.parse(htmlString)
+            SettingHeader(viewModel = viewModel, document)
+            AddSimilarityThreshold(viewModel)
+        }
+    }
+    else if (item.title.equals(stringResource(R.string.feedback))) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AddFeedbackSwitchOption(viewModel)
         }
     }
 }
@@ -610,14 +648,14 @@ fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
 
         UsecaseState.Product.value -> {
             Pair(
-                first = "Product & Shelf Recognizer Version",
+                first = "Product & Shelf Enrollment Version",
                 second = BuildConfig.ProductAndShelfRecognizer_Version
             )
         }
 
         UsecaseState.Retail.value -> {
             Pair(
-                first = "Product & Shelf Localizer Version",
+                first = "Product & Shelf Recognizer Version",
                 second = BuildConfig.ProductAndShelfRecognizer_Version
             )
         }
@@ -658,5 +696,14 @@ fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
             ),
             modifier = Modifier.padding(end = 22.dp, top = 14.dp)
         )
+    }
+}
+
+fun checkIfScreenExistsInStack(navController: NavHostController, targetRoute: String): Boolean {
+    return try {
+        navController.getBackStackEntry(targetRoute)
+        true
+    } catch (_: IllegalArgumentException) {
+        false
     }
 }

@@ -58,7 +58,16 @@ import androidx.navigation.NavController
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
-
+/**
+ * Composable function for the AI Data Capture Start Screen.
+ *
+ * This screen displays a list of use case demos and technology demos in an expandable format.
+ * Users can click on each item to navigate to the respective demo screen.
+ *
+ * @param viewModel The ViewModel that holds the state and logic for the AI Data Capture Demo.
+ * @param navController The NavController used for navigation between screens.
+ * @param innerPadding The padding values to be applied to the content of the screen.
+ */
 @Composable
 fun AIDataCaptureStartScreen(
     viewModel: AIDataCaptureDemoViewModel,

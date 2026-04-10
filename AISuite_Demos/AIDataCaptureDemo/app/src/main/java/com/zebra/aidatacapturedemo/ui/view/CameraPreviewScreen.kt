@@ -2,6 +2,7 @@ package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.util.Log
 import android.util.Size
 import android.view.WindowManager
 import android.view.WindowMetrics
@@ -68,13 +69,26 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
-import com.zebra.aidatacapturedemo.data.OCRFilterType
+import com.zebra.aidatacapturedemo.data.AdvancedFilterOption
+import com.zebra.aidatacapturedemo.data.CharacterMatchFilterOption
+import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-
+/**
+ * This composable function represents the Camera Preview Screen in the AI Data Capture Demo app.
+ * It displays the camera feed and overlays results such as OCR, Barcode, Retail Module detection,
+ * on top of it.
+ *
+ * @param viewModel The ViewModel that holds the UI state and business logic for the screen.
+ * @param navController The NavController used for navigation between screens.
+ * @param context The Context of the current state of the application.
+ * @param activityInnerPadding The padding values to account for system UI elements like status bar and navigation bar.
+ * @param activityLifecycle The Lifecycle of the activity to manage camera resources appropriately.
+ */
+private const val TAG = "CameraPreviewScreen"
 @Composable
 fun CameraPreviewScreen(
     viewModel: AIDataCaptureDemoViewModel,
@@ -186,144 +200,126 @@ fun CameraPreviewScreen(
         when (val selectedDemo = uiState.usecaseSelected) {
             UsecaseState.OCRBarcodeFind.value -> {
 
-                when (uiState.selectedOCRFilterData.ocrFilterType) {
+                if (uiState.isBarcodeModelEnabled) {
 
-                    OCRFilterType.EXACT_MATCH -> {
-                        val checkIconDrawable = ContextCompat.getDrawable(
-                            context,
-                            R.drawable.ic_check
+                    // For Barcode results during CHARACTER_MATCH filter: Play beep (or) vibrate when filtered results are found.
+                    if (uiState.barcodeFilterData.selectedAdvancedFilterOptionList.contains(
+                            AdvancedFilterOption.CHARACTER_MATCH
                         )
-                        DrawOCRResultWithTextSizeScalingAndCheckMark(
-                            uiState = uiState,
-                            scaler = scaler,
-                            gapX = gapX,
-                            gapY = gapY,
-                            displayMetricsDensity = displayMetricsDensity,
-                            checkIconDrawable = checkIconDrawable,
-                            displayTotalHeightInPx = displayTotalHeightInPx,
-                            displayTotalWidthInPx = displayTotalWidthInPx
-                        )
-                        if (uiState.ocrResults.isNotEmpty()) {
-                            FeedbackUtils.vibrate()
-                            FeedbackUtils.beep()
+                    ) {
+                        if (uiState.barcodeFilterData.selectedCharacterMatchFilterData.startsWithStringList.isNotEmpty() ||
+                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.containsStringList.isNotEmpty() ||
+                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.exactMatchStringList.isNotEmpty()
+                        ) {
+                            if (uiState.barcodeResults.isNotEmpty()) {
+                                if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
+                                    FeedbackUtils.beep()
+                                }
+                                if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
+                                    FeedbackUtils.vibrate()
+                                }
+                            }
                         }
-                        showInformationBox(
-                            info = "Looking for: ${uiState.selectedOCRFilterData.exactMatchStringList}",
-                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                        )
                     }
 
-                    OCRFilterType.STARTS_WITH -> {
-                        val checkIconDrawable = ContextCompat.getDrawable(
-                            context,
-                            R.drawable.ic_check
-                        )
-                        DrawOCRResultWithTextSizeScalingAndCheckMark(
-                            uiState = uiState,
-                            scaler = scaler,
-                            gapX = gapX,
-                            gapY = gapY,
-                            displayMetricsDensity = displayMetricsDensity,
-                            checkIconDrawable = checkIconDrawable,
-                            displayTotalHeightInPx = displayTotalHeightInPx,
-                            displayTotalWidthInPx = displayTotalWidthInPx
-                        )
-                        if (uiState.ocrResults.isNotEmpty()) {
-                            FeedbackUtils.vibrate()
-                            FeedbackUtils.beep()
-                        }
-                        showInformationBox(
-                            info = "Looking for Starts with: ${uiState.selectedOCRFilterData.startsWithStringList}",
-                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                        )
-                    }
-
-                    OCRFilterType.CONTAINS -> {
-                        val checkIconDrawable = ContextCompat.getDrawable(
-                            context,
-                            R.drawable.ic_check
-                        )
-                        DrawOCRResultWithTextSizeScalingAndCheckMark(
-                            uiState = uiState,
-                            scaler = scaler,
-                            gapX = gapX,
-                            gapY = gapY,
-                            displayMetricsDensity = displayMetricsDensity,
-                            checkIconDrawable = checkIconDrawable,
-                            displayTotalHeightInPx = displayTotalHeightInPx,
-                            displayTotalWidthInPx = displayTotalWidthInPx
-                        )
-                        if (uiState.ocrResults.isNotEmpty()) {
-                            FeedbackUtils.vibrate()
-                            FeedbackUtils.beep()
-                        }
-                        showInformationBox(
-                            info = "Looking for Contains: ${uiState.selectedOCRFilterData.containsStringList}",
-                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                        )
-                    }
-
-                    OCRFilterType.REGEX -> {
-                        val checkIconDrawable = ContextCompat.getDrawable(
-                            context,
-                            R.drawable.ic_check
-                        )
-                        DrawOCRResultWithTextSizeScalingAndCheckMark(
-                            uiState = uiState,
-                            scaler = scaler,
-                            gapX = gapX,
-                            gapY = gapY,
-                            displayMetricsDensity = displayMetricsDensity,
-                            checkIconDrawable = checkIconDrawable,
-                            displayTotalHeightInPx = displayTotalHeightInPx,
-                            displayTotalWidthInPx = displayTotalWidthInPx
-                        )
-                        if (uiState.ocrResults.isNotEmpty()) {
-                            FeedbackUtils.vibrate()
-                            FeedbackUtils.beep()
-                        }
-                        showInformationBox(
-                            info = "Looking for Regex: ${uiState.selectedOCRFilterData.regexString}",
-                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                        )
-                    }
-
-                    OCRFilterType.NUMERIC_CHARACTERS_ONLY,
-                    OCRFilterType.ALPHA_CHARACTERS_ONLY,
-                    OCRFilterType.ALPHA_NUMERIC_CHARACTERS_ONLY -> {
-                        DrawOCRResultWithTextSizeScaling(
-                            uiState = uiState,
-                            scaler = scaler,
-                            gapX = gapX,
-                            gapY = gapY,
-                            displayMetricsDensity = displayMetricsDensity,
-                            displayTotalHeightInPx = displayTotalHeightInPx,
-                            displayTotalWidthInPx = displayTotalWidthInPx
-                        )
-                    }
-
-                    OCRFilterType.SHOW_ALL -> {
-                        DrawOCRResult(
-                            uiState = uiState,
-                            scaler = scaler,
-                            gapX = gapX,
-                            gapY = gapY,
-                            displayMetricsDensity = displayMetricsDensity
-                        )
-                    }
-
-                    else -> {
-                        // Unknown Filter Type received. Not implemented.
-                    }
+                    DrawBarcodeResult(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity
+                    )
                 }
 
-                DrawBarcodeResult(
-                    uiState = uiState,
-                    scaler = scaler,
-                    gapX = gapX,
-                    gapY = gapY,
-                    displayMetricsDensity = displayMetricsDensity
-                )
+                if (uiState.isOCRModelEnabled) {
+                    when (uiState.ocrFilterData.selectedRegularFilterOption) {
+                        OcrRegularFilterOption.UNFILTERED -> {
+                            DrawOCRResult(
+                                uiState = uiState,
+                                scaler = scaler,
+                                gapX = gapX,
+                                gapY = gapY,
+                                displayMetricsDensity = displayMetricsDensity
+                            )
+                        }
+
+                        OcrRegularFilterOption.REGEX -> {
+                            val checkIconDrawable = ContextCompat.getDrawable(
+                                context,
+                                R.drawable.ic_check
+                            )
+                            DrawOCRResultWithTextSizeScalingAndCheckMark(
+                                uiState = uiState,
+                                scaler = scaler,
+                                gapX = gapX,
+                                gapY = gapY,
+                                displayMetricsDensity = displayMetricsDensity,
+                                checkIconDrawable = checkIconDrawable,
+                                displayTotalHeightInPx = displayTotalHeightInPx,
+                                displayTotalWidthInPx = displayTotalWidthInPx
+                            )
+                            if (uiState.ocrResults.isNotEmpty()) {
+                                if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
+                                    FeedbackUtils.beep()
+                                }
+                                if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
+                                    FeedbackUtils.vibrate()
+                                }
+                            }
+                        }
+
+                        OcrRegularFilterOption.ADVANCED -> {
+                            if (uiState.ocrFilterData.selectedAdvancedFilterOptionList.contains(
+                                    AdvancedFilterOption.CHARACTER_MATCH
+                                )
+                            ) {
+                                if (uiState.ocrFilterData.selectedCharacterMatchFilterData.startsWithStringList.isNotEmpty() ||
+                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.containsStringList.isNotEmpty() ||
+                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList.isNotEmpty()
+                                ) {
+                                    val checkIconDrawable = ContextCompat.getDrawable(
+                                        context,
+                                        R.drawable.ic_check
+                                    )
+                                    DrawOCRResultWithTextSizeScalingAndCheckMark(
+                                        uiState = uiState,
+                                        scaler = scaler,
+                                        gapX = gapX,
+                                        gapY = gapY,
+                                        displayMetricsDensity = displayMetricsDensity,
+                                        checkIconDrawable = checkIconDrawable,
+                                        displayTotalHeightInPx = displayTotalHeightInPx,
+                                        displayTotalWidthInPx = displayTotalWidthInPx
+                                    )
+                                    if (uiState.ocrResults.isNotEmpty()) {
+                                        if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
+                                            FeedbackUtils.beep()
+                                        }
+                                        if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
+                                            FeedbackUtils.vibrate()
+                                        }
+                                    }
+                                }
+
+                                if (uiState.ocrFilterData.selectedCharacterMatchFilterData.type == CharacterMatchFilterOption.EXACT_MATCH && uiState.isCaptureOrLiveEnabled == 1) {
+                                    showInformationBox(
+                                        info = "Looking for: ${uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList}",
+                                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                                    )
+                                }
+
+                            } else {
+                                DrawOCRResult(
+                                    uiState = uiState,
+                                    scaler = scaler,
+                                    gapX = gapX,
+                                    gapY = gapY,
+                                    displayMetricsDensity = displayMetricsDensity
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             UsecaseState.OCR.value -> {
@@ -348,7 +344,7 @@ fun CameraPreviewScreen(
             }
 
             UsecaseState.Retail.value -> {
-                DrawRetailShelfResult(
+                DrawModuleRecognitionResult(
                     uiState = uiState,
                     scaler = scaler,
                     gapX = gapX,
@@ -856,6 +852,162 @@ fun DrawBarcodeResult(
 }
 
 @Composable
+private fun DrawModuleRecognitionResult(
+    uiState: AIDataCaptureDemoUiState,
+    scaler: Float,
+    gapX: Float,
+    gapY: Float,
+    displayMetricsDensity: Float
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        uiState.moduleResults.shelves.forEach {
+            it.let { shelf ->
+
+                val bBoxTop = shelf.boundingBox.top.toFloat()
+                val bBoxLeft = shelf.boundingBox.left.toFloat()
+                val bBoxBottom = shelf.boundingBox.bottom.toFloat()
+                val bBoxRight = shelf.boundingBox.right.toFloat()
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+                drawRect(
+                    color = Color.Red,
+                    topLeft = topLeftOffset,
+                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
+                    style = Stroke(width = (1.5f * displayMetricsDensity))
+                )
+            }
+        }
+        uiState.moduleResults.labelEntity.forEach {
+            it.let { labelEntity ->
+
+                val bBoxTop = labelEntity.boundingBox.top.toFloat()
+                val bBoxLeft = labelEntity.boundingBox.left.toFloat()
+                val bBoxBottom = labelEntity.boundingBox.bottom.toFloat()
+                val bBoxRight = labelEntity.boundingBox.right.toFloat()
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+                drawRect(
+                    color = Color.Blue,
+                    topLeft = topLeftOffset,
+                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
+                    style = Stroke(width = (1.5f * displayMetricsDensity))
+                )
+
+                val barcodes = labelEntity.barcodes
+                Log.d(TAG, "Barcodes size: " + barcodes.size)
+                if (!barcodes.isEmpty()) {
+                    barcodes.forEach {  barcode ->
+                        val barcodeRect = barcode.boundingBox
+
+                        val bBarcodeBoxTop = barcodeRect.top.toFloat()
+                        val bBarcodeBoxLeft = barcodeRect.left.toFloat()
+                        val bBarcodeBoxBottom = barcodeRect.bottom.toFloat()
+                        val bBarcodeBoxRight = barcodeRect.right.toFloat()
+
+                        val scaledBarcodeBBoxLeftInPx = (scaler * bBarcodeBoxLeft) + gapX
+                        val scaledBarcodeBBoxTopInPx = (scaler * bBarcodeBoxTop) + gapY
+                        val scaledBarcodeBBoxRightInPx = (scaler * bBarcodeBoxRight) + gapX
+                        val scaledBarcodeBBoxBottomInPx = (scaler * bBarcodeBoxBottom) + gapY
+
+                        val barcodeRectangleHeight = scaledBarcodeBBoxBottomInPx - scaledBarcodeBBoxTopInPx
+                        Log.d(TAG, "Detected entity - Value: " + barcode.value)
+                        Log.d(TAG, "Detected entity - Symbology: " + barcode.symbology)
+
+                        val paint = android.graphics.Paint().apply {
+                            color = android.graphics.Color.WHITE
+                            textSize = 30f
+                        }
+
+                        val barcodeTextOffset = Offset(
+                            scaledBarcodeBBoxLeftInPx,
+                            scaledBarcodeBBoxTopInPx + (barcodeRectangleHeight) / 2
+                        )
+                        drawContext.canvas.nativeCanvas.drawText(
+                            barcode.value,
+                            barcodeTextOffset.x,
+                            barcodeTextOffset.y,
+                            paint
+                        )
+                    }
+                }
+            }
+        }
+        uiState.moduleResults.productEntity.forEach {
+            it.let { productEntity ->
+
+                val bBoxTop = productEntity.boundingBox.top.toFloat()
+                val bBoxLeft = productEntity.boundingBox.left.toFloat()
+                val bBoxBottom = productEntity.boundingBox.bottom.toFloat()
+                val bBoxRight = productEntity.boundingBox.right.toFloat()
+
+                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+                val topSku = productEntity.topKSKUs?.firstOrNull()?.let {
+                    if (it.accuracy > uiState.retailShelfSettings.similarityThreshold / 100) it.productSKU else ""
+                } ?: ""
+                if(topSku.isEmpty()) {
+                    drawRect(
+                        color = Color.Green,
+                        topLeft = topLeftOffset,
+                        size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
+                        style = Stroke(width = (1.5f * displayMetricsDensity))
+                    )
+                } else {
+                    drawRect(
+                        color = Color(0xAA004830).copy(alpha = 0.5F),
+                        topLeft = topLeftOffset,
+                        size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight)
+                    )
+
+                    val paint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.WHITE
+                        textSize = 30f
+                    }
+
+                    val textOffset = Offset(
+                        scaledBBoxLeftInPx,
+                        scaledBBoxTopInPx + (rectangleHeight) / 2
+                    )
+                    drawContext.canvas.nativeCanvas.drawText(
+                        topSku,
+                        textOffset.x,
+                        textOffset.y,
+                        paint
+                    )
+                }
+            }
+        }
+
+    }
+}
+
+@Composable
 private fun DrawRetailShelfResult(
     uiState: AIDataCaptureDemoUiState,
     scaler: Float,
@@ -1010,7 +1162,8 @@ fun showBottomBar(
                         tint = if (torchEnabled.value) Variables.mainDefault else Variables.stateDefaultEnabled
                     )
                 }
-                if (uiState.usecaseSelected == UsecaseState.Product.value) {
+                if ((uiState.usecaseSelected == UsecaseState.Product.value) ||
+                    ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.isCaptureOrLiveEnabled == 0))){
                     var isClickable = remember { mutableStateOf(true) }
                     Icon(
                         imageVector = ImageVector.Companion.vectorResource(R.drawable.shutter_button),
@@ -1033,7 +1186,12 @@ fun showBottomBar(
                                     // Send the High Res Image for Processing
                                     viewModel.executeHighRes(highResBitmap = highResBitmap)
 
-                                    navController.navigate(route = Screen.Capture.route)
+                                    if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
+                                        viewModel.updateOcrBarcodeCaptureSessionCount(uiState.ocrBarcodeCaptureSessionCount + 1)
+                                        navController.navigate(route = Screen.OCRBarcodeCapture.route)
+                                    } else {
+                                        navController.navigate(route = Screen.ProductsCapture.route)
+                                    }
                                 }
                             },
                         tint = Variables.stateDefaultEnabled

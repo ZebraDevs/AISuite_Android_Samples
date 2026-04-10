@@ -1,6 +1,7 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,9 +21,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -36,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -52,6 +60,21 @@ import com.zebra.aidatacapturedemo.ui.view.Variables.mainDisabled
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainInverse
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainPrimary
 
+/**
+ * CommonUIElements.kt
+ *
+ * This file contains reusable composable functions for common UI elements such as radio buttons,
+ * switches, text inputs, and buttons. These components are designed to be flexible and customizable,
+ * allowing them to be used across different screens in the application.
+ *
+ * Each composable function is accompanied by a corresponding data class that encapsulates the
+ * necessary information and callbacks for that UI element.
+ * This approach promotes separation of concerns and makes it easier to manage state and
+ * interactions within the UI.
+ *
+ * The components are styled according to the application's design guidelines, utilizing colors,
+ * typography, and spacing defined in the Variables object.
+ */
 data class RadioButtonData(
     val title: String,
     val description: Int?,
@@ -139,7 +162,7 @@ data class SwitchOptionData(
 )
 
 @Composable
-fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
+fun SwitchOptionForModelSelectionScreen(currentValue: Boolean, switchOption: SwitchOptionData) {
     var title = stringResource(switchOption.titleId)
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
@@ -167,6 +190,131 @@ fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
             checked = currentValue,
             onCheckedChange = {
                 switchOption.onItemSelected(title, it)
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = mainInverse,
+                checkedTrackColor = mainPrimary,
+                uncheckedThumbColor = mainInverse,
+                uncheckedTrackColor = mainDisabled,
+                uncheckedBorderColor = Color.Transparent
+            ),
+            thumbContent = {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .background(
+                            color = Variables.surfaceDefault,
+                            shape = CircleShape
+                        )
+                )
+            },
+            modifier = Modifier
+                .width(43.2.dp)
+                .height(21.6.dp)
+        )
+    }
+}
+
+@Composable
+fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
+    var isChecked by remember { mutableStateOf(currentValue) }
+    var title = stringResource(switchOption.titleId)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .wrapContentHeight()
+            .background(color = Color(0xFFFFFFFF), shape = RoundedCornerShape(size = 3.6.dp))
+            .padding(start = 14.4.dp, top = 8.dp, end = 14.4.dp, bottom = 8.dp)
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier
+                .width(256.dp)
+                .height(22.dp),
+            style = TextStyle(
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                fontWeight = FontWeight(400),
+                color = Variables.mainDefault,
+            )
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Switch(
+            checked = isChecked,
+            onCheckedChange = {
+                isChecked = it
+                switchOption.onItemSelected(title, isChecked)
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = mainInverse,
+                checkedTrackColor = mainPrimary,
+                uncheckedThumbColor = mainInverse,
+                uncheckedTrackColor = mainDisabled,
+                uncheckedBorderColor = Color.Transparent
+            ),
+            thumbContent = {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .background(
+                            color = Variables.surfaceDefault,
+                            shape = CircleShape
+                        )
+                )
+            },
+            modifier = Modifier
+                .width(43.2.dp)
+                .height(21.6.dp)
+        )
+    }
+}
+
+@Composable
+fun SwitchOptionWithTextDescription(currentValue: Boolean, switchOption: SwitchOptionData, description : String) {
+    var isChecked by remember { mutableStateOf(currentValue) }
+    var title = stringResource(switchOption.titleId)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .wrapContentHeight()
+            .background(color = Color(0xFFFFFFFF), shape = RoundedCornerShape(size = 3.6.dp))
+            .padding(start = 14.4.dp, top = 8.dp, end = 14.4.dp, bottom = 8.dp)
+    ) {
+        Column {
+            Text(
+                text = title,
+                modifier = Modifier
+                    .width(256.dp),
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                    fontWeight = FontWeight(400),
+                    color = Variables.mainDefault,
+                )
+            )
+            Text(
+                text = description,
+                modifier = Modifier
+                    .width(256.dp),
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                    fontWeight = FontWeight(400),
+                    color = Variables.mainDefault,
+                )
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Switch(
+            checked = isChecked,
+            onCheckedChange = {
+                isChecked = it
+                switchOption.onItemSelected(title, isChecked)
             },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = mainInverse,
@@ -257,45 +405,94 @@ fun ButtonOption(buttonData: ButtonData) {
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.Center
     ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(
-            Variables.spacingSmall,
-            Alignment.CenterHorizontally
-        ),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .alpha(buttonData.alpha)
-            .background(color = buttonData.color, shape = RoundedCornerShape(size = 4.dp))
-            .padding(
-                start = Variables.spacingLarge,
-                top = Variables.spacingMedium,
-                end = Variables.spacingLarge,
-                bottom = Variables.spacingMedium
-            )
-            .clickable(enabled = buttonData.enabled) {
-                buttonData.onButtonClick()
-            }
-    ) {
-        Text(
-            text = stringResource(buttonData.titleId),
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(
+                Variables.spacingSmall,
+                Alignment.CenterHorizontally
+            ),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .wrapContentWidth()
-                .wrapContentHeight(),
-            style = TextStyle(
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
-                fontWeight = FontWeight(500),
-                color = Variables.stateDefaultEnabled,
-                textAlign = TextAlign.Center,
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .alpha(buttonData.alpha)
+                .background(color = buttonData.color, shape = RoundedCornerShape(size = 4.dp))
+                .padding(
+                    start = Variables.spacingLarge,
+                    top = Variables.spacingMedium,
+                    end = Variables.spacingLarge,
+                    bottom = Variables.spacingMedium
+                )
+                .clickable(enabled = buttonData.enabled) {
+                    buttonData.onButtonClick()
+                }
+        ) {
+            Text(
+                text = stringResource(buttonData.titleId),
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .wrapContentHeight(),
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
+                    fontWeight = FontWeight(500),
+                    color = Variables.stateDefaultEnabled,
+                    textAlign = TextAlign.Center,
+                )
             )
-        )
-    }
+        }
     }
 }
-
+@Composable
+fun ButtonWithIconOption(buttonData: ButtonData, drawableRes: Int) {
+    Row(
+        modifier = Modifier.padding(end = 8.dp),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(
+                Variables.spacingSmall,
+                Alignment.CenterHorizontally
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .wrapContentWidth()
+                .wrapContentHeight()
+                .alpha(buttonData.alpha)
+                .background(color = buttonData.color, shape = RoundedCornerShape(size = 4.dp))
+                .padding(
+                    start = Variables.spacingLarge,
+                    top = Variables.spacingMedium,
+                    end = Variables.spacingLarge,
+                    bottom = Variables.spacingMedium
+                )
+                .clickable(enabled = buttonData.enabled) {
+                    buttonData.onButtonClick()
+                }
+        ) {
+            Icon(
+                painter = painterResource(id = drawableRes),
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = Color.White
+            )
+            Text(
+                text = stringResource(buttonData.titleId),
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .wrapContentHeight(),
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
+                    fontWeight = FontWeight(500),
+                    color = Variables.stateDefaultEnabled,
+                    textAlign = TextAlign.Center,
+                )
+            )
+        }
+    }
+}
 data class BorderlessButtonData(
     val titleId: Int,
     val onButtonClick: () -> Unit
@@ -360,6 +557,163 @@ fun TextviewBold(info: String) {
             fontSize = 14.4.sp,
             lineHeight = 21.6.sp,
             fontFamily = FontFamily(Font(R.font.ibm_plex_sans_medium)),
+            fontWeight = FontWeight(500),
+            color = Color(0xFF1D1E23),
+        )
+    )
+}
+
+@Composable
+fun RoundIconButton(
+    drawableRes: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .background(color = Variables.backgroundDark, shape = CircleShape)
+            .width(40.dp)
+            .height(40.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = drawableRes),
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = Color.White
+        )
+    }
+}
+
+@Composable
+fun RoundCloseButton(onClick: () -> Unit, contentDescription: String = "Close") {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .background(color = Variables.backgroundDark, shape = CircleShape)
+            .width(40.dp)
+            .height(40.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Close,
+            contentDescription = contentDescription,
+            tint = Color.White
+        )
+    }
+}
+
+
+@Composable
+fun RoundedIconButton(icon: Int, onClick: () -> Unit, contentDescription: String = "Next") {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .border(width = 1.dp, color = Variables.borderSubtle, shape = RoundedCornerShape(size = 4.dp))
+            .width(45.21143.dp)
+            .height(44.dp)
+            .background(color = Variables.stateDefaultEnabled, shape = RoundedCornerShape(size = 4.dp))
+            .padding(start = Variables.spacingSmall, top = Variables.spacingSmall, end = Variables.spacingSmall, bottom = Variables.spacingSmall)
+    ) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = contentDescription,
+            tint = Color.Black
+        )
+    }
+}
+
+
+@Composable
+fun EmptyComposable() {
+    // Intentionally left blank
+}
+
+@Composable
+fun SingleValueInputSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..100f,
+    steps: Int = 0,
+    label: String = "Value"
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("$label: ${value.toInt()}")
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.fillMaxWidth(),
+            colors = SliderDefaults.colors(
+                thumbColor = mainPrimary,
+                activeTrackColor = mainPrimary,
+                inactiveTrackColor = mainPrimary.copy(alpha = 0.24f)
+            )
+        )
+    }
+}
+
+@Composable
+fun SmallScreenButtonOption(buttonData: ButtonData) {
+    Row(
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = Variables.spacingSmall, bottom = Variables.spacingSmall),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(
+                Variables.spacingSmall,
+                Alignment.CenterHorizontally
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .alpha(buttonData.alpha)
+                .background(color = buttonData.color, shape = RoundedCornerShape(size = 4.dp))
+                .padding(
+                    start = Variables.spacingLarge,
+                    top = Variables.spacingMedium,
+                    end = Variables.spacingLarge,
+                    bottom = Variables.spacingMedium
+                )
+                .clickable(enabled = buttonData.enabled) {
+                    buttonData.onButtonClick()
+                }
+        ) {
+            Text(
+                text = stringResource(buttonData.titleId),
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .wrapContentHeight(),
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
+                    fontWeight = FontWeight(500),
+                    color = Variables.stateDefaultEnabled,
+                    textAlign = TextAlign.Center,
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun SmallScreenTextviewNormal(info: String) {
+    Text(
+        text = info,
+        modifier = Modifier
+            .wrapContentWidth()
+            .wrapContentHeight(),
+        style = TextStyle(
+            fontSize = 14.4.sp,
+            lineHeight = 21.6.sp,
+            fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
             fontWeight = FontWeight(500),
             color = Color(0xFF1D1E23),
         )

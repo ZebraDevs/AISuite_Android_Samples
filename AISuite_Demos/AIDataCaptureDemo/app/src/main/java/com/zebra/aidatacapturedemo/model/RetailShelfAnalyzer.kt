@@ -2,21 +2,18 @@
 
 package com.zebra.aidatacapturedemo.model
 
-import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.util.Log
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import com.zebra.ai.vision.detector.AIVisionSDKException
 import com.zebra.ai.vision.detector.BBox
-import com.zebra.ai.vision.detector.ImageData
-import com.zebra.ai.vision.detector.InvalidInputException
-import com.zebra.ai.vision.detector.Localizer
+import com.zebra.ai.vision.detector.BarcodeDecoder
+import com.zebra.ai.vision.detector.EntityType
+import com.zebra.ai.vision.detector.ModuleRecognizer
 import com.zebra.ai.vision.entity.LocalizerEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.model.FileUtils.Companion.databaseFile
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.flow.StateFlow
 import java.io.IOException
+import java.nio.file.Paths
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -29,172 +26,103 @@ import java.util.concurrent.Executors
  */
 class RetailShelfAnalyzer(
     val uiState: StateFlow<AIDataCaptureDemoUiState>,
-    val viewModel: AIDataCaptureDemoViewModel
-) :
-    ImageAnalysis.Analyzer {
+    val viewModel: AIDataCaptureDemoViewModel,
+    private val cacheDir: String
+) {
 
     private val TAG = "RetailShelfAnalyzer"
-    private var localizer: Localizer? = null
-    private val locSettings = Localizer.Settings("product-and-shelf-recognizer")
+    private var moduleRecognizer: ModuleRecognizer? = null
+    private val mavenBarcodeModelName = "barcode-localizer"
+    private val mavenOCRModelName = "text-ocr-recognizer"
+    private val mavenProductModelName = "product-and-shelf-recognizer"
+    private val moduleRecognizerSettings = ModuleRecognizer.Settings(mavenProductModelName)
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
-    private var isAnalyzing = true
 
     /**
-     * This function is used to execute the retail shelf localization.
-     * Localizer generates boundingboxes for the shelf, shelf labels, peg labels,
-     * and product detections.
+     * initialize function is used to initialize the ModuleRecognizer for Retail Shelf Analyzer
+     * use case. It configures the model settings based on the current UI state and creates an
+     * instance of ModuleRecognizer. If the initialization fails due to unsupported inference type
+     * or missing product data, it updates the UI with appropriate messages and
+     * takes corrective actions.
      */
-    override fun analyze(image: ImageProxy) {
-        if (localizer == null) {
-            Log.e(TAG, "RetailShelfAnalyzer is null")
-            image.close()
-            return
-        }
-        if (!isAnalyzing) {
-            image.close()
-            return
-        }
-
-        isAnalyzing = false // Set to false to prevent re-entry
-
-        executorService.submit {
-            try {
-                Log.d(TAG, "Starting image analysis")
-                localizer?.process(ImageData.fromImageProxy(image))
-                    ?.thenAccept { result ->
-                        updateRetailShelfDetectionResultUsingProcess(result)
-                        image.close()
-                    }
-            } catch (e: InvalidInputException) {
-                Log.e(TAG, e.message ?: "InvalidInputException occurred")
-                image.close()
-            } catch (e: AIVisionSDKException) {
-                Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
-                image.close()
-            } finally {
-                isAnalyzing = true
-            }
-        }
-    }
-
-    fun startAnalyzing() {
-        isAnalyzing = true
-    }
-
-    fun stopAnalyzing() {
-        isAnalyzing = false
-    }
-
     fun initialize() {
+        Log.e(TAG, "Initializing ModuleRecognizer for EntityTrackerAnalyzer")
+
+        moduleRecognizer?.dispose()
+        moduleRecognizer = null
+        updateRetailShelfModelDemoReady(false)
+
+        configure()
+
+        val startTime = System.currentTimeMillis()
         try {
-            localizer?.dispose()
-            localizer = null
-            updateRetailShelfModelDemoReady(false)
-
-            configure()
-
-            try {
-                Localizer.getLocalizer(locSettings, executorService)
-                    .thenAccept { localizerInstance: Localizer ->
-                        localizer = localizerInstance
-                        updateRetailShelfModelDemoReady(true)
-                        Log.i(TAG, "Localizer init Success")
-                    }.exceptionally { e: Throwable ->
-                        Log.e(TAG, "Localizer init Failed -> " + e.message)
-                        if (e.message?.contains("Given runtimes are not available") == true) {
-                            viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
-                            viewModel.updateSelectedProcessor(0) //Auto-Select
-                            viewModel.saveSettings()
-                            initialize()
-                        }
-                        null
+            ModuleRecognizer.getModuleRecognizer(moduleRecognizerSettings, executorService)
+                .thenAccept { recognizerInstance ->
+                    Log.e(TAG, "ModuleRecognizer instance created")
+                    moduleRecognizer = recognizerInstance
+                    updateRetailShelfModelDemoReady(true)
+                    Log.d(TAG, "Product Recognition creation time: ${System.currentTimeMillis() - startTime} ms")
+                }.exceptionally {  e: Throwable ->
+                    Log.e(TAG, "ModuleRecognizer init Failed -> " + e.message)
+                    if (e.message?.contains("Given runtimes are not available") == true ||
+                        e.message?.contains("Initialize barcodeDecoder due to SNPE exception") == true
+                    ) {
+                        viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
+                        viewModel.updateSelectedProcessor(0) //Auto-Select
+                        viewModel.saveSettings()
+                        initialize()
+                    } else if ((e.message?.contains("No DB product data available to build a search index!") == true) ||
+                        (e.message?.contains("Cannot open DB file") == true)) {
+                        viewModel.updateToastMessage(message = "No products enrolled. Enroll products using Product & Shelf Enrollment")
                     }
-            } catch (e: IOException) {
-                Log.e(TAG, "Localizer init Failed -> " + e.message)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Fatal error: load failed - ${e.message}")
+                    null
+                }
+        } catch (e: IOException) {
+            Log.e(TAG, "ModuleRecognizer init Failed -> " + e.message)
         }
     }
 
     private fun configure() {
         try {
-
+            val dataBaseFile = Paths.get(cacheDir, databaseFile).toString()
             //Swap the values as the presented index is reverse of what model expects
-            val processorOrder = when (uiState.value.retailShelfSettings.commonSettings.processorSelectedIndex) {
-                0 -> arrayOf(2, 0, 1) // AUTO
-                1 -> arrayOf(2) // DSP
-                2 -> arrayOf(1) // GPU
-                3 -> arrayOf(0) //CPU
-                else -> {
-                    arrayOf(2, 0, 1)
+            val processorOrder =
+                when (uiState.value.retailShelfSettings.commonSettings.processorSelectedIndex) {
+                    0 -> arrayOf(2, 0, 1) // AUTO
+                    1 -> arrayOf(2) // DSP
+                    2 -> arrayOf(1) // GPU
+                    3 -> arrayOf(0) //CPU
+                    else -> {
+                        arrayOf(2, 0, 1)
+                    }
                 }
-            }
-            locSettings.inferencerOptions.runtimeProcessorOrder = processorOrder
+            moduleRecognizerSettings.inferencerOptions.runtimeProcessorOrder = processorOrder
+            moduleRecognizerSettings.inferencerOptions.defaultDims.width =
+                uiState.value.retailShelfSettings.commonSettings.inputSizeSelected
+            moduleRecognizerSettings.inferencerOptions.defaultDims.height =
+                uiState.value.retailShelfSettings.commonSettings.inputSizeSelected
 
-            locSettings.inferencerOptions.defaultDims.width = uiState.value.retailShelfSettings.commonSettings.inputSizeSelected
-            locSettings.inferencerOptions.defaultDims.height = uiState.value.retailShelfSettings.commonSettings.inputSizeSelected
+            val labelBarcodeSettings: BarcodeDecoder.Settings = BarcodeDecoder.Settings(mavenBarcodeModelName)
+            val barcodeSettingsMap: MutableMap<EntityType?, BarcodeDecoder.Settings?> = HashMap()
+            barcodeSettingsMap[EntityType.LABEL] = labelBarcodeSettings
+            moduleRecognizerSettings.enableBarcodeRecognition(barcodeSettingsMap)
+
+            moduleRecognizerSettings.enableProductRecognitionWithDb(
+                mavenProductModelName,
+                dataBaseFile
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Fatal error: configure failed - ${e.message}")
         }
     }
 
     fun deinitialize() {
-        localizer?.dispose()
-        localizer = null
+        moduleRecognizer?.dispose()
+        moduleRecognizer = null
     }
 
-    private fun rotateBitmapIfNeeded(imageProxy: ImageProxy): Bitmap? {
-        try {
-            val bitmap = imageProxy.toBitmap()
-            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-            return rotateBitmap(bitmap, rotationDegrees)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error converting image to bitmap: " + e.message)
-            return null
-        }
-    }
-
-    private fun rotateBitmap(bitmap: Bitmap?, degrees: Int): Bitmap? {
-        if (degrees == 0 || bitmap == null) return bitmap
-
-        try {
-            val matrix = Matrix()
-            matrix.postRotate(degrees.toFloat())
-            return Bitmap.createBitmap(
-                bitmap,
-                0,
-                0,
-                bitmap.getWidth(),
-                bitmap.getHeight(),
-                matrix,
-                true
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error rotating bitmap: " + e.message)
-            return bitmap
-        }
-    }
-
-    private fun updateRetailShelfDetectionResultUsingProcess(localizerEntities: List<LocalizerEntity>) {
-        var bBoxesResult : Array<BBox?> =  arrayOf()
-        localizerEntities.forEach { localizerEntity ->
-            localizerEntity.boundingBox?.let {
-                val bBox = BBox()
-                bBox.cls = localizerEntity.classId
-                bBox.prob = localizerEntity.accuracy
-                bBox.xmin = it.left.toFloat()
-                bBox.ymin = it.top.toFloat()
-                bBox.xmax = it.right.toFloat()
-                bBox.ymax = it.bottom.toFloat()
-                bBoxesResult += bBox
-            }
-        }
-        updateRetailShelfDetectionResultUsingDetect(result = bBoxesResult)
-    }
-
-    private fun updateRetailShelfDetectionResultUsingDetect(result: Array<BBox?>?) {
-        viewModel.updateRetailShelfDetectionResult(results = result)
+    fun getDetector(): ModuleRecognizer? {
+        return moduleRecognizer
     }
 
     private fun updateRetailShelfModelDemoReady(isReady: Boolean) {

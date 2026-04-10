@@ -42,6 +42,20 @@ import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+/**
+ * Composable function that sets up a Modal Navigation Drawer for the AI Data Capture Demo app.
+ *
+ * @param drawerState The state of the navigation drawer.
+ * @param innerPadding The padding values for the content inside the drawer.
+ * @param activityInnerPadding The padding values for the main activity content.
+ * @param selectedItem The currently selected item in the navigation drawer.
+ * @param onSelectedItemValuesChange Callback to update the selected item state.
+ * @param scope CoroutineScope for launching coroutines, such as closing the drawer.
+ * @param navController NavHostController for handling navigation within the app.
+ * @param viewModel The ViewModel instance for managing UI-related data and logic.
+ * @param context The Context of the current state of the application, used for accessing resources and starting activities.
+ * @param activityLifecycle The Lifecycle of the activity, used for managing lifecycle-aware components.
+ */
 @Composable
 fun AIDataCaptureModalNavigationDrawer(
     drawerState: DrawerState,

@@ -8,6 +8,8 @@ android {
     namespace = "com.zebra.aidatacapturedemo"
     compileSdk = 36
 
+    val appVersion: String = libs.versions.appVersion.get().toString()
+
     androidResources {
         noCompress.add("tar")
         noCompress.add("tar.crypt")
@@ -17,8 +19,7 @@ android {
         applicationId = "com.zebra.aidatacapturedemo"
         minSdk = 33
         targetSdk = 36
-        versionCode = 16
-        val appVersion: String = libs.versions.appVersion.get().toString()
+        versionCode = 24
         versionName = appVersion
 
         buildConfigField("String", "AI_DataCaptureDemo_Version", "\"$appVersion\"")
@@ -35,7 +36,18 @@ android {
         val productAndShelfRecognizer: String = libs.versions.productAndShelfRecognizer.get().toString()
         buildConfigField("String", "ProductAndShelfRecognizer_Version", "\"$productAndShelfRecognizer\"")
 
+        val pendoApiKey = System.getenv("aidatacapturedemo_pendo_api_key") ?: ""
+        buildConfigField(type = "String", name = "PendoApiKey", value = "\"$pendoApiKey\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            // APK Output filename sample: AIDataCaptureDemo1.0.0.apk
+            output.outputFileName = "AIDataCaptureDemo${appVersion}.apk"
+        }
     }
 
     buildTypes {
@@ -115,4 +127,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Pendo SDK
+    implementation(libs.pendo.io) { isChanging = true }
 }

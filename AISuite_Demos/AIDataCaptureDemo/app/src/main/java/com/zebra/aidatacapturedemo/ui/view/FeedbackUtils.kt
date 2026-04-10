@@ -11,10 +11,19 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
-import com.zebra.aidatacapturedemo.data.OCRFilterData
-import com.zebra.aidatacapturedemo.data.OCRFilterType
+import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.data.AdvancedFilterOption
+import com.zebra.aidatacapturedemo.data.CharacterMatchFilterOption
+import com.zebra.aidatacapturedemo.data.DetectionLevel
+import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+/**
+ * FeedbackUtils is a utility class that provides feedback mechanisms such as vibration, sound,
+ * and speech recognition for the AI Data Capture Demo.
+ * It initializes the necessary components for these feedback mechanisms and handles the speech
+ * recognition results to update the OCR filter data in the ViewModel.
+ */
 class FeedbackUtils(val viewModel: AIDataCaptureDemoViewModel, context: Context) {
     init {
         vibrator = context.getSystemService(Vibrator::class.java)
@@ -24,13 +33,38 @@ class FeedbackUtils(val viewModel: AIDataCaptureDemoViewModel, context: Context)
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
+                    // Fetch the existing OcrFilterData
+                    val defaultOcrFilterData = uiState.ocrFilterData
 
-                    // 1. Remove all hypen "-" from the text
-                    //2. After that, split the text with comma "," as separator and create a final list of Strings
-                    val exactMatchStringList = matches[0].replace("-", "").split(",").map { it.trim() }
+                    // For WORD Level filters:
+                    // Remove all hypen "-" from the resultant text if, anything exists.
+                    val exactMatchStringList =
+                        if (defaultOcrFilterData.selectedCharacterMatchFilterData.detectionLevel == DetectionLevel.WORD) {
+                            matches[0]?.let { it ->
+                                it.replace("-", "")
+                                    .replace(" ", ",")  // Note: During WORD_LEVEL selection, the user can input multiple word, hence separate them using commas.
+                                    .split(",").map { it.trim() }
+                            } ?: run {
+                                listOf()
+                            }
+                        } else { // line level
+                            matches[0]?.let {
+                                listOf(it) // Note: During LINE_LEVEL selection, the user cannot input multiple lines.
+                            } ?: run {
+                                listOf()
+                            }
+                        }
 
-                    // Display recognizedText in a TextView or EditText
-                    viewModel.updateOcrFilterData(OCRFilterData(ocrFilterType = OCRFilterType.EXACT_MATCH, exactMatchStringList = exactMatchStringList))
+                    // Now, assign SpeechRecognizer words for Exact Match
+                    defaultOcrFilterData.selectedCharacterMatchFilterData.type = CharacterMatchFilterOption.EXACT_MATCH
+                    defaultOcrFilterData.selectedCharacterMatchFilterData.exactMatchStringList = exactMatchStringList
+                    defaultOcrFilterData.selectedRegularFilterOption = OcrRegularFilterOption.ADVANCED
+                    if (!defaultOcrFilterData.selectedAdvancedFilterOptionList.contains(
+                            AdvancedFilterOption.CHARACTER_MATCH)) {
+                        defaultOcrFilterData.selectedAdvancedFilterOptionList.add(AdvancedFilterOption.CHARACTER_MATCH)
+                    }
+                    viewModel.updateOcrFilterData(ocrFilterData = defaultOcrFilterData)
+
                     micStatePressed = false
                     Log.d("SpeechRecognizer", "onResults: $exactMatchStringList" );
                 }
@@ -66,6 +100,7 @@ class FeedbackUtils(val viewModel: AIDataCaptureDemoViewModel, context: Context)
         })
     }
     companion object {
+        private lateinit var uiState: AIDataCaptureDemoUiState
         var micStatePressed: Boolean = false
         private lateinit var vibrator: Vibrator
         private lateinit var toneGenerator : ToneGenerator
@@ -84,7 +119,8 @@ class FeedbackUtils(val viewModel: AIDataCaptureDemoViewModel, context: Context)
             toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 150) // TONE_CDMA_PIP for a short "pip" sound, 150ms duration
         }
 
-        fun startListening(){
+        fun startListening(uiState: AIDataCaptureDemoUiState) {
+            Companion.uiState = uiState
             speechRecognizer.startListening(speechRecognitionIntent)
         }
 

@@ -42,6 +42,17 @@ import androidx.compose.ui.unit.sp
 import com.zebra.aidatacapturedemo.BuildConfig
 import com.zebra.aidatacapturedemo.R
 
+/**
+ * AboutScreen.kt is a composable function that defines the UI for the "About" screen of the
+ * AI Data Capture Demo application. It displays information about the app, including its version,
+ * the AI Suite SDK version, and an End User License Agreement (EULA).
+ * The screen is structured using a Column layout with multiple Rows to organize the content.
+ * An AlertDialog is used to show the EULA when the user clicks on the corresponding row.
+ * The design follows a consistent style with specific fonts, colors, and
+ * spacing to ensure a cohesive user experience.
+ *
+ * @param innerPadding PaddingValues that can be used to adjust the padding of the screen content
+ */
 @Composable
 fun AboutScreen(innerPadding: PaddingValues) {
     var showDialog by remember { mutableStateOf(false) }

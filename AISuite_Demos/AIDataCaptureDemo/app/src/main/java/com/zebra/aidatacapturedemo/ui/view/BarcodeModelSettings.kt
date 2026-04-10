@@ -3,7 +3,6 @@ package com.zebra.aidatacapturedemo.ui.view
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -13,12 +12,24 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.BarcodeSymbology
+import com.zebra.aidatacapturedemo.data.FeedbackSettings
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+/**
+ * This file contains the composable functions related to the Barcode Symbology and
+ * Feedback settings in the AI Data Capture Demo app. It defines the UI components for displaying
+ * and updating the barcode symbology options and feedback settings based on the current use case
+ * selected by the user. The functions utilize Jetpack Compose to create a responsive and
+ * interactive settings screen for the barcode model configuration.
+ */
 @Composable
 fun ExpandableSettingsItemsList.AddBarcodeSettings()  {
     itemsTitle.add(ExpandableSettingsItem(stringResource(R.string.barcode_symbology)))
+}
+@Composable
+fun ExpandableSettingsItemsList.AddFeedbackSettings()  {
+    itemsTitle.add(ExpandableSettingsItem(stringResource(R.string.feedback)))
 }
 @Composable
 fun AddBarcodeSymbologySwitchOption(viewModel: AIDataCaptureDemoViewModel){
@@ -175,5 +186,40 @@ fun AddBarcodeSymbologySwitchOption(viewModel: AIDataCaptureDemoViewModel){
         SwitchOption(currentSymbology.us4state_fics, SwitchOptionData(R.string.us4state_fics, onItemSelected = { title, enabled ->
             viewModel.updateBarcodeSymbology(title, enabled)
         }))
+    }
+}
+
+@Composable
+fun AddFeedbackSwitchOption(viewModel: AIDataCaptureDemoViewModel) {
+    val currentUIState = viewModel.uiState.collectAsState().value
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Top),
+        horizontalAlignment = Alignment.Start,
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+    ) {
+        var currentFeedback = FeedbackSettings()
+        if (currentUIState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
+            currentFeedback = currentUIState.ocrBarcodeFindSettings.feedbackSettings
+        }
+        SwitchOptionWithTextDescription(
+            currentFeedback.audioBeep,
+            SwitchOptionData(R.string.audio, onItemSelected = { title, enabled ->
+                viewModel.updateFeedback(title, enabled)
+            }), stringResource(R.string.audio_desc)
+        )
+        SwitchOptionWithTextDescription(
+            currentFeedback.vibration,
+            SwitchOptionData(R.string.haptic, onItemSelected = { title, enabled ->
+                viewModel.updateFeedback(title, enabled)
+            }), stringResource(R.string.haptic_desc)
+        )
+        SwitchOptionWithTextDescription(
+            currentFeedback.showDetectedBarcode,
+            SwitchOptionData(R.string.show_all_detected_barcodes, onItemSelected = { title, enabled ->
+                viewModel.updateFeedback(title, enabled)
+            }), stringResource(R.string.show_all_detected_barcodes_desc)
+        )
     }
 }

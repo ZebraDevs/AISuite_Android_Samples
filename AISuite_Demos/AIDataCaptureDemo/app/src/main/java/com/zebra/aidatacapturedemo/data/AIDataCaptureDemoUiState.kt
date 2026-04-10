@@ -6,9 +6,15 @@ import android.graphics.Bitmap
 import com.zebra.ai.vision.detector.BBox
 import com.zebra.aidatacapturedemo.model.FileUtils
 import com.zebra.aidatacapturedemo.ui.view.Screen
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * AIDataCaptureDemoUiState.kt is a data class that holds the UI state for the AI Data Capture Demo
+ * application. It includes various settings and results related to barcode scanning, OCR,
+ * Retail shelf recognition, and Product recognition. The state is updated based on user
+ * interactions and model outputs, allowing the UI to reactively display the current status of the
+ * application. This class is used to manage the state of the application and facilitate
+ * communication between the UI and the underlying models.
+ */
 
 val PROFILING = "Profiling"
 
@@ -16,9 +22,9 @@ enum class UsecaseState(val value: String) {
     Main("None"),
     Barcode("Barcode Recognizer"),
     OCR("Text/OCR Recognizer"),
-    Retail("Product & Shelf Localizer"),
-    OCRBarcodeFind("OCR Find + Barcode"),
-    Product("Product & Shelf Recognizer")
+    Retail("Product & Shelf Recognizer"),
+    OCRBarcodeFind("OCR & Barcode Find"),
+    Product("Product & Shelf Enrollment")
 }
 
 data class BarcodeSymbology(
@@ -88,9 +94,16 @@ data class BarcodeSettings(
     }
 }
 
+data class FeedbackSettings(
+    var audioBeep: Boolean = true,
+    var vibration: Boolean = true,
+    var showDetectedBarcode : Boolean = true
+)
+
 data class OcrBarcodeFindSettings(
     var commonSettings: CommonSettings = CommonSettings(),
-    var barcodeSymbology: BarcodeSymbology = BarcodeSymbology()
+    var barcodeSymbology: BarcodeSymbology = BarcodeSymbology(),
+    var feedbackSettings: FeedbackSettings = FeedbackSettings()
 )
 
 data class AdvancedOCRSetting(
@@ -131,10 +144,20 @@ data class TextOcrSettings(
 
 data class RetailShelfSettings(
     var commonSettings: CommonSettings = CommonSettings(),
+    var similarityThreshold : Float = 80f,
 )
 data class ProductRecognitionSettings(
     var commonSettings: CommonSettings = CommonSettings(),
+    var similarityThreshold : Float = 80f,
 )
+
+data class OcrBarcodeCaptureSessionData(
+    var ocrResults: List<ResultData> = listOf(),
+    var barcodeResults: List<ResultData> = listOf(),
+    var captureTime: String = "",
+    var captureImage: String = ""
+)
+
 /**
  * AIDataCaptureDemoUiState class used to store UI state data
  * This is used to save data from updated by UI as well as Model
@@ -164,12 +187,22 @@ data class AIDataCaptureDemoUiState(
     var currentBitmap: Bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888),
     var captureBitmap: Bitmap? = null,
     var bboxes: Array<BBox?> = arrayOf(),
+    var moduleResults: ModuleData = ModuleData(mutableListOf(), mutableListOf(), mutableListOf()),
     var productResults: MutableList<ProductData> = mutableListOf(),
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
 
     // Choices
-    var selectedOCRFilterData: OCRFilterData = OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL),
     var isBarcodeModelEnabled: Boolean = true,
     var isOCRModelEnabled: Boolean = true,
+    var isCaptureOrLiveEnabled: Int = 0, // 0 for Capture, 1 for Live
+    var allBarcodeOCRCaptureFilter: Int = 0, // 0 for All, 1 for Barcode, 2 for OCR
+
+    var ocrBarcodeCaptureSessionCount : Int = 0,
+    var ocrBarcodeCaptureSessionIndex : Int = 0,
+
+    var selectedFilterType: FilterType = FilterType.NONE,
+    var ocrFilterData: OcrFilterData = FileUtils.loadOcrFilterData(),
+    var barcodeFilterData: BarcodeFilterData = FileUtils.loadBarcodeFilterData()
 )
+

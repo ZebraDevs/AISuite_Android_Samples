@@ -2,12 +2,20 @@
 
 package com.zebra.aidatacapturedemo.model
 
+import android.graphics.Bitmap
+import android.graphics.Rect
 import android.util.Log
+import com.zebra.ai.vision.detector.AIVisionSDKException
+import com.zebra.ai.vision.detector.ImageData
+import com.zebra.ai.vision.detector.InvalidInputException
 import com.zebra.ai.vision.detector.TextOCR
+import com.zebra.ai.vision.entity.ParagraphEntity
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
-import com.zebra.aidatacapturedemo.data.OCRFilterData
-import com.zebra.aidatacapturedemo.data.OCRFilterType
+import com.zebra.aidatacapturedemo.data.AdvancedFilterOption
+import com.zebra.aidatacapturedemo.data.DetectionLevel
+import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
 import com.zebra.aidatacapturedemo.data.PROFILING
+import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -31,13 +39,11 @@ class TextOCRAnalyzer(
     private val textOCRSettings = TextOCR.Settings("text-ocr-recognizer")
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
 
-
-    init {
-        // When user select OCR Recognizer Use case, always choose SHOW_ALL OCR filter
-        if (uiState.value.usecaseSelected == UsecaseState.OCR.value){
-            uiState.value.selectedOCRFilterData = OCRFilterData(ocrFilterType = OCRFilterType.SHOW_ALL)
-        }
-    }
+    /**
+     * initialize function is used to initialize the TextOCR model with the specified settings
+     * and handle any exceptions that may occur during the initialization process.
+     * It also updates the UI state to indicate whether the OCR model is ready or not.
+     */
     fun initialize() {
         try {
             textOCR?.dispose()
@@ -57,7 +63,8 @@ class TextOCRAnalyzer(
                 Log.i(TAG, "TextOCR creation success")
             }.exceptionally { e ->
                 Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
-                if (e.message?.contains("Given runtimes are not available") == true) {
+                if ((e.message?.contains("Given runtimes are not available") == true) ||
+                    (e.message?.contains("Error creating SNPE object") == true)) {
                     viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
                     viewModel.updateSelectedProcessor(0) //Auto-Select
                     viewModel.saveSettings()
@@ -77,6 +84,41 @@ class TextOCRAnalyzer(
 
     fun getDetector() : TextOCR? {
         return textOCR
+    }
+
+    /** executeHighRes function is used to perform OCR analysis on a high-resolution bitmap image.
+     * It submits the analysis task to an executor service, processes the image data, and updates
+     * the UI state with the OCR results.
+     * The function also handles exceptions that may occur during the analysis process.
+     *
+     * @param highResBitmap - The high-resolution bitmap image to be analyzed for OCR.
+     */
+    fun executeHighRes(highResBitmap: Bitmap) {
+        executorService.submit {
+            try {
+                Log.d(TAG, "Starting image analysis")
+                val highResImageData: ImageData = ImageData.fromBitmap(highResBitmap, 0)
+                textOCR?.process(highResImageData)
+                    ?.thenAccept { result ->
+                        if ((uiState.value.ocrFilterData.selectedRegularFilterOption == OcrRegularFilterOption.REGEX && uiState.value.ocrFilterData.selectedRegexFilterData.detectionLevel == DetectionLevel.LINE) ||
+                            (uiState.value.ocrFilterData.selectedRegularFilterOption == OcrRegularFilterOption.ADVANCED) &&
+                            uiState.value.ocrFilterData.selectedAdvancedFilterOptionList.contains(
+                                AdvancedFilterOption.CHARACTER_MATCH
+                            ) &&
+                            uiState.value.ocrFilterData.selectedCharacterMatchFilterData.detectionLevel == DetectionLevel.LINE
+                        ) {
+                            onDetectionTextResultLineLevel(result)
+                        } else {
+                            onDetectionTextResultWordLevel(result)
+                        }
+                    }
+            } catch (e: InvalidInputException) {
+                Log.e(TAG, e.message ?: "InvalidInputException occurred")
+            } catch (e: AIVisionSDKException) {
+                Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
+            } finally {
+            }
+        }
     }
 
     private fun configure() {
@@ -190,5 +232,73 @@ class TextOCRAnalyzer(
 
     private fun updateOcrModelDemoReady(isReady: Boolean) {
         viewModel.updateOcrModelDemoReady(isReady = isReady)
+    }
+
+    private fun onDetectionTextResultWordLevel(entityList: List<ParagraphEntity>) {
+        val outputOCRResultData = mutableListOf<ResultData>()
+        entityList.forEach { entity ->
+            val paragraphEntity = entity
+            val lines = paragraphEntity.lines
+            for (line in lines) {
+                for (word in line.words) {
+                    val bbox = word.complexBBox
+
+                    if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size == 4 && bbox.y.size == 4) {
+                        val minX = bbox.x[0]
+                        val maxX = bbox.x[2]
+                        val minY = bbox.y[0]
+                        val maxY = bbox.y[2]
+
+                        val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+                        val decodedValue = word.text
+                        outputOCRResultData.add(
+                            ResultData(
+                                boundingBox = rect,
+                                text = decodedValue
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        viewModel.updateOcrResultData(
+            results = FilterUtils.getOcrFilteredResultData(
+                uiState = uiState.value,
+                outputOCRResultData = outputOCRResultData
+            )
+        )
+    }
+
+    private fun onDetectionTextResultLineLevel(entityList: List<ParagraphEntity>) {
+        val outputOCRResultData = mutableListOf<ResultData>()
+        entityList.forEach { entity ->
+            val paragraphEntity = entity
+            val lines = paragraphEntity.lines
+            for (line in lines) {
+                val bbox = line.complexBBox
+
+                if (bbox != null && bbox.x != null && bbox.y != null && bbox.x.size == 4 && bbox.y.size == 4) {
+                    val minX = bbox.x[0]
+                    val maxX = bbox.x[2]
+                    val minY = bbox.y[0]
+                    val maxY = bbox.y[2]
+
+                    val rect = Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
+                    val decodedValue = line.text
+                    outputOCRResultData.add(
+                        ResultData(
+                            boundingBox = rect,
+                            text = decodedValue
+                        )
+                    )
+                }
+            }
+        }
+        viewModel.updateOcrResultData(
+            results = FilterUtils.getOcrFilteredResultData(
+                uiState = uiState.value,
+                outputOCRResultData = outputOCRResultData
+            )
+        )
     }
 }

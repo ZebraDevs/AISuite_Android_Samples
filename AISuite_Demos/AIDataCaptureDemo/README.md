@@ -1,6 +1,6 @@
 ## AI Data Capture Demo Application
 
-This application demonstrates the features available in the Zebra AI Data Capture SDK - https://techdocs.zebra.com/ai-datacapture .  The application demonstrates technology features, including **Barcode Recognizer**, **Text/OCR Recognizer**, and **Product & Shelf Localizer**, and usecase feature including **Product & Shelf Recognizer**, and **OCR Barcode Finder**. Each  feature is illustrated through a live preview that provides real-time, on-screen feedback, displaying bounding boxes around detected objects and additionally showing recognition results for Product and Shelf Recognition and OCR Text Find.
+This application demonstrates the features available in the Zebra AI Data Capture SDK - https://techdocs.zebra.com/ai-datacapture .  The application demonstrates technology features, including **Barcode Recognizer**, **Text/OCR Recognizer**, and **Product & Shelf Recognizer**, and usecase feature including **Product & Shelf Enrollment**, and **OCR Barcode Finder**. Each  feature is illustrated through a live preview that provides real-time, on-screen feedback, displaying bounding boxes around detected objects and additionally showing recognition results for Product and Shelf Recognition and OCR Text Find.
 
 ## Project Purpose
 Use this project as a sample for:
@@ -50,14 +50,14 @@ Use this project as a sample for:
 **OCR Find + Barcode** - Optical Character and Barcode Recognition:  
 - Displays text recognition and barcode results on the live viewfinder.  
 - The filter icon enables the user to locate text by filtering for numeric, alphabetic, or alphanumeric content, including options for specifying size ranges or exact string matches
-**Product & Shelf Recognizer** - Product Recognition:  
+**Product & Shelf Enrollment** - Product Recognition:  
 - Enables creation of a product index  
 - Multi-step process required to create index followed displaying results on live viewfinder  
 - Recognizes products with results displayed as text within each product’s bounding box.  
 - Highlights enrolled products in green during enrollment; non-enrolled products do not display text results.
 
-#### Product Recognition Settings
-Product Recognition is initialized to use products.db file in internal storage folder (filesDir). User has no direct access to this folder and file.
+#### Product & Shelf Enrollment Settings
+Product & Shelf Enrollment is initialized to use products.db file in internal storage folder (filesDir). User has no direct access to this folder and file.
 **Import Database**
 - Allows user to select a database file using the file picker feature.
 - This functionality is specifically intended for those managing a list of previously enrolled product database files.
@@ -89,8 +89,9 @@ Once manual labeling is complete, users can run real-time product recognition in
 - Displays a live camera preview.  
 - Highlights 1D and 2D barcodes with bounding boxes in various colors.
 - Displays decoded barcode value below the bounding boxes.
-**Product & Shelf Localizer** - Retail Shelf Localizer  
-- Provides a live camera preview with bounding boxes over detected features like shelves, labels, pegs labels and products.  
+**Product & Shelf Recognizer** - Product & Shelf Recognizer  
+- Provides a live camera preview with bounding boxes over detected features like shelves, labels, pegs labels and products.
+- Provides solid bounding boxes and displays recognition results as text within each product’s bounding box.
 - Uses specific colors for each feature: Red for shelves, Blue for labels, Magenta for Peg and Green for products.
 
 ### Generic Settings - Model Processing Configurations

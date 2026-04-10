@@ -9,6 +9,11 @@ import android.text.Spanned
 import android.text.style.LeadingMarginSpan
 import android.util.TypedValue
 
+/**
+ * CustomBulletSpan is a custom implementation of LeadingMarginSpan to create bullet points with
+ * customizable radius, gap width, and color. It draws a circle as the bullet point and allows
+ * for better control over the appearance of the bullets in a list.
+ */
 class CustomBulletSpan(
     val bulletRadius: Int = STANDARD_BULLET_RADIUS,
     val gapWidth: Int = STANDARD_GAP_WIDTH,
