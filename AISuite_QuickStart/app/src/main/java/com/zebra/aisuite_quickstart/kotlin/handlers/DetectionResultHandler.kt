@@ -778,9 +778,8 @@ class DetectionResultHandler(
 
         // Draw products and SKU text
         for (product in products) {
-            val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
-            canvas.drawRect(prodRect, productPaint)
-
+                val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
+                canvas.drawRect(prodRect, productPaint)
         }
 
         activity.runOnUiThread {
@@ -896,7 +895,7 @@ class DetectionResultHandler(
                 canvas.drawRect(p.boundingBox, productPaint)
                 var sku = ""
                 val topK = p.topKSKUs
-                if (topK != null && topK.isNotEmpty() && topK[0] != null) {
+                if (topK != null && topK.isNotEmpty() && topK[0] != null && p.accuracy >= SIMILARITY_THRESHOLD) {
                     sku = topK[0].productSKU.toString()
                 }
                 if (sku.isNotEmpty()) {

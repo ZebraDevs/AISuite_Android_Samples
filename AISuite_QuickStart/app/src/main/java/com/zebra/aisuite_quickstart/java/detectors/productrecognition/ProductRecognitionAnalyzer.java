@@ -12,6 +12,7 @@ import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
 import com.zebra.ai.vision.entity.Entity;
+import com.zebra.ai.vision.entity.LabelEntity;
 import com.zebra.ai.vision.entity.ShelfEntity;
 
 import java.util.List;

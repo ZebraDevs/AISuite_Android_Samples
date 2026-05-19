@@ -677,6 +677,7 @@ public class DetectionResultHandler {
             }
         }
 
+
         // Draw products after shelves/labels/barcodes
         for (ProductEntity product : products) {
             Rect productBBox = product.getBoundingBox();
@@ -783,7 +784,7 @@ public class DetectionResultHandler {
                 canvas.drawRect(p.getBoundingBox(), productPaint);
                 String sku = "";
                 List<SKUInfo> topK = p.getTopKSKUs();
-                if (topK != null && !topK.isEmpty() && topK.get(0) != null) {
+                if (topK != null && !topK.isEmpty() && topK.get(0) != null && p.getAccuracy()>=SIMILARITY_THRESHOLD) {
                     sku = String.valueOf(topK.get(0).getProductSKU());
                 }
                 if (!sku.isEmpty()) {
@@ -1175,7 +1176,7 @@ public class DetectionResultHandler {
             String topSku = "";
             if (product.getTopKSKUs() != null && !product.getTopKSKUs().isEmpty()) {
                 SKUInfo skuInfo = product.getTopKSKUs().get(0);
-               
+
                 topSku = skuInfo.getProductSKU();
             }
 
