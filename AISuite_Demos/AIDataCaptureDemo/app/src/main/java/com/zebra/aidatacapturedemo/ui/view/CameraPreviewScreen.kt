@@ -156,7 +156,8 @@ fun CameraPreviewScreen(
                 viewModel.updateOcrResultData(results = null)
             }
 
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value,
+            UsecaseState.BarcodeMap.value -> {
                 viewModel.updateBarcodeResultData(results = listOf())
             }
 
@@ -333,7 +334,8 @@ fun CameraPreviewScreen(
                 )
             }
 
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value,
+            UsecaseState.BarcodeMap.value -> {
                 DrawBarcodeResult(
                     uiState = uiState,
                     scaler = scaler,
@@ -1163,6 +1165,7 @@ fun showBottomBar(
                     )
                 }
                 if ((uiState.usecaseSelected == UsecaseState.Product.value) ||
+                    (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) ||
                     ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.isCaptureOrLiveEnabled == 0))){
                     var isClickable = remember { mutableStateOf(true) }
                     Icon(
@@ -1189,6 +1192,8 @@ fun showBottomBar(
                                     if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
                                         viewModel.updateOcrBarcodeCaptureSessionCount(uiState.ocrBarcodeCaptureSessionCount + 1)
                                         navController.navigate(route = Screen.OCRBarcodeCapture.route)
+                                    } else if (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) {
+                                        navController.navigate(route = Screen.BarcodeMapResults.route)
                                     } else {
                                         navController.navigate(route = Screen.ProductsCapture.route)
                                     }

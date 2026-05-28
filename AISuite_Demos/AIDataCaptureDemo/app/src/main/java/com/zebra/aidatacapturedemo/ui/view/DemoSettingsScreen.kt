@@ -106,7 +106,7 @@ fun DemoSettingsScreen(
     val settingsItemsList = ExpandableSettingsItemsList()
     settingsItemsList.AddCommonSettings()
 
-    if (demo == UsecaseState.Barcode.value) {
+    if (demo == UsecaseState.Barcode.value || demo == UsecaseState.BarcodeMap.value) {
         settingsItemsList.AddBarcodeSettings()
     }
     else if (demo == UsecaseState.OCRBarcodeFind.value){
@@ -332,7 +332,7 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             var fileName: String = ""
             if ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) || (uiState.usecaseSelected == UsecaseState.OCR.value)) {
                 fileName = "ocr_model_input_size.html"
-            } else if (uiState.usecaseSelected == UsecaseState.Barcode.value) {
+            } else if (uiState.usecaseSelected == UsecaseState.Barcode.value || uiState.usecaseSelected == UsecaseState.BarcodeMap.value) {
                 fileName = "barcode_model_input_size.html"
             } else {
                 fileName = "product_model_input_size.html"
@@ -350,7 +350,7 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             var fileName: String = ""
             if ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) || (uiState.usecaseSelected == UsecaseState.OCR.value)) {
                 fileName = "ocr_resolution.html"
-            } else if (uiState.usecaseSelected == UsecaseState.Barcode.value) {
+            } else if (uiState.usecaseSelected == UsecaseState.Barcode.value || uiState.usecaseSelected == UsecaseState.BarcodeMap.value) {
                 fileName = "barcode_resolution.html"
             } else {
                 fileName = "product_resolution.html"
@@ -366,7 +366,7 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             var fileName: String = ""
-            if ((uiState.usecaseSelected == UsecaseState.Barcode.value) || (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value)) {
+            if ((uiState.usecaseSelected == UsecaseState.Barcode.value) || (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) || (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value)) {
                 fileName = "barcode_symbologies.html"
             }
             val htmlString = viewModel.loadInputStreamFromAsset(fileName = fileName)
@@ -552,7 +552,7 @@ fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             }
         )
     )
-    if (currentUIState.usecaseSelected == UsecaseState.Barcode.value) {
+    if (currentUIState.usecaseSelected == UsecaseState.Barcode.value || currentUIState.usecaseSelected == UsecaseState.BarcodeMap.value) {
         // Remove inputSize 2560 option for Barcode Decoder
         listOfModelInputSizes.removeAt(listOfModelInputSizes.size - 1)
     }
@@ -639,7 +639,8 @@ fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
             )
         }
 
-        UsecaseState.Barcode.value -> {
+        UsecaseState.Barcode.value,
+        UsecaseState.BarcodeMap.value -> {
             Pair(
                 first = "Barcode Recognizer Version",
                 second = BuildConfig.BarcodeLocalizer_Version

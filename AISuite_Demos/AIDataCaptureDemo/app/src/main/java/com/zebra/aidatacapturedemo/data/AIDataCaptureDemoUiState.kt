@@ -21,6 +21,7 @@ val PROFILING = "Profiling"
 enum class UsecaseState(val value: String) {
     Main("None"),
     Barcode("Barcode Recognizer"),
+    BarcodeMap("Barcode Map"),
     OCR("Text/OCR Recognizer"),
     Retail("Product & Shelf Recognizer"),
     OCRBarcodeFind("OCR & Barcode Find"),

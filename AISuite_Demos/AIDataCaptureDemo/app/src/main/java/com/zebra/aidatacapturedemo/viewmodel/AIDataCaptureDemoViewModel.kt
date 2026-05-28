@@ -166,6 +166,19 @@ class AIDataCaptureDemoViewModel(
                     barcodeAnalyzer?.initialize()
                 }
 
+                UsecaseState.BarcodeMap.value -> {
+                    barcodeAnalyzer = BarcodeAnalyzer(
+                        uiState = uiState,
+                        viewModel = this@AIDataCaptureDemoViewModel
+                    )
+                    barcodeAnalyzer?.initialize()
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isCaptureOrLiveEnabled = 0 // Default to Capture for Barcode Map
+                        )
+                    }
+                }
+
                 UsecaseState.Retail.value -> {
                     retailShelfAnalyzer = RetailShelfAnalyzer(
                         uiState = uiState,
@@ -217,7 +230,7 @@ class AIDataCaptureDemoViewModel(
      */
     fun deinitModel() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 barcodeAnalyzer?.deinitialize()
                 barcodeAnalyzer = null
             }
@@ -331,6 +344,7 @@ class AIDataCaptureDemoViewModel(
 
                 // Bind an additional Capture Use Case only for Product Recognition UsecaseState
                 camera = if ((uiState.value.usecaseSelected == UsecaseState.Product.value) ||
+                    (uiState.value.usecaseSelected == UsecaseState.BarcodeMap.value) ||
                     ((uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.value.isCaptureOrLiveEnabled == 0))){
                     // HIGH-RES CAPTURE CASE
                     imageCaptureResolutionSelector = ResolutionSelector.Builder()
@@ -565,7 +579,7 @@ class AIDataCaptureDemoViewModel(
      */
     fun updateSelectedProcessor(index: Int) {
         val updatedSelectedProcessorIndex = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 val currentProcessorSelectedIndex = _uiState.value.barcodeSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
@@ -597,7 +611,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> _uiState.value.barcodeSettings.commonSettings =
                 updatedSelectedProcessorIndex as CommonSettings
 
             UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
@@ -632,7 +646,7 @@ class AIDataCaptureDemoViewModel(
         }
 
         val updatedInputSize = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 val currentInputSizeSelected = _uiState.value.barcodeSettings.commonSettings
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
@@ -669,7 +683,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> _uiState.value.barcodeSettings.commonSettings =
                 updatedInputSize as CommonSettings
 
             UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
@@ -688,7 +702,7 @@ class AIDataCaptureDemoViewModel(
 
     fun updateSelectedResolution(index: Int) {
         val updatedResolution = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 val currentResolutionSelectedIndex = _uiState.value.barcodeSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
@@ -720,7 +734,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> _uiState.value.barcodeSettings.commonSettings =
                 updatedResolution as CommonSettings
 
             UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
@@ -739,7 +753,7 @@ class AIDataCaptureDemoViewModel(
 
     fun getSelectedResolution(): Int? {
         val currentResolutionSelectedIndex = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings.commonSettings.resolutionSelectedIndex
             }
 
@@ -768,7 +782,7 @@ class AIDataCaptureDemoViewModel(
 
     fun getProcessorSelectedIndex(): Int? {
         val currentProcessorSelectedIndex = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings.commonSettings.processorSelectedIndex
             }
 
@@ -797,7 +811,7 @@ class AIDataCaptureDemoViewModel(
 
     fun getInputSizeSelected(): Int? {
         val currentInputSizeSelected = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings.commonSettings.inputSizeSelected
             }
 
@@ -1624,7 +1638,7 @@ class AIDataCaptureDemoViewModel(
 
     fun saveSettings() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 FileUtils.saveBarcodeSettings(uiState.value.barcodeSettings)
             }
 
@@ -1652,7 +1666,7 @@ class AIDataCaptureDemoViewModel(
 
     fun restoreDefaultSettings() {
         when (_uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings = BarcodeSettings()
             }
 
@@ -1878,6 +1892,15 @@ class AIDataCaptureDemoViewModel(
         navController.navigateUp()
     }
 
+    fun saveBarcodeLayout() {
+        if (uiState.value.barcodeResults.isNotEmpty()) {
+            FileUtils.saveBarcodeResultsToFile(uiState.value.barcodeResults)
+            toast("Barcode layout saved successfully")
+        } else {
+            toast("No barcode results to save")
+        }
+    }
+
     fun toast(toastString: String) {
         Toast.makeText(context, toastString, Toast.LENGTH_LONG).show()
     }
@@ -1892,7 +1915,7 @@ class AIDataCaptureDemoViewModel(
 
     fun stopPreviewAnalysis() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
 
             }
 
@@ -1916,7 +1939,7 @@ class AIDataCaptureDemoViewModel(
 
     fun startPreviewAnalysis() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
 
             }
 
@@ -1942,6 +1965,10 @@ class AIDataCaptureDemoViewModel(
         when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
 
+            }
+
+            UsecaseState.BarcodeMap.value -> {
+                barcodeAnalyzer!!.executeHighRes(highResBitmap)
             }
 
             UsecaseState.Retail.value -> {

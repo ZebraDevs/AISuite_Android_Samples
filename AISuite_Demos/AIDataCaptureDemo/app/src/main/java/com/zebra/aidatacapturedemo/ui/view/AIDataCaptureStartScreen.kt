@@ -288,6 +288,18 @@ fun AIDataCaptureTechnologyList(
                 navController.navigate(route = Screen.DemoStart.route)
             })
         AIDataCaptureListItem(
+            R.drawable.barcode_icon,
+            stringResource(id = R.string.barcode_map_demo),
+            stringResource(id = R.string.barcode_map_desc),
+            Variables.mainIcon2,
+            Variables.secondaryIcon2,
+            onItemClick = { selectedUsecase ->
+                viewModel.updateAppBarTitle(getString(context, R.string.barcode_map_demo))
+                viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.initModel()
+                navController.navigate(route = Screen.DemoStart.route)
+            })
+        AIDataCaptureListItem(
             R.drawable.retail_shelf_icon,
             stringResource(id = R.string.retail_shelf_demo),
             stringResource(id = R.string.retail_shelf_desc),

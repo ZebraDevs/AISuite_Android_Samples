@@ -88,7 +88,7 @@ object Variables {
 fun getIconMainColor(demo: String): Color {
     var mainColor: Color = mainIcon2
     when (demo) {
-        UsecaseState.Barcode.value -> {
+        UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
             mainColor = mainIcon2
         }
 
@@ -115,7 +115,7 @@ fun getIconMainColor(demo: String): Color {
 fun getIconSecondaryColor(demo: String): Color {
     var secondaryColor: Color = secondaryIcon2
     when (demo) {
-        UsecaseState.Barcode.value -> {
+        UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
             secondaryColor = secondaryIcon2
         }
 
@@ -141,7 +141,7 @@ fun getIconSecondaryColor(demo: String): Color {
 fun getIconId(demo: String): Int? {
     var iconId: Int? = null
     when (demo) {
-        UsecaseState.Barcode.value -> {
+        UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
             iconId = R.drawable.barcode_icon
         }
 
@@ -167,7 +167,7 @@ fun getIconId(demo: String): Int? {
 fun getSettingHeading(demo: String): Int? {
     var settingsString: Int? = null
     when (demo) {
-        UsecaseState.Barcode.value -> {
+        UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
             settingsString = R.string.barcode_settings
         }
 
@@ -195,6 +195,10 @@ fun getDemoTitle(demo: String): Int? {
     when (demo) {
         UsecaseState.Barcode.value -> {
             settingsString = R.string.barcode_demo
+        }
+
+        UsecaseState.BarcodeMap.value -> {
+            settingsString = R.string.barcode_map_demo
         }
 
         UsecaseState.OCR.value -> {
@@ -245,7 +249,8 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
 
         R.string.resolution -> {
             when (demo) {
-                UsecaseState.Barcode.value -> {
+                UsecaseState.Barcode.value,
+                UsecaseState.BarcodeMap.value -> {
                     when (value) {
                         0 -> {
                             descString = R.string.resolution_1mp_desc_bc
@@ -295,7 +300,8 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
 
         R.string.model_input_size -> {
             when (demo) {
-                UsecaseState.Barcode.value -> {
+                UsecaseState.Barcode.value,
+                UsecaseState.BarcodeMap.value -> {
                     when (value) {
                         0 -> {
                             descString = R.string.model_input_size_640_bc

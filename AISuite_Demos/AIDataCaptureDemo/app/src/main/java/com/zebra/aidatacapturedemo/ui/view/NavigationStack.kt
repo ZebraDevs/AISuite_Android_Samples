@@ -32,6 +32,7 @@ sealed class Screen(val route: String) {
     object ProductsCapture : Screen("products_capture_screen")
     object OCRBarcodeCapture : Screen("ocrbarcode_capture_screen")
     object OCRBarcodeResults : Screen("ocrbarcode_results_screen")
+    object BarcodeMapResults : Screen("barcode_map_results_screen")
     object SingleResult : Screen("single_result_screen")
 
     /**
@@ -108,6 +109,15 @@ fun NavigationStack(
         composable(route = Screen.OCRBarcodeResults.route) {
             viewModel.updateActiveScreenData(activeScreen = Screen.OCRBarcodeResults)
             OCRBarcodeResultScreen(
+                viewModel,
+                navController = navController,
+                innerPadding,
+                context = context
+            )
+        }
+        composable(route = Screen.BarcodeMapResults.route) {
+            viewModel.updateActiveScreenData(activeScreen = Screen.BarcodeMapResults)
+            BarcodeMapResultScreen(
                 viewModel,
                 navController = navController,
                 innerPadding,
