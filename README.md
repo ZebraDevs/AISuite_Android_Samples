@@ -1,7 +1,7 @@
-# Zebra Mobile Computing AISuite
+# Zebra Frontline AI Enablers
 ## AI Data Capture SDK Sample & Demo Applications
 
-Welcome to the [Mobile Computing AISuite's](https://www.zebra.com/ap/en/software/mobile-computer-software/zebra-mobile-computing-ai-suite.html) Sample and Demo application's repository! This repository serves as an archive for numerous applications that demonstrate the capabilities and functionalities of the AI Data Capture SDK.
+Welcome to the [Frontline AI Enablers](https://www.zebra.com/ap/en/software/ai-software/zebra-frontline-ai-enablers.html) Sample and Demo application's repository! This repository serves as an archive for numerous applications that demonstrate the capabilities and functionalities of the AI Data Capture SDK.
 
 ## Overview
 The [AI Data Capture SDK](https://techdocs.zebra.com/ai-datacapture/latest/about/) offers a range of tools and resources for developers looking to integrate and utilize the [AISuite Models](https://techdocs.zebra.com/ai-datacapture/latest/setup/#featuresmodels) within their applications. The sample and demo applications contained in this repository provide practical examples and guidance on how to leverage the SDK effectively.

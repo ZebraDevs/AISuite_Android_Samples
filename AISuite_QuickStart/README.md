@@ -1,12 +1,12 @@
 # AISuite QuickStart Application
-Welcome to the AISuite QuickStart Sample application repository! This repository contains samples **(Java and Kotlin)** and resources to help you quickly get started with Zebra Technologies [Mobile Computing AI Suite](https://www.zebra.com/ap/en/software/mobile-computer-software/zebra-mobile-computing-ai-suite.html).
+Welcome to the AISuite QuickStart Sample application repository! This repository contains samples **(Java and Kotlin)** and resources to help you quickly get started with Zebra Technologies [Frontline AI Enablers](https://www.zebra.com/ap/en/software/ai-software/zebra-frontline-ai-enablers.html).
 
 The AISuite Quick Start Sample Application provides a streamlined setup and examples to enable developers to integrate Zebra’s AI capabilities into their applications with ease.
 
 ## Introduction
 The AI Suite Quick Start repository provides sample code to use various features of AI Data Capture SDK.
 
-* Quickly understand the core features offerred by Zebra’s Mobile Computing AI Suite - The AI Models and the AI Data Capture SDK to use them.
+* Quickly understand the core features offerred by Zebra’s Frontline AI Enablers - The AI Models and the AI Data Capture SDK to use them.
 * Set up and run AI-based solutions in a minimal timeframe.
 * Access ready-to-use examples for integration into the projects.
 * This guide focuses on the contents of the AISuite_QuickStart folder, which is specifically designed to simplify the onboarding process for developers.

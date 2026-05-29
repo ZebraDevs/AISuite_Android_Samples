@@ -1,12 +1,12 @@
 # AISuite Snippets
-Welcome to the AISuite Snippets repository! This repository contains code snippets **(Java and Kotlin)** to help developers quickly get started with Zebra Technologies [Mobile Computing AI Suite](https://www.zebra.com/ap/en/software/mobile-computer-software/zebra-mobile-computing-ai-suite.html). 
+Welcome to the AISuite Snippets repository! This repository contains code snippets **(Java and Kotlin)** to help developers quickly get started with Zebra Technologies [Frontline AI Enablers](https://www.zebra.com/ap/en/software/ai-software/zebra-frontline-ai-enablers.html). 
 
 The snippets cannot run standlone as an application on the device. This is only for reference purpose.
 
 ## Introduction
 The AISuite Snippets repository provides sample code snippets for the various capabilities and interfaces offerred in the AI Data Capture SDK.
 
-* Quickly understand the core features offerred by Zebra’s Mobile Computing AI Suite - The AI Models and the AI Data Capture SDK to use them.
+* Quickly understand the core features offerred by Zebra’s Frontline AI Enablers - The AI Models and the AI Data Capture SDK to use them.
 * Reuse the code snippets in your applications
 
 ## Useful References
