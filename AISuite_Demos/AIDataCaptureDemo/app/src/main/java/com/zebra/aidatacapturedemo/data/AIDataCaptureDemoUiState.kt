@@ -192,6 +192,7 @@ data class AIDataCaptureDemoUiState(
     var productResults: MutableList<ProductData> = mutableListOf(),
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
+    var selectedToteId: String? = null,
 
     // Choices
     var isBarcodeModelEnabled: Boolean = true,

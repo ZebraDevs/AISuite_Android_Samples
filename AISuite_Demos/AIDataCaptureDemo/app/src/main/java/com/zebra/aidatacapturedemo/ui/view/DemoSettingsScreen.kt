@@ -639,10 +639,16 @@ fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
             )
         }
 
-        UsecaseState.Barcode.value,
-        UsecaseState.BarcodeMap.value -> {
+        UsecaseState.Barcode.value -> {
             Pair(
                 first = "Barcode Recognizer Version",
+                second = BuildConfig.BarcodeLocalizer_Version
+            )
+        }
+
+        UsecaseState.BarcodeMap.value -> {
+            Pair(
+                first = "Barcode Map Version",
                 second = BuildConfig.BarcodeLocalizer_Version
             )
         }
