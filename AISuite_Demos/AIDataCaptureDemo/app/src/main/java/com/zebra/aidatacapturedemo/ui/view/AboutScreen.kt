@@ -97,7 +97,7 @@ fun AboutScreen(innerPadding: PaddingValues) {
                     .background(color = Variables.mainInverse)
             ) {
                 Text(
-                    text = "Explore Zebra Mobile Computing AI Suite Data Capture SDK latest features and solutions for Zebra Android™ devices.",
+                    text = "Explore Zebra Frontline AI Enablers Data Capture SDK latest features and solutions for Zebra Android™ devices.",
 
                     style = TextStyle(
                         fontSize = 14.sp,

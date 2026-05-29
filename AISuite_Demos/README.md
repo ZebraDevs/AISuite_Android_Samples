@@ -1,5 +1,5 @@
 # AISuite Demos
-Welcome to the AISuite Demo application's repository! This repository contains source code samples and resources that helps your build your AI usecases quickly by using Zebra Technologies' [Mobile Computing AI Suite](https://www.zebra.com/ap/en/software/mobile-computer-software/zebra-mobile-computing-ai-suite.html).
+Welcome to the AISuite Demo application's repository! This repository contains source code samples and resources that helps your build your AI usecases quickly by using Zebra Technologies' [Frontline AI Enablers](https://www.zebra.com/ap/en/software/ai-software/zebra-frontline-ai-enablers.html).
 
 While you can build these demo applications from this project, they are also available via Zebra Showcase app on supported devices.
 
