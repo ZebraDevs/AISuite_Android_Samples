@@ -40,6 +40,7 @@
     <string name="enterproducthint">Scan or Type Product SKU</string>
 
     <string name="barcode_settings">Barcode Recognizer Settings</string>
+    <string name="barcode_map_settings">Barcode Map Settings</string>
     <string name="ocr_barcode_find_settings">OCR &amp; Barcode Settings</string>
     <string name="text_ocr_recognizer_settings">Text/OCR Recognizer Settings</string>
     <string name="retailshelf_settings">Product &amp; Shelf Recognizer Settings</string>

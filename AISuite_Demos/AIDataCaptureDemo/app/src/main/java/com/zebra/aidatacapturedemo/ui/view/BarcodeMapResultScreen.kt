@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,7 +33,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,10 +43,13 @@ import androidx.navigation.NavController
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlin.math.min
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.zebra.aidatacapturedemo.data.ResultData
+import kotlin.math.abs
 
 /**
- * BarcodeMapResultScreen is a Composable function that displays the relative positions
- * of the detected barcodes and their IDs on a clean background.
+ * BarcodeMapResultScreen is a Composable function that displays an abstract
+ * geometrical layout of detected barcodes on a clean background.
  */
 @Composable
 fun BarcodeMapResultScreen(
@@ -62,7 +63,7 @@ fun BarcodeMapResultScreen(
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle("Barcode Map")
+    viewModel.updateAppBarTitle("Barcode Layout Map")
 
     val capturedBitmap = uiState.captureBitmap
     if (capturedBitmap == null) {
@@ -99,35 +100,29 @@ fun BarcodeMapResultScreen(
         val availableHeightInPx =
             displayTotalHeightInPx.toFloat() - displayStatusBarHeightInPx - displayNavigationBarHeightInPx
 
-        // The following computed values are used for drawing Bbox overlay
+        // The following computed values are used for drawing
         val scaler = min(
             displayTotalWidthInPx.toFloat() / capturedBitmap.width.toFloat(),
             availableHeightInPx / capturedBitmap.height.toFloat()
         )
-        val scaledWidth = scaler * capturedBitmap.width.toFloat()
-        val scaledHeight = scaler * capturedBitmap.height.toFloat()
-        val gapX = (displayTotalWidthInPx - scaledWidth) / 2f
-        val gapY = (availableHeightInPx - scaledHeight) / 2f
+        val gapX = (displayTotalWidthInPx - (scaler * capturedBitmap.width.toFloat())) / 2f
+        val gapY = (availableHeightInPx - (scaler * capturedBitmap.height.toFloat())) / 2f
 
-
-        Box( // Bottom layer
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     top = displayStatusBarHeightInDp,
                     bottom = displayNavigationBarHeightInDp
                 )
-                .background(color = Color(0xFFF0F0F0)) // Clean light gray background
+                .background(color = Color(0xFFF0F2F5)) // Clean modern background
         ) {
-
-            // MAP CANVAS
+            // ABSTRACT MAP CANVAS
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // We don't draw the captured image anymore as per user request
-                
-                DrawBarcodeMapOnCanvas(
+                DrawAbstractBarcodeMap(
                     uiState = uiState,
                     scaler = scaler,
                     gapX = gapX,
@@ -140,44 +135,52 @@ fun BarcodeMapResultScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .padding(top = 24.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
-                Text(
-                    text = "Detected ${uiState.barcodeResults.size} Barcodes",
-                    style = TextStyle(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    ),
-                    modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Barcode Layout Map",
+                        style = TextStyle(
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1C1E)
+                        )
+                    )
+                    Text(
+                        text = "${uiState.barcodeResults.size} barcodes mapped",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF44474E)
+                        )
+                    )
+                }
             }
 
             // SAVE BUTTON
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 32.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 Button(
                     onClick = {
                         viewModel.saveBarcodeLayout()
+                        navController.navigate(Screen.BarcodeMapPicking.route)
                     },
                     modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006400))
+                        .fillMaxWidth(0.6f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(27.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006D39)) // Dark green
                 ) {
                     Text(
-                        text = "Save Layout",
+                        text = "Save Barcode Map",
                         style = TextStyle(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
                     )
@@ -188,90 +191,124 @@ fun BarcodeMapResultScreen(
 }
 
 @Composable
-private fun DrawBarcodeMapOnCanvas(
+private fun DrawAbstractBarcodeMap(
     uiState: AIDataCaptureDemoUiState,
     scaler: Float,
     gapX: Float,
     gapY: Float,
     displayMetricsDensity: Float
 ) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        uiState.barcodeResults.forEachIndexed { index, barcodeData ->
-            barcodeData?.let {
+    val barcodeResults = uiState.barcodeResults
+    if (barcodeResults.isEmpty()) return
 
-                val bBoxTop = barcodeData.boundingBox.top.toFloat()
-                val bBoxLeft = barcodeData.boundingBox.left.toFloat()
-                val bBoxBottom = barcodeData.boundingBox.bottom.toFloat()
-                val bBoxRight = barcodeData.boundingBox.right.toFloat()
+    // Grouping logic for rows
+    val sortedByY = barcodeResults.sortedBy { it.boundingBox.centerY() }
+    val rows = mutableListOf<MutableList<ResultData>>()
+    
+    if (sortedByY.isNotEmpty()) {
+        var currentRow = mutableListOf<ResultData>()
+        currentRow.add(sortedByY[0])
+        rows.add(currentRow)
 
-                val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
-                val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
-                val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
-                val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
-
-                // Define the size and position of the rectangle
-                val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
-                val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
-                val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
-
-                // 1. Draw Bounding Box
-                drawRect(
-                    color = Color(0xFF00FF00), // zebra green
-                    topLeft = topLeftOffset,
-                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = (2f * displayMetricsDensity))
-                )
-
-                // 2. Draw semi-transparent overlay inside the box
-                drawRect(
-                    color = Color(0x3300FF00),
-                    topLeft = topLeftOffset,
-                    size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight)
-                )
-
-                // 3. Prepare label text
-                val idText = if (barcodeData.text.isNotEmpty()) barcodeData.text else "N/A"
-                val labelText = "#${index + 1}: $idText"
-
-                val paint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.WHITE
-                    textSize = 14f * displayMetricsDensity
-                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-                    isAntiAlias = true
-                }
-
-                val textWidth = paint.measureText(labelText)
-                val fontMetrics = paint.fontMetrics
-                val textHeight = fontMetrics.descent - fontMetrics.ascent
-
-                // Position label above the barcode
-                val padding = 4f * displayMetricsDensity
-                val labelX = scaledBBoxLeftInPx
-                var labelY = scaledBBoxTopInPx - textHeight - (2 * padding)
-
-                // Ensure label is within screen bounds
-                if (labelY < 0) {
-                    labelY = scaledBBoxBottomInPx + padding
-                }
-
-                // Draw label background
-                drawRect(
-                    color = Color(0xFF006400), // Darker green
-                    topLeft = Offset(labelX, labelY),
-                    size = androidx.compose.ui.geometry.Size(textWidth + (2 * padding), textHeight + padding)
-                )
-
-                // Draw text
-                drawContext.canvas.nativeCanvas.drawText(
-                    labelText,
-                    labelX + padding,
-                    labelY + textHeight - fontMetrics.descent,
-                    paint
-                )
+        for (i in 1 until sortedByY.size) {
+            val prev = sortedByY[i - 1]
+            val curr = sortedByY[i]
+            
+            // Overlap threshold for same row
+            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
+                currentRow.add(curr)
+            } else {
+                currentRow = mutableListOf<ResultData>()
+                currentRow.add(curr)
+                rows.add(currentRow)
             }
         }
+    }
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        rows.forEach { row ->
+            val sortedRow = row.sortedBy { it.boundingBox.left }
+            
+            // Normalize row metrics to average
+            val avgHeight = sortedRow.map { it.boundingBox.height() }.average().toFloat()
+            val avgCenterY = sortedRow.map { it.boundingBox.centerY() }.average().toFloat()
+
+            var currentLeftX = -1f
+
+            sortedRow.forEachIndexed { index, barcode ->
+                val bBoxWidth = barcode.boundingBox.width().toFloat()
+                var left = barcode.boundingBox.left.toFloat()
+                
+                // Snapping logic: if close to previous, snap to it
+                if (currentLeftX != -1f) {
+                    if (abs(left - currentLeftX) < bBoxWidth * 0.4) {
+                        left = currentLeftX
+                    }
+                }
+
+                val scaledLeft = (scaler * left) + gapX
+                val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
+                val scaledWidth = (scaler * bBoxWidth)
+                val scaledHeight = (scaler * avgHeight)
+
+                drawAbstractUnit(
+                    id = barcode.text,
+                    left = scaledLeft,
+                    top = scaledTop,
+                    width = scaledWidth,
+                    height = scaledHeight,
+                    density = displayMetricsDensity
+                )
+                
+                // Track where the next one should start if it snaps
+                currentLeftX = left + bBoxWidth
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawAbstractUnit(
+    id: String,
+    left: Float,
+    top: Float,
+    width: Float,
+    height: Float,
+    density: Float
+) {
+    val themeColor = Color(0xFF00FF00) // Vibrant Green
+    val rectSize = androidx.compose.ui.geometry.Size(width, height)
+    val topLeft = Offset(left, top)
+
+    // 1. Draw simple geometrical shape (Rectangle)
+    drawRect(
+        color = themeColor.copy(alpha = 0.2f),
+        topLeft = topLeft,
+        size = rectSize
+    )
+
+    // 2. Draw sharp outline
+    drawRect(
+        color = themeColor,
+        topLeft = topLeft,
+        size = rectSize,
+        style = Stroke(width = 2f * density)
+    )
+
+    // 3. Center-aligned ID text
+    val paint = android.graphics.Paint().apply {
+        this.color = android.graphics.Color.BLACK
+        this.textSize = 9f * density
+        this.textAlign = android.graphics.Paint.Align.CENTER
+        this.isAntiAlias = true
+        this.isFakeBoldText = true
+    }
+
+    val textX = left + width / 2
+    val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
+
+    // Only draw ID if it fits within the simplified shape
+    if (width > 25 * density) {
+        val displayId = if (id.length > 7) id.take(5) + ".." else id
+        drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }
