@@ -6,7 +6,7 @@ A fully functional Android reference implementation of Zebra's **Picture Proof o
 
 ## Background
 
-### Zebra AI Suite — AI Enablers
+### Zebra Frontline AI Enablers
 
 Zebra's AI Suite is a collection of on-device AI capabilities purpose-built for enterprise frontline workflows. Rather than generic computer vision models, it provides:
 
