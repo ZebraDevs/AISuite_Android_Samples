@@ -3,11 +3,9 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
-import android.util.Size
 import android.view.WindowManager
 import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,12 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
@@ -41,33 +37,16 @@ import kotlin.math.abs
 fun BarcodeMapPickingScreen(
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavController,
-    context: Context,
-    activityInnerPadding: PaddingValues,
-    activityLifecycle: Lifecycle
+    @Suppress("UNUSED_PARAMETER") context: Context,
+    @Suppress("UNUSED_PARAMETER") activityInnerPadding: PaddingValues,
+    @Suppress("UNUSED_PARAMETER") activityLifecycle: Lifecycle
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember { PreviewView(context) }
 
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
     viewModel.updateAppBarTitle("Item Picking")
-
-    // Ensure we are in Live mode for item scanning
-    LaunchedEffect(Unit) {
-        viewModel.updateCaptureOrLiveEnabled(1) // Set to Live
-    }
-
-    // Setup camera to scan items
-    LaunchedEffect(lifecycleOwner) {
-        viewModel.setupCameraController(
-            previewView = previewView,
-            analysisUseCaseCameraResolution = Size(1280, 720),
-            lifecycleOwner = lifecycleOwner,
-            activityLifecycle = activityLifecycle
-        )
-    }
 
     // Logic to "decide which tote": 
     // In this demo, if a barcode is detected, we match it to a tote.
@@ -84,22 +63,7 @@ fun BarcodeMapPickingScreen(
         // 1. Full screen Abstract Map (The "Digital Twin")
         AbstractMapLayer(uiState)
 
-        // 2. Small Camera Preview in the corner to scan the item
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = activityInnerPadding.calculateBottomPadding() + 16.dp, end = 16.dp)
-                .size(160.dp, 120.dp)
-                .background(Color.Black, RoundedCornerShape(12.dp))
-                .padding(2.dp)
-        ) {
-            AndroidView(
-                factory = { previewView },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // 3. Guidance Overlay
+        // 2. Guidance Overlay
         if (uiState.selectedToteId != null) {
             Box(
                 modifier = Modifier
