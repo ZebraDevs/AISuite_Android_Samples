@@ -50,11 +50,13 @@ import com.zebra.aidatacapturedemo.data.BarcodeFilterData
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
 import com.zebra.aidatacapturedemo.data.BarcodeSymbology
 import com.zebra.aidatacapturedemo.data.CommonSettings
+import com.zebra.aidatacapturedemo.data.CustomerInfo
 import com.zebra.aidatacapturedemo.data.FilterType
 import com.zebra.aidatacapturedemo.data.ModuleData
 import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
 import com.zebra.aidatacapturedemo.data.OcrFilterData
 import com.zebra.aidatacapturedemo.data.ProductData
+import com.zebra.aidatacapturedemo.data.ProductInfo
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
 import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.RetailShelfSettings
@@ -1786,6 +1788,70 @@ class AIDataCaptureDemoViewModel(
             it.copy(
                 barcodeResults = results
             )
+        }
+
+        // Handle Picking Logic if we are in picking flow
+        if (uiState.value.selectedCustomer != null && results.isNotEmpty()) {
+            handlePickingScan(results)
+        }
+    }
+
+    private fun handlePickingScan(results: List<ResultData>) {
+        if (results.isEmpty()) return
+
+        val scannedBarcode = results.first().text
+        val customer = uiState.value.selectedCustomer ?: return
+
+        val productMatch = customer.products.find { it.barcode == scannedBarcode }
+
+        if (productMatch != null) {
+            _uiState.update { it.copy(
+                pickingFeedback = "Item Identified Barcode: $scannedBarcode",
+                selectedToteId = scannedBarcode // Highlight it on the map
+            ) }
+        } else {
+            _uiState.update { it.copy(
+                pickingFeedback = "Incorrect Item"
+            ) }
+        }
+    }
+
+    fun updateSelectedCustomer(customer: com.zebra.aidatacapturedemo.data.CustomerInfo?) {
+        _uiState.update { it.copy(selectedCustomer = customer) }
+    }
+
+    fun updatePickingFeedback(feedback: String?) {
+        _uiState.update { it.copy(pickingFeedback = feedback) }
+    }
+
+    fun setAllCustomers(customers: List<CustomerInfo>) {
+        _uiState.update { it.copy(allCustomers = customers) }
+    }
+
+    fun processHardwareScan(barcode: String) {
+        val customers = uiState.value.allCustomers
+        val matches = mutableListOf<Pair<String, Int>>()
+        var productInfo: ProductInfo? = null
+
+        customers.forEach { customer ->
+            customer.products.find { it.barcode == barcode }?.let { product ->
+                matches.add(customer.id to product.quantity)
+                productInfo = product
+            }
+        }
+
+        if (matches.isNotEmpty()) {
+            _uiState.update { it.copy(
+                lastScannedProduct = productInfo,
+                targetTotes = matches,
+                pickingFeedback = "Item Identified Barcode: $barcode"
+            ) }
+        } else {
+            _uiState.update { it.copy(
+                lastScannedProduct = null,
+                targetTotes = listOf(),
+                pickingFeedback = "Incorrect Item"
+            ) }
         }
     }
 

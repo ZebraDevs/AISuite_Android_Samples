@@ -64,7 +64,8 @@ fun BarcodeMapPickingScreen(
         AbstractMapLayer(uiState)
 
         // 2. Guidance Overlay
-        if (uiState.selectedToteId != null) {
+        val feedback = uiState.pickingFeedback
+        if (feedback != null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -72,14 +73,17 @@ fun BarcodeMapPickingScreen(
                 contentAlignment = Alignment.TopCenter
             ) {
                 Text(
-                    text = "Item Identfied! Place in Tote: ${uiState.selectedToteId}",
+                    text = feedback,
                     style = TextStyle(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     ),
                     modifier = Modifier
-                        .background(Color(0xFF006D39), RoundedCornerShape(8.dp))
+                        .background(
+                            if (feedback.contains("incorrect")) Color.Red else Color(0xFF006D39),
+                            RoundedCornerShape(8.dp)
+                        )
                         .padding(16.dp)
                 )
             }

@@ -144,6 +144,13 @@ fun CameraPreviewScreen(
 
     val previewView = remember { PreviewView(context) }
 
+    // Navigation for Picking Flow
+    LaunchedEffect(uiState.pickingFeedback) {
+        if (uiState.pickingFeedback?.startsWith("item identified") == true) {
+            navController.navigate(Screen.BarcodeMapPicking.route)
+        }
+    }
+
     LaunchedEffect(key1 = "clear all the previous results") {
         // clear all the previous results during Fresh Launch
         when (uiState.usecaseSelected) {
@@ -385,6 +392,31 @@ fun CameraPreviewScreen(
 
             else -> {
                 TODO("Unhandled usecaseState received = $selectedDemo")
+            }
+        }
+
+        // Show Picking Feedback overlay
+        if (uiState.selectedCustomer != null && uiState.pickingFeedback != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 100.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Text(
+                    text = uiState.pickingFeedback ?: "",
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    ),
+                    modifier = Modifier
+                        .background(
+                            if (uiState.pickingFeedback?.contains("incorrect") == true) Color.Red else Color(0xFF006D39),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(16.dp)
+                )
             }
         }
     }
