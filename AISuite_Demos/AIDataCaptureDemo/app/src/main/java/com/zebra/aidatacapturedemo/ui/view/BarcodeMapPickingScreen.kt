@@ -185,7 +185,7 @@ private fun DrawAbstractBarcodeMapLayer(
 
             var currentLeftX = -1f
 
-            sortedRow.forEach { barcode ->
+            sortedRow.forEachIndexed { index, barcode ->
                 val bBoxWidth = barcode.boundingBox.width().toFloat()
                 var left = barcode.boundingBox.left.toFloat()
                 
@@ -203,7 +203,11 @@ private fun DrawAbstractBarcodeMapLayer(
                 // Highlight if it's the selected tote
                 val isTarget = uiState.selectedToteId == barcode.text
 
+                // Assign Tote Name A-F based on index
+                val toteName = if (index < 6) ('A' + index).toString() else ""
+
                 drawAbstractPickingUnit(
+                    toteName = toteName,
                     id = barcode.text,
                     left = scaledLeft,
                     top = scaledTop,
@@ -220,6 +224,7 @@ private fun DrawAbstractBarcodeMapLayer(
 }
 
 private fun DrawScope.drawAbstractPickingUnit(
+    toteName: String,
     id: String,
     left: Float,
     top: Float,
@@ -247,7 +252,7 @@ private fun DrawScope.drawAbstractPickingUnit(
 
     val paint = android.graphics.Paint().apply {
         this.color = if (isTarget) android.graphics.Color.WHITE else android.graphics.Color.BLACK
-        this.textSize = (if (isTarget) 12f else 9f) * density
+        this.textSize = (if (isTarget) 16f else 14f) * density // Increased font size
         this.textAlign = android.graphics.Paint.Align.CENTER
         this.isAntiAlias = true
         this.isFakeBoldText = true
@@ -257,7 +262,8 @@ private fun DrawScope.drawAbstractPickingUnit(
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
     if (width > 25 * density) {
-        val displayId = if (id.length > 7) id.take(5) + ".." else id
-        drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
+        val last5Digits = if (id.length >= 5) id.takeLast(5) else id
+        val displayText = if (toteName.isNotEmpty()) "$toteName: $last5Digits" else last5Digits
+        drawContext.canvas.nativeCanvas.drawText(displayText, textX, textY, paint)
     }
 }
