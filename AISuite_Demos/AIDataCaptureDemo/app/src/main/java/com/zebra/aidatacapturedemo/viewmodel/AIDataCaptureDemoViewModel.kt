@@ -1824,6 +1824,10 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { it.copy(pickingFeedback = feedback) }
     }
 
+    fun updateSelectedToteId(toteId: String?) {
+        _uiState.update { it.copy(selectedToteId = toteId) }
+    }
+
     fun setAllCustomers(customers: List<CustomerInfo>) {
         _uiState.update { it.copy(allCustomers = customers) }
     }
