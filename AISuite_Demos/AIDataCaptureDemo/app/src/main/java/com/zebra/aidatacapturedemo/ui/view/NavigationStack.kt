@@ -33,6 +33,9 @@ sealed class Screen(val route: String) {
     object OCRBarcodeCapture : Screen("ocrbarcode_capture_screen")
     object OCRBarcodeResults : Screen("ocrbarcode_results_screen")
     object BarcodeMapResults : Screen("barcode_map_results_screen")
+    object CustomerInformation : Screen("customer_information_screen")
+    object BarcodeScanPicking : Screen("barcode_scan_picking_screen")
+    object BarcodeMapPicking : Screen("barcode_map_picking_screen")
     object SingleResult : Screen("single_result_screen")
 
     /**
@@ -122,6 +125,32 @@ fun NavigationStack(
                 navController = navController,
                 innerPadding,
                 context = context
+            )
+        }
+        composable(route = Screen.CustomerInformation.route) {
+            viewModel.updateActiveScreenData(activeScreen = Screen.CustomerInformation)
+            CustomerInformationScreen(
+                viewModel = viewModel,
+                navController = navController,
+                innerPadding = innerPadding
+            )
+        }
+        composable(route = Screen.BarcodeScanPicking.route) {
+            viewModel.updateActiveScreenData(activeScreen = Screen.BarcodeScanPicking)
+            BarcodeScanPickingScreen(
+                viewModel = viewModel,
+                navController = navController,
+                innerPadding = innerPadding
+            )
+        }
+        composable(route = Screen.BarcodeMapPicking.route) {
+            viewModel.updateActiveScreenData(activeScreen = Screen.BarcodeMapPicking)
+            BarcodeMapPickingScreen(
+                viewModel = viewModel,
+                navController = navController,
+                context = context,
+                activityInnerPadding = activityInnerPadding,
+                activityLifecycle = activityLifecycle
             )
         }
         composable(route = Screen.SingleResult.route + "?text={text}&bbox={bbox}&isBarcode={isBarcode}") { backStackEntry ->
