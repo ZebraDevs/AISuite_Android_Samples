@@ -167,8 +167,12 @@ fun getIconId(demo: String): Int? {
 fun getSettingHeading(demo: String): Int? {
     var settingsString: Int? = null
     when (demo) {
-        UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
+        UsecaseState.Barcode.value -> {
             settingsString = R.string.barcode_settings
+        }
+
+        UsecaseState.BarcodeMap.value -> {
+            settingsString = R.string.barcode_map_settings
         }
 
         UsecaseState.OCR.value -> {

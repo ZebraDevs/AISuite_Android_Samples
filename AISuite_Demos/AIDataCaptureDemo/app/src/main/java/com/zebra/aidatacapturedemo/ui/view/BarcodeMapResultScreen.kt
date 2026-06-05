@@ -168,7 +168,7 @@ fun BarcodeMapResultScreen(
                 Button(
                     onClick = {
                         viewModel.saveBarcodeLayout()
-                        navController.navigate(Screen.CustomerInformation.route)
+                        navController.navigate(Screen.BarcodeMapPicking.route)
                     },
                     modifier = Modifier
                         .fillMaxWidth(0.6f)

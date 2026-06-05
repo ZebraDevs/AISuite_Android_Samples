@@ -9,6 +9,11 @@ import com.zebra.aidatacapturedemo.ui.view.Screen
 
 /**
  * AIDataCaptureDemoUiState.kt is a data class that holds the UI state for the AI Data Capture Demo
+ * application. It includes various settings and results related to barcode scanning, OCR,
+ * Retail shelf recognition, and Product recognition. The state is updated based on user
+ * interactions and model outputs, allowing the UI to reactively display the current status of the
+ * application. This class is used to manage the state of the application and facilitate
+ * communication between the UI and the underlying models.
  */
 
 val PROFILING = "Profiling"
@@ -188,11 +193,6 @@ data class AIDataCaptureDemoUiState(
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
     var selectedToteId: String? = null,
-    var allCustomers: List<CustomerInfo> = listOf(),
-    var selectedCustomer: CustomerInfo? = null,
-    var pickingFeedback: String? = null,
-    var lastScannedProduct: ProductInfo? = null,
-    var targetTotes: List<Pair<String, Int>> = listOf(), // Tote ID to Quantity
 
     // Choices
     var isBarcodeModelEnabled: Boolean = true,

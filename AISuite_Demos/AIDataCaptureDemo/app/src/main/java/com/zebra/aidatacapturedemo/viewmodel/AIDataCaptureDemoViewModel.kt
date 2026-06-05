@@ -1953,6 +1953,8 @@ class AIDataCaptureDemoViewModel(
             updateSelectedFilterType(filterType = FilterType.NONE)
         } else if (currentScreen == Screen.BarcodeFindFilterHome) {
             updateSelectedFilterType(filterType = FilterType.NONE)
+        } else if (currentScreen == Screen.BarcodeMapPicking) {
+            updateSelectedToteId(null)
         }
         setZoom(1.0f)
         navController.navigateUp()
@@ -2093,6 +2095,15 @@ class AIDataCaptureDemoViewModel(
             )
         }
     }
+
+    fun updateSelectedToteId(id: String?) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                selectedToteId = id
+            )
+        }
+    }
+
     fun clearOcrBarcodeCaptureSession(){
         updateOcrBarcodeCaptureSessionIndex(0)
         updateOcrBarcodeCaptureSessionCount(0)
