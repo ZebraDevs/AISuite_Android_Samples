@@ -27,8 +27,19 @@ fun CustomerInformationScreen(
     navController: NavController,
     @Suppress("UNUSED_PARAMETER") innerPadding: PaddingValues
 ) {
-    // Generate data once
-    val customers = remember { CustomerDataGenerator.generateCustomers() }
+    val uiState by viewModel.uiState.collectAsState()
+    val availableToteLabels = remember(uiState.barcodeLabels) {
+        uiState.barcodeLabels.values.distinct().sorted()
+    }
+
+    // Generate data once using detected tote labels
+    val customers = remember(availableToteLabels) {
+        if (availableToteLabels.isNotEmpty()) {
+            CustomerDataGenerator.generateCustomers(availableToteLabels)
+        } else {
+            CustomerDataGenerator.generateCustomers()
+        }
+    }
     
     // Store in ViewModel so we can access it during scanning
     LaunchedEffect(customers) {
