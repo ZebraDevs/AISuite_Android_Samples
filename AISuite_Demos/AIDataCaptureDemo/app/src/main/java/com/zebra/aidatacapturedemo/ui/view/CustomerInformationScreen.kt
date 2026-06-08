@@ -107,6 +107,10 @@ fun CustomerInformationScreen(
                     Text("Proceed to Scanning", color = Color.White)
                 }
             }
+
+            item {
+                Spacer(modifier = Modifier.height(48.dp))
+            }
         }
     }
 }
