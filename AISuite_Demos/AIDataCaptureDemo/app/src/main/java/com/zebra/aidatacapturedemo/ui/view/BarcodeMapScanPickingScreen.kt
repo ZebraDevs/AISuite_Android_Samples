@@ -20,7 +20,7 @@ import androidx.navigation.NavController
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
 @Composable
-fun BarcodeScanPickingScreen(
+fun BarcodeMapScanPickingScreen(
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavController,
     @Suppress("UNUSED_PARAMETER") innerPadding: PaddingValues
@@ -128,12 +128,14 @@ fun BarcodeScanPickingScreen(
                         uiState.targetTotes.forEach { pair ->
                             val toteId = pair.first
                             val qty = pair.second
+                            val label = uiState.barcodeLabels[toteId]
+                            val displayText = if (label != null) "Tote $label ($toteId)" else "Tote $toteId"
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = "Tote $toteId", color = Color.Black, fontSize = 18.sp)
+                                Text(text = displayText, color = Color.Black, fontSize = 18.sp)
                                 Text(text = "Qty: $qty", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             }
                         }

@@ -122,13 +122,17 @@ fun BarcodeMapResultScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                DrawAbstractBarcodeMap(
-                    uiState = uiState,
-                    scaler = scaler,
-                    gapX = gapX,
-                    gapY = gapY,
-                    displayMetricsDensity = displayMetricsDensity
-                )
+                if (uiState.barcodeResults.isEmpty()) {
+                    CircularProgressIndicator(color = Color(0xFF006D39))
+                } else {
+                    DrawAbstractBarcodeMap(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity
+                    )
+                }
             }
 
             // SUMMARY OVERLAY
@@ -248,11 +252,14 @@ private fun DrawAbstractBarcodeMap(
 
                 val scaledLeft = (scaler * left) + gapX
                 val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth)
-                val scaledHeight = (scaler * avgHeight)
+                val scaledWidth = (scaler * bBoxWidth) * 1.2f
+                val scaledHeight = (scaler * avgHeight) * 1.2f
+
+                val label = uiState.barcodeLabels[barcode.text] ?: ""
 
                 drawAbstractUnit(
-                    id = barcode.text,
+                    barcode = barcode.text,
+                    label = label,
                     left = scaledLeft,
                     top = scaledTop,
                     width = scaledWidth,
@@ -268,7 +275,8 @@ private fun DrawAbstractBarcodeMap(
 }
 
 private fun DrawScope.drawAbstractUnit(
-    id: String,
+    barcode: String,
+    label: String,
     left: Float,
     top: Float,
     width: Float,
@@ -294,10 +302,34 @@ private fun DrawScope.drawAbstractUnit(
         style = Stroke(width = 2f * density)
     )
 
-    // 3. Center-aligned ID text
+    // 3. Draw label badge above the box
+    if (label.isNotEmpty()) {
+        val radius = 12f * density
+        val centerX = left + width / 2
+        val centerY = top - radius - 2f * density // Positioned above the box
+        
+        drawCircle(
+            color = Color(0xFF006D39),
+            radius = radius,
+            center = Offset(centerX, centerY)
+        )
+        
+        val labelPaint = android.graphics.Paint().apply {
+            this.color = android.graphics.Color.WHITE
+            this.textSize = 10f * density
+            this.textAlign = android.graphics.Paint.Align.CENTER
+            this.isAntiAlias = true
+            this.isFakeBoldText = true
+        }
+        
+        val labelY = centerY - (labelPaint.fontMetrics.ascent + labelPaint.fontMetrics.descent) / 2
+        drawContext.canvas.nativeCanvas.drawText(label, centerX, labelY, labelPaint)
+    }
+
+    // 4. Center-aligned Barcode text
     val paint = android.graphics.Paint().apply {
         this.color = android.graphics.Color.BLACK
-        this.textSize = 9f * density
+        this.textSize = 11f * density
         this.textAlign = android.graphics.Paint.Align.CENTER
         this.isAntiAlias = true
         this.isFakeBoldText = true
@@ -307,8 +339,8 @@ private fun DrawScope.drawAbstractUnit(
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
     // Only draw ID if it fits within the simplified shape
-    if (width > 25 * density) {
-        val displayId = if (id.length > 5) id.takeLast(5) else id
+    if (width > 20 * density) {
+        val displayId = if (barcode.length > 5) barcode.takeLast(5) else barcode
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }

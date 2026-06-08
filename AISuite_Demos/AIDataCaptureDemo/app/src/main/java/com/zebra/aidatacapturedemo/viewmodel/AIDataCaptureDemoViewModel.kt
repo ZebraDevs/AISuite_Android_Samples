@@ -88,6 +88,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
+import kotlin.math.abs
 import kotlin.coroutines.resumeWithException
 
 private const val TAG = "AIDataCaptureDemoViewModel"
@@ -1784,9 +1785,11 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun updateBarcodeResultData(results: List<ResultData>) {
+        val labels = calculateBarcodeLabels(results)
         _uiState.update { it ->
             it.copy(
-                barcodeResults = results
+                barcodeResults = results,
+                barcodeLabels = labels
             )
         }
 
@@ -1794,6 +1797,49 @@ class AIDataCaptureDemoViewModel(
         if (uiState.value.selectedCustomer != null && results.isNotEmpty()) {
             handlePickingScan(results)
         }
+    }
+
+    private fun calculateBarcodeLabels(results: List<ResultData>): Map<String, String> {
+        if (results.isEmpty()) return emptyMap()
+
+        val sortedByY = results.sortedBy { it.boundingBox.centerY() }
+        val rows = mutableListOf<MutableList<ResultData>>()
+        
+        var currentRow = mutableListOf<ResultData>()
+        currentRow.add(sortedByY[0])
+        rows.add(currentRow)
+
+        for (i in 1 until sortedByY.size) {
+            val prev = sortedByY[i - 1]
+            val curr = sortedByY[i]
+            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
+                currentRow.add(curr)
+            } else {
+                currentRow = mutableListOf<ResultData>()
+                currentRow.add(curr)
+                rows.add(currentRow)
+            }
+        }
+
+        val labelMap = mutableMapOf<String, String>()
+        var labelCounter = 0
+        rows.forEach { row ->
+            val sortedRow = row.sortedBy { it.boundingBox.left }
+            sortedRow.forEach { barcode ->
+                labelMap[barcode.text] = getLabelFromIndex(labelCounter++)
+            }
+        }
+        return labelMap
+    }
+
+    private fun getLabelFromIndex(index: Int): String {
+        var n = index
+        val sb = StringBuilder()
+        do {
+            sb.append(('A' + (n % 26)))
+            n = n / 26 - 1
+        } while (n >= 0)
+        return sb.reverse().toString()
     }
 
     private fun handlePickingScan(results: List<ResultData>) {
