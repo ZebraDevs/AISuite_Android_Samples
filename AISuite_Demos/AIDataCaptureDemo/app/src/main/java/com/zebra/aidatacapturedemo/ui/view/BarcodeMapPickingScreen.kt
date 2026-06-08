@@ -48,16 +48,15 @@ fun BarcodeMapPickingScreen(
     }
     viewModel.updateAppBarTitle("Item Picking")
 
-    // Logic to "decide which tote": 
-    // In this demo, if a barcode is detected, we match it to a tote.
+    // Removed automatic selectedToteId update to prevent overwriting "Show on Map" target
+    /*
     LaunchedEffect(uiState.barcodeResults) {
         if (uiState.barcodeResults.isNotEmpty()) {
             val detectedText = uiState.barcodeResults.first().text
-            // In a real app, we'd lookup which tote 'detectedText' belongs to.
-            // For this demo, let's just use the first detected one as the target
             viewModel.updateSelectedToteId(detectedText)
         }
     }
+    */
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 1. Full screen Abstract Map (The "Digital Twin")
@@ -197,12 +196,14 @@ private fun DrawAbstractBarcodeMapLayer(
 
                 val scaledLeft = (scaler * left) + gapX
                 val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth) * 1.2f
-                val scaledHeight = (scaler * avgHeight) * 1.2f
+                val scaledWidth = (scaler * bBoxWidth) * 1.5f
+                val scaledHeight = (scaler * avgHeight) * 1.5f
 
-                // Highlight if it's the selected tote
-                val isTarget = uiState.selectedToteId == barcode.text
+                // Use the pre-calculated labels from the ViewModel
                 val label = uiState.barcodeLabels[barcode.text] ?: ""
+                
+                // Highlight if this box's label matches the selected tote (A, B, C...)
+                val isTarget = uiState.selectedToteId == label
 
                 drawAbstractPickingUnit(
                     barcode = barcode.text,

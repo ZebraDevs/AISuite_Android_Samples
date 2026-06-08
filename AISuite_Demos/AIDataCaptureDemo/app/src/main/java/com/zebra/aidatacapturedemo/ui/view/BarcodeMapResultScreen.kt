@@ -252,9 +252,10 @@ private fun DrawAbstractBarcodeMap(
 
                 val scaledLeft = (scaler * left) + gapX
                 val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth) * 1.2f
-                val scaledHeight = (scaler * avgHeight) * 1.2f
+                val scaledWidth = (scaler * bBoxWidth) * 1.5f
+                val scaledHeight = (scaler * avgHeight) * 1.5f
 
+                // Use pre-calculated labels
                 val label = uiState.barcodeLabels[barcode.text] ?: ""
 
                 drawAbstractUnit(
