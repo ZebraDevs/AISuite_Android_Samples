@@ -294,6 +294,8 @@
     <string name="setting_screen_vibrate_when_configured_barcodes_are_found">Vibrate when configured barcodes are found</string>
     <string name="setting_screen_show_all_detected_barcodes">Show all detected barcodes</string>
     <string name="setting_screen_highlight_barcodes_that_have_been_detected_but_not_decoded">Highlight barcodes that have been detected but not decoded</string>
+    <string name="setting_screen_show_no_action_barcodes">Hide icon overlay for barcodes without an action</string>
+    <string name="setting_screen_hide_icon_overlay_for_barcodes_without_an_action">Hide icon overlay for barcodes without an action</string>
 
 
 
