@@ -194,6 +194,7 @@ data class AIDataCaptureDemoUiState(
     var pickingFeedback: String? = null,
     var lastScannedProduct: ProductInfo? = null,
     var targetTotes: List<Pair<String, Int>> = listOf(), // Tote ID to Quantity
+    var pickedProductBarcodes: Set<String> = emptySet(),
 
     // Choices
     var isBarcodeModelEnabled: Boolean = true,
