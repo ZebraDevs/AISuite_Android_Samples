@@ -442,7 +442,7 @@ fun CharacterMatchFilterScreen(
             // Save Button
             Button(
                 onClick = {
-                    viewModel.updateToastMessage("Save was successful.")
+                    viewModel.updateToastMessage("Save was successfully.")
 
                     if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
                         val defaultOcrFilterData = uiState.ocrFilterData
