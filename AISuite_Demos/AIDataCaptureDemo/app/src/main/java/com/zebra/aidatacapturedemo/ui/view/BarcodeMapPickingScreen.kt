@@ -58,7 +58,10 @@ fun BarcodeMapPickingScreen(
     }
     */
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .padding(activityInnerPadding)
+    ) {
         // 1. Full screen Abstract Map (The "Digital Twin")
         AbstractMapLayer(uiState)
 
@@ -68,7 +71,8 @@ fun BarcodeMapPickingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 100.dp),
+                    .background(Color(0xFFF0F2F5)) // Barrier background
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Text(
@@ -90,7 +94,8 @@ fun BarcodeMapPickingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 100.dp),
+                    .background(Color(0xFFF0F2F5)) // Barrier background
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Text(
@@ -101,7 +106,7 @@ fun BarcodeMapPickingScreen(
                         color = Color.Black
                     ),
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                        .background(Color.White, RoundedCornerShape(8.dp)) // Fully opaque white
                         .padding(16.dp)
                 )
             }
@@ -202,11 +207,16 @@ private fun DrawAbstractBarcodeMapLayer(
                 // Use the pre-calculated labels from the ViewModel
                 val label = uiState.barcodeLabels[barcode.text] ?: ""
                 
-                // Highlight if this box's label matches the selected tote (A, B, C...)
-                val isTarget = uiState.selectedToteId == label
+                // Find quantity if this tote is one of the targets for the current product
+                val qty = uiState.targetTotes.find { it.first == label }?.second
+                
+                // Highlight if this box's label matches the selected tote OR it's a target
+                val isTarget = uiState.selectedToteId == label || qty != null
+                
+                val displayText = if (qty != null) "QTY: $qty" else barcode.text
 
                 drawAbstractPickingUnit(
-                    barcode = barcode.text,
+                    barcode = displayText,
                     label = label,
                     left = scaledLeft,
                     top = scaledTop,
@@ -285,7 +295,7 @@ private fun DrawScope.drawAbstractPickingUnit(
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
     if (width > 20 * density) {
-        val displayId = if (barcode.length > 5) barcode.takeLast(5) else barcode
+        val displayId = if (barcode.startsWith("QTY:")) barcode else if (barcode.length > 5) barcode.takeLast(5) else barcode
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }
