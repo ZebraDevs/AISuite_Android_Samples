@@ -24,8 +24,8 @@ object CustomerDataGenerator {
         ProductInfo("Opbergbox met klemdeksel", 7.49, "3205800")
     )
 
-    fun generateCustomers(): List<CustomerInfo> {
-        return listOf("A", "B", "C", "D", "E", "F").map { id ->
+    fun generateCustomers(toteIds: List<String> = listOf("A", "B", "C", "D", "E", "F")): List<CustomerInfo> {
+        return toteIds.map { id ->
             val numProducts = Random.nextInt(1, 4)
             val selectedProducts = availableProducts.shuffled().take(numProducts).map { 
                 it.copy(quantity = Random.nextInt(1, 6))
