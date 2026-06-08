@@ -54,12 +54,13 @@ fun CustomerInformationScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
-            .padding(top = 40.dp) // Moved down to avoid being blocked
+            .padding(innerPadding)
     ) {
-        // Title with bottom border
+        // Title with bottom border and solid barrier background
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(Color(0xFFF8F9FA))
                 .padding(horizontal = 16.dp)
                 .drawBehind {
                     val borderSize = 1.dp.toPx()

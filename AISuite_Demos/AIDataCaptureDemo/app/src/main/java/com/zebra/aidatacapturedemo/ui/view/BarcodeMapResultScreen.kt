@@ -111,10 +111,7 @@ fun BarcodeMapResultScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = displayStatusBarHeightInDp,
-                    bottom = displayNavigationBarHeightInDp
-                )
+                .padding(activityInnerPadding)
                 .background(color = Color(0xFFF0F2F5)) // Clean modern background
         ) {
             // ABSTRACT MAP CANVAS
@@ -139,7 +136,8 @@ fun BarcodeMapResultScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 24.dp),
+                    .background(Color(0xFFF0F2F5)) // Solid background to match screen
+                    .padding(vertical = 16.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

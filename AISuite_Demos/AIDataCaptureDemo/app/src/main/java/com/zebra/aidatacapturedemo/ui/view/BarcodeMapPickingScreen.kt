@@ -58,7 +58,10 @@ fun BarcodeMapPickingScreen(
     }
     */
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .padding(activityInnerPadding)
+    ) {
         // 1. Full screen Abstract Map (The "Digital Twin")
         AbstractMapLayer(uiState)
 
@@ -68,7 +71,8 @@ fun BarcodeMapPickingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 100.dp),
+                    .background(Color(0xFFF0F2F5)) // Barrier background
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Text(
@@ -90,7 +94,8 @@ fun BarcodeMapPickingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 100.dp),
+                    .background(Color(0xFFF0F2F5)) // Barrier background
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Text(
@@ -101,7 +106,7 @@ fun BarcodeMapPickingScreen(
                         color = Color.Black
                     ),
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                        .background(Color.White, RoundedCornerShape(8.dp)) // Fully opaque white
                         .padding(16.dp)
                 )
             }
