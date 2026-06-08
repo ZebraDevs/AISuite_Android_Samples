@@ -137,7 +137,7 @@ fun NavigationStack(
         }
         composable(route = Screen.BarcodeScanPicking.route) {
             viewModel.updateActiveScreenData(activeScreen = Screen.BarcodeScanPicking)
-            BarcodeScanPickingScreen(
+            BarcodeMapScanPickingScreen(
                 viewModel = viewModel,
                 navController = navController,
                 innerPadding = innerPadding

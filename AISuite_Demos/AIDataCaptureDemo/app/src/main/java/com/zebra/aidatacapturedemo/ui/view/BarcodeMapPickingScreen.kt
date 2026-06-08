@@ -197,14 +197,16 @@ private fun DrawAbstractBarcodeMapLayer(
 
                 val scaledLeft = (scaler * left) + gapX
                 val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth)
-                val scaledHeight = (scaler * avgHeight)
+                val scaledWidth = (scaler * bBoxWidth) * 1.2f
+                val scaledHeight = (scaler * avgHeight) * 1.2f
 
                 // Highlight if it's the selected tote
                 val isTarget = uiState.selectedToteId == barcode.text
+                val label = uiState.barcodeLabels[barcode.text] ?: ""
 
                 drawAbstractPickingUnit(
-                    id = barcode.text,
+                    barcode = barcode.text,
+                    label = label,
                     left = scaledLeft,
                     top = scaledTop,
                     width = scaledWidth,
@@ -220,7 +222,8 @@ private fun DrawAbstractBarcodeMapLayer(
 }
 
 private fun DrawScope.drawAbstractPickingUnit(
-    id: String,
+    barcode: String,
+    label: String,
     left: Float,
     top: Float,
     width: Float,
@@ -245,9 +248,33 @@ private fun DrawScope.drawAbstractPickingUnit(
         style = Stroke(width = (if (isTarget) 4f else 2f) * density)
     )
 
+    // Draw label badge above the box
+    if (label.isNotEmpty()) {
+        val radius = 12f * density
+        val centerX = left + width / 2
+        val centerY = top - radius - 2f * density // Positioned above the box
+
+        drawCircle(
+            color = if (isTarget) Color.Red else Color(0xFF006D39),
+            radius = radius,
+            center = Offset(centerX, centerY)
+        )
+
+        val labelPaint = android.graphics.Paint().apply {
+            this.color = android.graphics.Color.WHITE
+            this.textSize = 10f * density
+            this.textAlign = android.graphics.Paint.Align.CENTER
+            this.isAntiAlias = true
+            this.isFakeBoldText = true
+        }
+
+        val labelY = centerY - (labelPaint.fontMetrics.ascent + labelPaint.fontMetrics.descent) / 2
+        drawContext.canvas.nativeCanvas.drawText(label, centerX, labelY, labelPaint)
+    }
+
     val paint = android.graphics.Paint().apply {
         this.color = if (isTarget) android.graphics.Color.WHITE else android.graphics.Color.BLACK
-        this.textSize = (if (isTarget) 12f else 9f) * density
+        this.textSize = (if (isTarget) 14f else 11f) * density
         this.textAlign = android.graphics.Paint.Align.CENTER
         this.isAntiAlias = true
         this.isFakeBoldText = true
@@ -256,8 +283,8 @@ private fun DrawScope.drawAbstractPickingUnit(
     val textX = left + width / 2
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
-    if (width > 25 * density) {
-        val displayId = if (id.length > 7) id.take(5) + ".." else id
+    if (width > 20 * density) {
+        val displayId = if (barcode.length > 8) barcode.take(6) + ".." else barcode
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }

@@ -187,6 +187,7 @@ data class AIDataCaptureDemoUiState(
     var productResults: MutableList<ProductData> = mutableListOf(),
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
+    var barcodeLabels: Map<String, String> = emptyMap(),
     var selectedToteId: String? = null,
     var allCustomers: List<CustomerInfo> = listOf(),
     var selectedCustomer: CustomerInfo? = null,
