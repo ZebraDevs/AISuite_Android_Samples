@@ -396,7 +396,8 @@ data class ButtonData(
     val color: Color,
     val alpha: Float = 1.0F,
     val enabled: Boolean,
-    val onButtonClick: () -> Unit
+    val onButtonClick: () -> Unit,
+    val titleString: String? = null
 )
 
 @Composable
@@ -427,7 +428,7 @@ fun ButtonOption(buttonData: ButtonData) {
                 }
         ) {
             Text(
-                text = stringResource(buttonData.titleId),
+                text = buttonData.titleString ?: stringResource(buttonData.titleId),
                 modifier = Modifier
                     .wrapContentWidth()
                     .wrapContentHeight(),
@@ -477,7 +478,7 @@ fun ButtonWithIconOption(buttonData: ButtonData, drawableRes: Int) {
                 tint = Color.White
             )
             Text(
-                text = stringResource(buttonData.titleId),
+                text = buttonData.titleString ?: stringResource(buttonData.titleId),
                 modifier = Modifier
                     .wrapContentWidth()
                     .wrapContentHeight(),
@@ -686,7 +687,7 @@ fun SmallScreenButtonOption(buttonData: ButtonData) {
                 }
         ) {
             Text(
-                text = stringResource(buttonData.titleId),
+                text = buttonData.titleString ?: stringResource(buttonData.titleId),
                 modifier = Modifier
                     .wrapContentWidth()
                     .wrapContentHeight(),

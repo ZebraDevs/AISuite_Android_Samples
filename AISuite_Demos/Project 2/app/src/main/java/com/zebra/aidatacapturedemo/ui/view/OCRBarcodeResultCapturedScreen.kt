@@ -52,6 +52,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.model.ExpirationDateParser
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.saveOcrBarcodeCaptureSessionDataToPrefs
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlin.math.min
@@ -160,7 +161,7 @@ fun OCRBarcodeResultCapturedScreen(
                 )
                 val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
 
-                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 2) && !expFound) {
+                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 2)) {
                     // Draw OCR results
                     DrawOCRResultWithTextSizeScaling(
                         uiState = uiState,
@@ -172,7 +173,7 @@ fun OCRBarcodeResultCapturedScreen(
                         displayTotalWidthInPx = displayTotalWidthInPx
                     )
                 }
-                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 1) && !expFound) {
+                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 1)) {
                     // Draw Barcode results
                     DrawBarcodeResultOnCanvas(
                         uiState = uiState,
@@ -184,8 +185,13 @@ fun OCRBarcodeResultCapturedScreen(
                 }
 
                 // Expiration Date Button and Text
-                var showExpMessage by remember { mutableStateOf(false) }
                 if (expFound) {
+                    val status = ExpirationDateParser.getDateStatus(uiState.extractedExpirationDate ?: "")
+                    val buttonColor = when (status) {
+                        ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39) // Dark Green
+                        ExpirationDateParser.DateStatus.RED -> Color.Red
+                        else -> Color(0xFF007AFE)
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -201,25 +207,14 @@ fun OCRBarcodeResultCapturedScreen(
                             ButtonWithIconOption(
                                 ButtonData(
                                     titleId = R.string.expiration_date,
-                                    color = Variables.mainPrimary,
+                                    color = buttonColor,
                                     alpha = 1f,
                                     enabled = true,
-                                    onButtonClick = { showExpMessage = !showExpMessage }
+                                    onButtonClick = { },
+                                    titleString = uiState.extractedExpirationDate
                                 ),
                                 drawableRes = R.drawable.ic_check
                             )
-
-                            if (showExpMessage) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "expiration date is: ${uiState.extractedExpirationDate}",
-                                    style = TextStyle(
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White
-                                    )
-                                )
-                            }
                         }
                     }
                 }

@@ -8,7 +8,7 @@ import java.util.regex.Pattern
  */
 object ExpirationDateParser {
 
-    private val KEYWORDS = listOf(
+    val KEYWORDS = listOf(
         "EXP", "EXPIRY", "EXPIRES", "EXPIRATION DATE",
         "BEST BEFORE", "BEST BY", "BB",
         "MA", "MFG"
@@ -17,14 +17,67 @@ object ExpirationDateParser {
     private val EXP_KEYWORDS = listOf("EXP", "EXPIRY", "EXPIRES", "EXPIRATION DATE")
 
     // Regex for various date formats:
-    // 1. MM/YY or MM/YYYY (e.g. 12/26, 12/2026)
+    // 1. MM/YY or MM/YYYY (e.g. 12/26, 12/2026) - allows optional spaces around separator
     // 2. MM-YY or MM-YYYY (e.g. 12-26, 12-2026)
     // 3. MON YYYY (e.g. JAN 2026)
     // 4. YYYY-MM-DD (e.g. 2026-12-31)
     private const val DATE_PATTERN_STR = 
-        """(\b\d{1,2}[/-]\d{2,4}\b|\b(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b)"""
+        """(\d{1,2}\s*[/-]\s*\d{2,4}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+\d{4}|\d{4}\s*-\s*\d{2}\s*-\s*\d{2})"""
 
     private val KEYWORD_PATTERN_STR = KEYWORDS.joinToString("|") { Pattern.quote(it) }
+
+    enum class DateStatus {
+        GREEN, RED, NONE
+    }
+
+    /**
+     * Determines if the date in the text is >= 06/2026 (Green) or < 06/2026 (Red).
+     */
+    fun getDateStatus(ocrText: String): DateStatus {
+        val dateRegex = Regex(DATE_PATTERN_STR, RegexOption.IGNORE_CASE)
+        val match = dateRegex.find(ocrText) ?: return DateStatus.NONE
+        val dateStr = match.value
+
+        try {
+            var month = 0
+            var year = 0
+
+            // 1. MM/YY or MM/YYYY or MM-YY or MM-YYYY
+            val slashRegex = Regex("""(\d{1,2})\s*[/-]\s*(\d{2,4})""")
+            val slashMatch = slashRegex.find(dateStr)
+            if (slashMatch != null) {
+                month = slashMatch.groups[1]?.value?.toInt() ?: 0
+                val yearStr = slashMatch.groups[2]?.value ?: ""
+                year = if (yearStr.length == 2) 2000 + yearStr.toInt() else yearStr.toInt()
+            } else {
+                // 2. MON YYYY
+                val monRegex = Regex("""(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})""", RegexOption.IGNORE_CASE)
+                val monMatch = monRegex.find(dateStr)
+                if (monMatch != null) {
+                    val months = listOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+                    month = months.indexOf(monMatch.groups[1]?.value?.uppercase()) + 1
+                    year = monMatch.groups[2]?.value?.toInt() ?: 0
+                } else {
+                    // 3. YYYY-MM-DD
+                    val isoRegex = Regex("""(\d{4})\s*-\s*(\d{2})\s*-\s*(\d{2})""")
+                    val isoMatch = isoRegex.find(dateStr)
+                    if (isoMatch != null) {
+                        year = isoMatch.groups[1]?.value?.toInt() ?: 0
+                        month = isoMatch.groups[2]?.value?.toInt() ?: 0
+                    }
+                }
+            }
+
+            if (year > 2026) return DateStatus.GREEN
+            if (year == 2026 && month >= 6) return DateStatus.GREEN
+            if (year > 0) return DateStatus.RED
+
+        } catch (e: Exception) {
+            // Ignore parsing errors
+        }
+
+        return DateStatus.NONE
+    }
 
     /**
      * Extracts the expiration date from the given OCR text.
@@ -35,8 +88,8 @@ object ExpirationDateParser {
     fun extractExpirationDate(ocrText: String): String {
         if (ocrText.isBlank()) return "Not found"
 
-        // Pattern to find keyword followed by optional separator (: or space) and then the date
-        val regex = Regex("(?i)($KEYWORD_PATTERN_STR)[:\\s]*$DATE_PATTERN_STR", RegexOption.IGNORE_CASE)
+        // Pattern to find keyword followed by optional separator (., :, or space) and then the date
+        val regex = Regex("(?i)($KEYWORD_PATTERN_STR)[.:\\s]*$DATE_PATTERN_STR", RegexOption.IGNORE_CASE)
 
         val matches = regex.findAll(ocrText)
         val results = mutableListOf<Pair<String, String>>()
@@ -56,7 +109,8 @@ object ExpirationDateParser {
             EXP_KEYWORDS.any { kw.contains(it) } 
         }
 
-        return expResult?.second ?: results.first().second
+        val finalDate = expResult?.second ?: results.first().second
+        return "The expiration date is $finalDate"
     }
 
     /**
@@ -69,7 +123,7 @@ object ExpirationDateParser {
         val foundDates = mutableListOf<Pair<String, String>>()
         val keywordRegex = Regex("(?i)($KEYWORD_PATTERN_STR)", RegexOption.IGNORE_CASE)
         val dateRegex = Regex(DATE_PATTERN_STR, RegexOption.IGNORE_CASE)
-        val combinedRegex = Regex("(?i)($KEYWORD_PATTERN_STR)[:\\s]*$DATE_PATTERN_STR", RegexOption.IGNORE_CASE)
+        val combinedRegex = Regex("(?i)($KEYWORD_PATTERN_STR)[.:\\s]*$DATE_PATTERN_STR", RegexOption.IGNORE_CASE)
 
         for (i in results.indices) {
             val text = results[i].text.trim()
@@ -93,13 +147,16 @@ object ExpirationDateParser {
         }
 
         if (foundDates.isEmpty()) {
-            return extractExpirationDate(results.joinToString(" ") { it.text })
+            val result = extractExpirationDate(results.joinToString(" ") { it.text })
+            return if (result == "Not found") "Not found" else result
         }
 
+        // Filter for EXP keywords specifically if needed, but the current logic handles priority
         val expResult = foundDates.find { (kw, _) -> 
-            EXP_KEYWORDS.any { kw.contains(it) } 
+            kw.contains("EXP") 
         }
 
-        return expResult?.second ?: foundDates.first().second
+        val finalDate = expResult?.second ?: foundDates.first().second
+        return "The expiration date is $finalDate"
     }
 }

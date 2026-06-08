@@ -63,6 +63,7 @@ import com.zebra.aidatacapturedemo.data.RetailShelfSettings
 import com.zebra.aidatacapturedemo.data.TextOcrSettings
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.model.BarcodeAnalyzer
+import com.zebra.aidatacapturedemo.model.ExpirationDateParser
 import com.zebra.aidatacapturedemo.model.FileUtils
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.clearOcrBarcodeCaptureSessionPrefs
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.databaseFile
@@ -216,7 +217,7 @@ class AIDataCaptureDemoViewModel(
                         barcodeAnalyzer?.initialize()
                     }
                 }
-                UsecaseState.OCR.value -> {
+                UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                     ocrAnalyzer = TextOCRAnalyzer(
                         uiState = uiState,
                         viewModel = this@AIDataCaptureDemoViewModel
@@ -254,7 +255,7 @@ class AIDataCaptureDemoViewModel(
                 barcodeAnalyzer?.deinitialize()
                 barcodeAnalyzer = null
             }
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                 ocrAnalyzer?.deinitialize()
                 ocrAnalyzer = null
             }
@@ -347,6 +348,7 @@ class AIDataCaptureDemoViewModel(
                 // Bind an additional Capture Use Case only for Product Recognition UsecaseState
                 camera = if ((uiState.value.usecaseSelected == UsecaseState.Product.value) ||
                     (uiState.value.usecaseSelected == UsecaseState.BarcodeMap.value) ||
+                    (uiState.value.usecaseSelected == UsecaseState.Expiration.value) ||
                     ((uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.value.isCaptureOrLiveEnabled == 0))){
                     // HIGH-RES CAPTURE CASE
                     imageCaptureResolutionSelector = ResolutionSelector.Builder()
@@ -571,7 +573,8 @@ class AIDataCaptureDemoViewModel(
     fun updateSelectedUsecase(usecase: String) {
         _uiState.update { currentState ->
             currentState.copy(
-                usecaseSelected = usecase
+                usecaseSelected = usecase,
+                isExpirationMode = (usecase == UsecaseState.Expiration.value)
             )
         }
     }
@@ -1427,7 +1430,7 @@ class AIDataCaptureDemoViewModel(
                     analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
                 }
             }
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                 ocrAnalyzer?.let {
                     genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
                     val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
@@ -1890,12 +1893,32 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+    fun setExpirationMode(enabled: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isExpirationMode = enabled
+            )
+        }
+    }
+
     fun updateOcrResultData(results: List<ResultData>?) {
-        val ocrResults = results ?: listOf()
+        val allResults = results ?: listOf()
+        val extractedExpDate = ExpirationDateParser.extractFromResults(allResults)
+
+        var filteredResults = allResults
+        if (uiState.value.isExpirationMode) {
+            // Keep items that contain keywords OR look like they have a date
+            val datePattern = Regex("""\d{1,2}\s*[/-]\s*\d{2,4}""")
+            filteredResults = allResults.filter { item ->
+                val upperText = item.text.uppercase()
+                ExpirationDateParser.KEYWORDS.any { upperText.contains(it) } || datePattern.containsMatchIn(item.text)
+            }
+        }
+
         _uiState.update { textResults ->
             textResults.copy(
-                ocrResults = ocrResults,
-                extractedExpirationDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.extractFromResults(ocrResults)
+                ocrResults = filteredResults,
+                extractedExpirationDate = extractedExpDate
             )
         }
     }
@@ -2000,7 +2023,7 @@ class AIDataCaptureDemoViewModel(
 
             }
 
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
 
             }
         }
@@ -2024,7 +2047,7 @@ class AIDataCaptureDemoViewModel(
 
             }
 
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
 
             }
         }
@@ -2059,8 +2082,8 @@ class AIDataCaptureDemoViewModel(
                 }
             }
 
-            UsecaseState.OCR.value -> {
-
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
+                ocrAnalyzer!!.executeHighRes(highResBitmap)
             }
         }
     }

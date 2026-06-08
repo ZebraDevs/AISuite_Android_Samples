@@ -104,6 +104,10 @@ fun getIconMainColor(demo: String): Color {
             mainColor = mainIcon1
         }
 
+        UsecaseState.Expiration.value -> {
+            mainColor = mainIcon1
+        }
+
         UsecaseState.Product.value -> {
             mainColor = mainIcon1
         }
@@ -131,6 +135,10 @@ fun getIconSecondaryColor(demo: String): Color {
             secondaryColor = secondaryIcon1
         }
 
+        UsecaseState.Expiration.value -> {
+            secondaryColor = secondaryIcon1
+        }
+
         UsecaseState.Product.value -> {
             secondaryColor = secondaryIcon1
         }
@@ -155,6 +163,10 @@ fun getIconId(demo: String): Int? {
 
         UsecaseState.OCRBarcodeFind.value -> {
             iconId = R.drawable.ocr_finder_icon
+        }
+
+        UsecaseState.Expiration.value -> {
+            iconId = R.drawable.ocr_icon
         }
 
         UsecaseState.Product.value -> {
@@ -187,6 +199,10 @@ fun getSettingHeading(demo: String): Int? {
             settingsString = R.string.ocr_barcode_find_settings
         }
 
+        UsecaseState.Expiration.value -> {
+            settingsString = R.string.text_ocr_recognizer_settings
+        }
+
         UsecaseState.Product.value -> {
             settingsString = R.string.productrecognition_settings
         }
@@ -215,6 +231,10 @@ fun getDemoTitle(demo: String): Int? {
 
         UsecaseState.OCRBarcodeFind.value -> {
             settingsString = R.string.ocr_barcode_find
+        }
+
+        UsecaseState.Expiration.value -> {
+            settingsString = R.string.expiration_demo
         }
 
         UsecaseState.Product.value -> {
@@ -275,6 +295,7 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
                 }
 
                 UsecaseState.OCR.value,
+                UsecaseState.Expiration.value,
                 UsecaseState.OCRBarcodeFind.value -> {
                     when (value) {
                         0 -> {
@@ -326,6 +347,7 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
                 }
 
                 UsecaseState.OCR.value,
+                UsecaseState.Expiration.value,
                 UsecaseState.OCRBarcodeFind.value -> {
                     when (value) {
                         0 -> {

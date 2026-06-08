@@ -75,6 +75,7 @@ import com.zebra.aidatacapturedemo.data.AdvancedFilterOption
 import com.zebra.aidatacapturedemo.data.CharacterMatchFilterOption
 import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
 import com.zebra.aidatacapturedemo.data.UsecaseState
+import com.zebra.aidatacapturedemo.model.ExpirationDateParser
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.min
@@ -100,7 +101,6 @@ fun CameraPreviewScreen(
     activityLifecycle: Lifecycle
 ) {
     val uiState = viewModel.uiState.collectAsState().value
-    var showExpMessage = remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var showInfo = remember { mutableStateOf(true) }
     val analysisUseCaseCameraResolution = when (viewModel.getSelectedResolution()) {
@@ -162,7 +162,8 @@ fun CameraPreviewScreen(
                 viewModel.updateBarcodeResultData(results = listOf())
             }
 
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value,
+            UsecaseState.Expiration.value -> {
                 viewModel.updateOcrResultData(results = null)
             }
 
@@ -339,7 +340,7 @@ fun CameraPreviewScreen(
                 }
             }
 
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                 val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
                 if (!expFound) {
                     DrawOCRResult(
@@ -402,7 +403,18 @@ fun CameraPreviewScreen(
             }
 
             else -> {
-                TODO("Unhandled usecaseState received = $selectedDemo")
+                // If the above cases didn't match, check by string literal just in case
+                if (selectedDemo == "Expiration Date Parser") {
+                    DrawOCRResult(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity
+                    )
+                } else {
+                    TODO("Unhandled usecaseState received = $selectedDemo")
+                }
             }
         }
 
@@ -433,41 +445,37 @@ fun CameraPreviewScreen(
 
         // Expiration Date Button and Text (Live)
         if (uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found") {
+            val status = ExpirationDateParser.getDateStatus(uiState.extractedExpirationDate ?: "")
+            val buttonColor = when (status) {
+                ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39) // Dark Green
+                ExpirationDateParser.DateStatus.RED -> Color.Red
+                else -> Variables.mainPrimary
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(bottom = 100.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
-                Column(
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    ButtonWithIconOption(
-                        ButtonData(
-                            titleId = R.string.expiration_date,
-                            color = Variables.mainPrimary,
-                            alpha = 1f,
-                            enabled = true,
-                            onButtonClick = { showExpMessage.value = !showExpMessage.value }
-                        ),
-                        drawableRes = R.drawable.ic_check
-                    )
-
-                    if (showExpMessage.value) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "expiration date is: ${uiState.extractedExpirationDate}",
-                            style = TextStyle(
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
+                    Column(
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        ButtonWithIconOption(
+                            ButtonData(
+                                titleId = R.string.expiration_date,
+                                color = buttonColor,
+                                alpha = 1f,
+                                enabled = true,
+                                onButtonClick = { },
+                                titleString = uiState.extractedExpirationDate
+                            ),
+                            drawableRes = R.drawable.ic_check
                         )
                     }
-                }
             }
         }
     }
@@ -550,11 +558,21 @@ fun DrawOCRResult(
                 )
 
                 // Draw the border over the filled rectangle
+                var borderColor = Color(0xFFFF7B00)
+                if (uiState.isExpirationMode) {
+                    val status = ExpirationDateParser.getDateStatus(ocrResultData.text)
+                    borderColor = when (status) {
+                        ExpirationDateParser.DateStatus.GREEN -> Color.Green
+                        ExpirationDateParser.DateStatus.RED -> Color.Red
+                        else -> Color(0xFFFF7B00)
+                    }
+                }
+
                 drawRect(
-                    color = Color(0xFFFF7B00),
+                    color = borderColor,
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = (1f * displayMetricsDensity))
+                    style = Stroke(width = (4f * displayMetricsDensity))
                 )
 
                 // Prepare to draw the text
@@ -678,11 +696,21 @@ fun DrawOCRResultWithTextSizeScaling(
                 )
 
                 // Draw the border over the filled rectangle
+                var borderColor = Color(0xFFFF7B00)
+                if (uiState.isExpirationMode) {
+                    val status = ExpirationDateParser.getDateStatus(ocrResultData.text)
+                    borderColor = when (status) {
+                        ExpirationDateParser.DateStatus.GREEN -> Color.Green
+                        ExpirationDateParser.DateStatus.RED -> Color.Red
+                        else -> Color(0xFFFF7B00)
+                    }
+                }
+
                 drawRect(
-                    color = Color(0xFFFF7B00),
+                    color = borderColor,
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = (1f * displayMetricsDensity))
+                    style = Stroke(width = (4f * displayMetricsDensity))
                 )
 
                 // Prepare to draw the text
@@ -807,11 +835,21 @@ fun DrawOCRResultWithTextSizeScalingAndCheckMark(
                 )
 
                 // Draw the border over the filled rectangle
+                var borderColor = Color(0xFFFF7B00)
+                if (uiState.isExpirationMode) {
+                    val status = ExpirationDateParser.getDateStatus(ocrResultData.text)
+                    borderColor = when (status) {
+                        ExpirationDateParser.DateStatus.GREEN -> Color.Green
+                        ExpirationDateParser.DateStatus.RED -> Color.Red
+                        else -> Color(0xFFFF7B00)
+                    }
+                }
+
                 drawRect(
-                    color = Color(0xFFFF7B00),
+                    color = borderColor,
                     topLeft = topLeftOffset,
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
-                    style = Stroke(width = (1f * displayMetricsDensity))
+                    style = Stroke(width = (4f * displayMetricsDensity))
                 )
 
                 // Prepare to draw the text
@@ -1249,6 +1287,7 @@ fun showBottomBar(
                 }
                 if ((uiState.usecaseSelected == UsecaseState.Product.value) ||
                     (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) ||
+                    (uiState.usecaseSelected == UsecaseState.Expiration.value) ||
                     ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.isCaptureOrLiveEnabled == 0))){
                     var isClickable = remember { mutableStateOf(true) }
                     Icon(
@@ -1272,7 +1311,7 @@ fun showBottomBar(
                                     // Send the High Res Image for Processing
                                     viewModel.executeHighRes(highResBitmap = highResBitmap)
 
-                                    if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
+                                    if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value || uiState.usecaseSelected == UsecaseState.Expiration.value) {
                                         viewModel.updateOcrBarcodeCaptureSessionCount(uiState.ocrBarcodeCaptureSessionCount + 1)
                                         navController.navigate(route = Screen.OCRBarcodeCapture.route)
                                     } else if (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) {
@@ -1283,6 +1322,30 @@ fun showBottomBar(
                                 }
                             },
                         tint = Variables.stateDefaultEnabled
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .align(Alignment.CenterVertically)
+                        .background(
+                            color = if (uiState.isExpirationMode) {
+                                Color.White.copy(alpha = 0.4f)
+                            } else {
+                                Color.Black.copy(alpha = 0.4f)
+                            },
+                            shape = RoundedCornerShape(percent = 50)
+                        )
+                        .clickable {
+                            viewModel.setExpirationMode(!uiState.isExpirationMode)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = ImageVector.Companion.vectorResource(R.drawable.ic_check),
+                        contentDescription = "Expiration Mode",
+                        modifier = Modifier.size(20.dp),
+                        tint = if (uiState.isExpirationMode) Variables.mainDefault else Variables.stateDefaultEnabled
                     )
                 }
                 Box(

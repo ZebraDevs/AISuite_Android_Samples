@@ -229,6 +229,19 @@ fun AIDataCaptureUsecaseList(viewModel: AIDataCaptureDemoViewModel, navControlle
                 navController.navigate(route = Screen.DemoStart.route)
             })
         AIDataCaptureListItem(
+            R.drawable.ocr_icon,
+            stringResource(id = R.string.expiration_demo),
+            stringResource(id = R.string.expiration_desc),
+            Variables.mainIcon1,
+            Variables.secondaryIcon1,
+            onItemClick = { selectedUsecase ->
+                viewModel.updateAppBarTitle(getString(context, R.string.expiration_demo))
+                viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.setExpirationMode(true) // Automatically enable expiration mode
+                viewModel.initModel()
+                navController.navigate(route = Screen.DemoStart.route)
+            })
+        AIDataCaptureListItem(
             R.drawable.product_enrollment_recognition_icon,
             stringResource(id = R.string.product_enrollment_recognition_demo),
             stringResource(id = R.string.product_enrollment_recognition_desc),

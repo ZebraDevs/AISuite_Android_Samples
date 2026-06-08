@@ -159,15 +159,21 @@ fun OCRBarcodeResultScreen(
                     
                     if (showExpMessage) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "expiration date is: ${sessionExpirationDate.value}",
-                            style = TextStyle(
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Variables.mainPrimary,
-                                textAlign = TextAlign.Center
+                        Box(
+                            modifier = Modifier
+                                .background(Variables.mainPrimary, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = sessionExpirationDate.value ?: "",
+                                style = TextStyle(
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
