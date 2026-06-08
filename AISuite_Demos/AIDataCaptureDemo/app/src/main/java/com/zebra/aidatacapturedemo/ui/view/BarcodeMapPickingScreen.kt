@@ -283,8 +283,8 @@ private fun DrawScope.drawAbstractPickingUnit(
     val textX = left + width / 2
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
-    if (width > 25 * density) {
-        val displayId = if (id.length > 5) id.takeLast(5) else id
+    if (width > 20 * density) {
+        val displayId = if (barcode.length > 5) barcode.takeLast(5) else barcode
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }
