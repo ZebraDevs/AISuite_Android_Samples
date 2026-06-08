@@ -1894,7 +1894,8 @@ class AIDataCaptureDemoViewModel(
         val ocrResults = results ?: listOf()
         _uiState.update { textResults ->
             textResults.copy(
-                ocrResults = ocrResults
+                ocrResults = ocrResults,
+                extractedExpirationDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.extractFromResults(ocrResults)
             )
         }
     }

@@ -422,7 +422,8 @@ class FileUtils(cacheDir: String, context : Context) {
                     Log.d(TAG, "outputStream size: ${outputStream.size()}")
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 10, outputStream)
                     android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.DEFAULT)
-                } ?: ""
+                } ?: "",
+                extractedExpirationDate = uiState.extractedExpirationDate
             )
             val prefs = context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
             val editor = prefs.edit()

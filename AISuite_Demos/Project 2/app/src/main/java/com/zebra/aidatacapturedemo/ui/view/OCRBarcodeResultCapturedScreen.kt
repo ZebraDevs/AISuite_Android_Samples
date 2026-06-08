@@ -14,18 +14,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -36,6 +44,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getSystemService
@@ -149,7 +158,9 @@ fun OCRBarcodeResultCapturedScreen(
                     contentDescription = "Captured Image",
                     contentScale = ContentScale.Fit
                 )
-                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 2)) {
+                val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
+
+                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 2) && !expFound) {
                     // Draw OCR results
                     DrawOCRResultWithTextSizeScaling(
                         uiState = uiState,
@@ -161,7 +172,7 @@ fun OCRBarcodeResultCapturedScreen(
                         displayTotalWidthInPx = displayTotalWidthInPx
                     )
                 }
-                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 1)) {
+                if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 1) && !expFound) {
                     // Draw Barcode results
                     DrawBarcodeResultOnCanvas(
                         uiState = uiState,
@@ -171,6 +182,48 @@ fun OCRBarcodeResultCapturedScreen(
                         displayMetricsDensity = displayMetricsDensity
                     )
                 }
+
+                // Expiration Date Button and Text
+                var showExpMessage by remember { mutableStateOf(false) }
+                if (expFound) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 100.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            ButtonWithIconOption(
+                                ButtonData(
+                                    titleId = R.string.expiration_date,
+                                    color = Variables.mainPrimary,
+                                    alpha = 1f,
+                                    enabled = true,
+                                    onButtonClick = { showExpMessage = !showExpMessage }
+                                ),
+                                drawableRes = R.drawable.ic_check
+                            )
+
+                            if (showExpMessage) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "expiration date is: ${uiState.extractedExpirationDate}",
+                                    style = TextStyle(
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Place RoundIconButton at bottom end with required padding
                 RoundIconButton(
                     R.drawable.ic_next,

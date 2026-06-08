@@ -222,4 +222,5 @@
     <string name="ocr_filter_string_length_title">String Length</string>
     <string name="ocr_filter_regex_title">Regex</string>
     <string name="barcode_filter_title">Barcode Filters</string>
+    <string name="expiration_date">Expiration Date</string>
 </resources>

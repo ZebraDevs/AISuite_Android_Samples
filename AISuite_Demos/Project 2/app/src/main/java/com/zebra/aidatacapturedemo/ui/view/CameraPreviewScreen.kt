@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,6 +100,7 @@ fun CameraPreviewScreen(
     activityLifecycle: Lifecycle
 ) {
     val uiState = viewModel.uiState.collectAsState().value
+    var showExpMessage = remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var showInfo = remember { mutableStateOf(true) }
     val analysisUseCaseCameraResolution = when (viewModel.getSelectedResolution()) {
@@ -208,7 +211,9 @@ fun CameraPreviewScreen(
         when (val selectedDemo = uiState.usecaseSelected) {
             UsecaseState.OCRBarcodeFind.value -> {
 
-                if (uiState.isBarcodeModelEnabled) {
+                val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
+
+                if (uiState.isBarcodeModelEnabled && !expFound) {
 
                     // For Barcode results during CHARACTER_MATCH filter: Play beep (or) vibrate when filtered results are found.
                     if (uiState.barcodeFilterData.selectedAdvancedFilterOptionList.contains(
@@ -240,83 +245,11 @@ fun CameraPreviewScreen(
                 }
 
                 if (uiState.isOCRModelEnabled) {
-                    when (uiState.ocrFilterData.selectedRegularFilterOption) {
-                        OcrRegularFilterOption.UNFILTERED -> {
-                            DrawOCRResult(
-                                uiState = uiState,
-                                scaler = scaler,
-                                gapX = gapX,
-                                gapY = gapY,
-                                displayMetricsDensity = displayMetricsDensity
-                            )
-                        }
-
-                        OcrRegularFilterOption.REGEX -> {
-                            val checkIconDrawable = ContextCompat.getDrawable(
-                                context,
-                                R.drawable.ic_check
-                            )
-                            DrawOCRResultWithTextSizeScalingAndCheckMark(
-                                uiState = uiState,
-                                scaler = scaler,
-                                gapX = gapX,
-                                gapY = gapY,
-                                displayMetricsDensity = displayMetricsDensity,
-                                checkIconDrawable = checkIconDrawable,
-                                displayTotalHeightInPx = displayTotalHeightInPx,
-                                displayTotalWidthInPx = displayTotalWidthInPx
-                            )
-                            if (uiState.ocrResults.isNotEmpty()) {
-                                if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
-                                    FeedbackUtils.beep()
-                                }
-                                if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
-                                    FeedbackUtils.vibrate()
-                                }
-                            }
-                        }
-
-                        OcrRegularFilterOption.ADVANCED -> {
-                            if (uiState.ocrFilterData.selectedAdvancedFilterOptionList.contains(
-                                    AdvancedFilterOption.CHARACTER_MATCH
-                                )
-                            ) {
-                                if (uiState.ocrFilterData.selectedCharacterMatchFilterData.startsWithStringList.isNotEmpty() ||
-                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.containsStringList.isNotEmpty() ||
-                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList.isNotEmpty()
-                                ) {
-                                    val checkIconDrawable = ContextCompat.getDrawable(
-                                        context,
-                                        R.drawable.ic_check
-                                    )
-                                    DrawOCRResultWithTextSizeScalingAndCheckMark(
-                                        uiState = uiState,
-                                        scaler = scaler,
-                                        gapX = gapX,
-                                        gapY = gapY,
-                                        displayMetricsDensity = displayMetricsDensity,
-                                        checkIconDrawable = checkIconDrawable,
-                                        displayTotalHeightInPx = displayTotalHeightInPx,
-                                        displayTotalWidthInPx = displayTotalWidthInPx
-                                    )
-                                    if (uiState.ocrResults.isNotEmpty()) {
-                                        if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
-                                            FeedbackUtils.beep()
-                                        }
-                                        if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
-                                            FeedbackUtils.vibrate()
-                                        }
-                                    }
-                                }
-
-                                if (uiState.ocrFilterData.selectedCharacterMatchFilterData.type == CharacterMatchFilterOption.EXACT_MATCH && uiState.isCaptureOrLiveEnabled == 1) {
-                                    showInformationBox(
-                                        info = "Looking for: ${uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList}",
-                                        topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
-                                    )
-                                }
-
-                            } else {
+                    if (expFound) {
+                        // Ignore everything else and only show Exp in the special UI below
+                    } else {
+                        when (uiState.ocrFilterData.selectedRegularFilterOption) {
+                            OcrRegularFilterOption.UNFILTERED -> {
                                 DrawOCRResult(
                                     uiState = uiState,
                                     scaler = scaler,
@@ -325,20 +258,98 @@ fun CameraPreviewScreen(
                                     displayMetricsDensity = displayMetricsDensity
                                 )
                             }
+
+                            OcrRegularFilterOption.REGEX -> {
+                                val checkIconDrawable = ContextCompat.getDrawable(
+                                    context,
+                                    R.drawable.ic_check
+                                )
+                                DrawOCRResultWithTextSizeScalingAndCheckMark(
+                                    uiState = uiState,
+                                    scaler = scaler,
+                                    gapX = gapX,
+                                    gapY = gapY,
+                                    displayMetricsDensity = displayMetricsDensity,
+                                    checkIconDrawable = checkIconDrawable,
+                                    displayTotalHeightInPx = displayTotalHeightInPx,
+                                    displayTotalWidthInPx = displayTotalWidthInPx
+                                )
+                                if (uiState.ocrResults.isNotEmpty()) {
+                                    if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
+                                        FeedbackUtils.beep()
+                                    }
+                                    if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
+                                        FeedbackUtils.vibrate()
+                                    }
+                                }
+                            }
+
+                            OcrRegularFilterOption.ADVANCED -> {
+                                if (uiState.ocrFilterData.selectedAdvancedFilterOptionList.contains(
+                                        AdvancedFilterOption.CHARACTER_MATCH
+                                    )
+                                ) {
+                                    if (uiState.ocrFilterData.selectedCharacterMatchFilterData.startsWithStringList.isNotEmpty() ||
+                                        uiState.ocrFilterData.selectedCharacterMatchFilterData.containsStringList.isNotEmpty() ||
+                                        uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList.isNotEmpty()
+                                    ) {
+                                        val checkIconDrawable = ContextCompat.getDrawable(
+                                            context,
+                                            R.drawable.ic_check
+                                        )
+                                        DrawOCRResultWithTextSizeScalingAndCheckMark(
+                                            uiState = uiState,
+                                            scaler = scaler,
+                                            gapX = gapX,
+                                            gapY = gapY,
+                                            displayMetricsDensity = displayMetricsDensity,
+                                            checkIconDrawable = checkIconDrawable,
+                                            displayTotalHeightInPx = displayTotalHeightInPx,
+                                            displayTotalWidthInPx = displayTotalWidthInPx
+                                        )
+                                        if (uiState.ocrResults.isNotEmpty()) {
+                                            if (uiState.ocrBarcodeFindSettings.feedbackSettings.audioBeep) {
+                                                FeedbackUtils.beep()
+                                            }
+                                            if (uiState.ocrBarcodeFindSettings.feedbackSettings.vibration) {
+                                                FeedbackUtils.vibrate()
+                                            }
+                                        }
+                                    }
+
+                                    if (uiState.ocrFilterData.selectedCharacterMatchFilterData.type == CharacterMatchFilterOption.EXACT_MATCH && uiState.isCaptureOrLiveEnabled == 1) {
+                                        showInformationBox(
+                                            info = "Looking for: ${uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList}",
+                                            topPadding = activityInnerPadding.calculateTopPadding() + displayStatusBarHeightInDp
+                                        )
+                                    }
+
+                                } else {
+                                    DrawOCRResult(
+                                        uiState = uiState,
+                                        scaler = scaler,
+                                        gapX = gapX,
+                                        gapY = gapY,
+                                        displayMetricsDensity = displayMetricsDensity
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
             UsecaseState.OCR.value -> {
-
-                DrawOCRResult(
-                    uiState = uiState,
-                    scaler = scaler,
-                    gapX = gapX,
-                    gapY = gapY,
-                    displayMetricsDensity = displayMetricsDensity
-                )
+                val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
+                if (!expFound) {
+                    DrawOCRResult(
+                        uiState = uiState,
+                        scaler = scaler,
+                        gapX = gapX,
+                        gapY = gapY,
+                        displayMetricsDensity = displayMetricsDensity
+                    )
+                }
             }
 
             UsecaseState.Barcode.value,
@@ -417,6 +428,46 @@ fun CameraPreviewScreen(
                         )
                         .padding(16.dp)
                 )
+            }
+        }
+
+        // Expiration Date Button and Text (Live)
+        if (uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found") {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 100.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Column(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    ButtonWithIconOption(
+                        ButtonData(
+                            titleId = R.string.expiration_date,
+                            color = Variables.mainPrimary,
+                            alpha = 1f,
+                            enabled = true,
+                            onButtonClick = { showExpMessage.value = !showExpMessage.value }
+                        ),
+                        drawableRes = R.drawable.ic_check
+                    )
+
+                    if (showExpMessage.value) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "expiration date is: ${uiState.extractedExpirationDate}",
+                            style = TextStyle(
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        )
+                    }
+                }
             }
         }
     }

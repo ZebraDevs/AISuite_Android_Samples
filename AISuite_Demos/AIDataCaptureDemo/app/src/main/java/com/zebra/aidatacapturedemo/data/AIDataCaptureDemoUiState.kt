@@ -203,6 +203,8 @@ data class AIDataCaptureDemoUiState(
     var ocrBarcodeCaptureSessionCount : Int = 0,
     var ocrBarcodeCaptureSessionIndex : Int = 0,
 
+    var extractedExpirationDate: String? = null,
+
     var selectedFilterType: FilterType = FilterType.NONE,
     var ocrFilterData: OcrFilterData = FileUtils.loadOcrFilterData(),
     var barcodeFilterData: BarcodeFilterData = FileUtils.loadBarcodeFilterData()

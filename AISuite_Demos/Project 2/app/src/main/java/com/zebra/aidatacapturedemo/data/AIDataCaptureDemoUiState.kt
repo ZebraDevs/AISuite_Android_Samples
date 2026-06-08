@@ -151,7 +151,8 @@ data class OcrBarcodeCaptureSessionData(
     var ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
     var captureTime: String = "",
-    var captureImage: String = ""
+    var captureImage: String = "",
+    var extractedExpirationDate: String? = null
 )
 
 /**
@@ -202,6 +203,8 @@ data class AIDataCaptureDemoUiState(
 
     var ocrBarcodeCaptureSessionCount : Int = 0,
     var ocrBarcodeCaptureSessionIndex : Int = 0,
+
+    var extractedExpirationDate: String? = null,
 
     var selectedFilterType: FilterType = FilterType.NONE,
     var ocrFilterData: OcrFilterData = FileUtils.loadOcrFilterData(),
