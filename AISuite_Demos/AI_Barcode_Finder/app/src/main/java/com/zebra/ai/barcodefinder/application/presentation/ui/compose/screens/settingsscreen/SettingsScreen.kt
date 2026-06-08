@@ -1168,7 +1168,15 @@ fun SettingsScreen(
                                 }
                             )
 
-
+                            SwitchOption(
+                                title = stringResource(id = R.string.setting_screen_show_no_action_barcodes),
+                                subtitle = stringResource(id = R.string.setting_screen_hide_icon_overlay_for_barcodes_without_an_action),
+                                checked = !settings.feedbackType.showNoActionBarcode,
+                                onCheckedChange = { hideNoActionBarcodes ->
+                                    val updatedFeedbackType = settings.feedbackType.copy(showNoActionBarcode = !hideNoActionBarcodes)
+                                    settingsViewModel.updateFeedbackType(updatedFeedbackType)
+                                }
+                            )
 
                         }
                         Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
