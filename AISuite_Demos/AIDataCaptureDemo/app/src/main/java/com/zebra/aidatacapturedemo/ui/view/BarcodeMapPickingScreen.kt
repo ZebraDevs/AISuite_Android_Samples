@@ -201,8 +201,8 @@ private fun DrawAbstractBarcodeMapLayer(
 
                 val scaledLeft = (scaler * left) + gapX
                 val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth) * 1.5f
-                val scaledHeight = (scaler * avgHeight) * 1.5f
+                val scaledWidth = (scaler * bBoxWidth) * 2.5f
+                val scaledHeight = (scaler * avgHeight) * 2.5f
 
                 // Use the pre-calculated labels from the ViewModel
                 val label = uiState.barcodeLabels[barcode.text] ?: ""

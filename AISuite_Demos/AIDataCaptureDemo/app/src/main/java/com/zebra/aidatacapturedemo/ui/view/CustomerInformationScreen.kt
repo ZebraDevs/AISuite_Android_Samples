@@ -26,7 +26,6 @@ import androidx.navigation.NavController
 import com.zebra.aidatacapturedemo.data.CustomerDataGenerator
 import com.zebra.aidatacapturedemo.data.ProductInfo
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
-import java.util.Locale
 
 @Composable
 fun CustomerInformationScreen(
@@ -225,13 +224,6 @@ fun ProductPickingItem(product: ProductInfo, totes: List<Pair<String, Int>>) {
                         Text(text = "Qty: $qty", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black))
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Total Price: $${String.format(Locale.US, "%.2f", product.price * totes.sumOf { it.second })}",
-                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF006D39)),
-                    modifier = Modifier.align(Alignment.End)
-                )
             }
         }
     }
