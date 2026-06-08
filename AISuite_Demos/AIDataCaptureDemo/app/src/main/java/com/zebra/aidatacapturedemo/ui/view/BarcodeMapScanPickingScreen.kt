@@ -49,6 +49,7 @@ fun BarcodeMapScanPickingScreen(
 
     // Auto-focus the manual input field to capture keyboard wedge scans
     LaunchedEffect(Unit) {
+        viewModel.updateAppBarTitle("Product Scan")
         focusRequester.requestFocus()
     }
 
@@ -56,15 +57,10 @@ fun BarcodeMapScanPickingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF0F2F5))
+            .padding(innerPadding)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Ready to Scan",
-            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black),
-            modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)
-        )
-
         // Invisible or small TextField to capture keyboard wedge input
         OutlinedTextField(
             value = manualInput,
@@ -123,7 +119,7 @@ fun BarcodeMapScanPickingScreen(
                     val product = uiState.lastScannedProduct
                     if (product != null && !feedback.contains("Incorrect")) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "Item: ${product.name}", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(text = "Product: ${product.name}", color = Color.Black, fontWeight = FontWeight.Bold)
                         
                         uiState.targetTotes.forEach { pair ->
                             val toteId = pair.first

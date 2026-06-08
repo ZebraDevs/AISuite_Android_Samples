@@ -146,7 +146,7 @@ fun CameraPreviewScreen(
 
     // Navigation for Picking Flow
     LaunchedEffect(uiState.pickingFeedback) {
-        if (uiState.pickingFeedback?.startsWith("item identified") == true) {
+        if (uiState.pickingFeedback?.startsWith("Product identified") == true) {
             navController.navigate(Screen.BarcodeMapPicking.route)
         }
     }
