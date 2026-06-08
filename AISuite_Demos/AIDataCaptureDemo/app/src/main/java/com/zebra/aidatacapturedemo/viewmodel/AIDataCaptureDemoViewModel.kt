@@ -1802,27 +1802,32 @@ class AIDataCaptureDemoViewModel(
     private fun calculateBarcodeLabels(results: List<ResultData>): Map<String, String> {
         if (results.isEmpty()) return emptyMap()
 
+        // Grouping logic for rows (top-to-bottom)
         val sortedByY = results.sortedBy { it.boundingBox.centerY() }
         val rows = mutableListOf<MutableList<ResultData>>()
         
-        var currentRow = mutableListOf<ResultData>()
-        currentRow.add(sortedByY[0])
-        rows.add(currentRow)
+        if (sortedByY.isNotEmpty()) {
+            var currentRow = mutableListOf<ResultData>()
+            currentRow.add(sortedByY[0])
+            rows.add(currentRow)
 
-        for (i in 1 until sortedByY.size) {
-            val prev = sortedByY[i - 1]
-            val curr = sortedByY[i]
-            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
-                currentRow.add(curr)
-            } else {
-                currentRow = mutableListOf<ResultData>()
-                currentRow.add(curr)
-                rows.add(currentRow)
+            for (i in 1 until sortedByY.size) {
+                val prev = sortedByY[i - 1]
+                val curr = sortedByY[i]
+                // Overlap threshold for same row: 60% of height
+                if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
+                    currentRow.add(curr)
+                } else {
+                    currentRow = mutableListOf<ResultData>()
+                    currentRow.add(curr)
+                    rows.add(currentRow)
+                }
             }
         }
 
         val labelMap = mutableMapOf<String, String>()
         var labelCounter = 0
+        // Rows are sorted by Y. Within each row, sort by X (left-to-right).
         rows.forEach { row ->
             val sortedRow = row.sortedBy { it.boundingBox.left }
             sortedRow.forEach { barcode ->
