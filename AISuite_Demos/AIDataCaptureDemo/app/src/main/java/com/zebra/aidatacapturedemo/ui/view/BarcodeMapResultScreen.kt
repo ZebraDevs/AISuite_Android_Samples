@@ -214,8 +214,8 @@ private fun DrawAbstractBarcodeMap(
             val prev = sortedByY[i - 1]
             val curr = sortedByY[i]
             
-            // Increased threshold to be much more lenient for row detection
-            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.8)) {
+            // Overlap threshold for same row
+            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
                 currentRow.add(curr)
             } else {
                 currentRow = mutableListOf<ResultData>()
@@ -225,11 +225,8 @@ private fun DrawAbstractBarcodeMap(
         }
     }
 
-    // Sort rows by their average Y position to ensure top row is index 0
-    val sortedRows = rows.sortedBy { row -> row.map { it.boundingBox.centerY() }.average() }
-
     Canvas(modifier = Modifier.fillMaxSize()) {
-        sortedRows.forEachIndexed { rowIndex, row ->
+        rows.forEach { row ->
             val sortedRow = row.sortedBy { it.boundingBox.left }
             
             // Normalize row metrics to average
@@ -238,7 +235,7 @@ private fun DrawAbstractBarcodeMap(
 
             var currentLeftX = -1f
 
-            sortedRow.forEachIndexed { colIndex, barcode ->
+            sortedRow.forEachIndexed { index, barcode ->
                 val bBoxWidth = barcode.boundingBox.width().toFloat()
                 var left = barcode.boundingBox.left.toFloat()
                 
@@ -254,12 +251,7 @@ private fun DrawAbstractBarcodeMap(
                 val scaledWidth = (scaler * bBoxWidth)
                 val scaledHeight = (scaler * avgHeight)
 
-                // Assign Tote Name A-F based on row and column
-                val globalIndex = (rowIndex * 3) + colIndex
-                val toteLetter = if (globalIndex < 6) ('A' + globalIndex).toString() else ""
-
                 drawAbstractUnit(
-                    toteLetter = toteLetter,
                     id = barcode.text,
                     left = scaledLeft,
                     top = scaledTop,
@@ -276,7 +268,6 @@ private fun DrawAbstractBarcodeMap(
 }
 
 private fun DrawScope.drawAbstractUnit(
-    toteLetter: String,
     id: String,
     left: Float,
     top: Float,
@@ -285,15 +276,8 @@ private fun DrawScope.drawAbstractUnit(
     density: Float
 ) {
     val themeColor = Color(0xFF00FF00) // Vibrant Green
-    
-    // Make the box larger visually by expanding drawing bounds
-    val expandedWidth = width * 1.1f
-    val expandedHeight = height * 1.1f
-    val expandedLeft = left - (expandedWidth - width) / 2
-    val expandedTop = top - (expandedHeight - height) / 2
-
-    val rectSize = androidx.compose.ui.geometry.Size(expandedWidth, expandedHeight)
-    val topLeft = Offset(expandedLeft, expandedTop)
+    val rectSize = androidx.compose.ui.geometry.Size(width, height)
+    val topLeft = Offset(left, top)
 
     // 1. Draw simple geometrical shape (Rectangle)
     drawRect(
@@ -307,48 +291,24 @@ private fun DrawScope.drawAbstractUnit(
         color = themeColor,
         topLeft = topLeft,
         size = rectSize,
-        style = Stroke(width = 3f * density)
+        style = Stroke(width = 2f * density)
     )
 
-    val last5Digits = if (id.length >= 5) id.takeLast(5) else id
-
-    // Paint for Tote Letter (Large)
-    val letterPaint = android.graphics.Paint().apply {
+    // 3. Center-aligned ID text
+    val paint = android.graphics.Paint().apply {
         this.color = android.graphics.Color.BLACK
-        this.textSize = 26f * density // Increased size
+        this.textSize = 9f * density
         this.textAlign = android.graphics.Paint.Align.CENTER
         this.isAntiAlias = true
         this.isFakeBoldText = true
     }
 
-    // Paint for Barcode (Smaller)
-    val barcodePaint = android.graphics.Paint().apply {
-        this.color = android.graphics.Color.BLACK
-        this.textSize = 14f * density // Increased size
-        this.textAlign = android.graphics.Paint.Align.CENTER
-        this.isAntiAlias = true
-        this.isFakeBoldText = true
-    }
+    val textX = left + width / 2
+    val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
-    val centerX = expandedLeft + expandedWidth / 2
-    val centerY = expandedTop + expandedHeight / 2
-
-    // Only draw if it fits within the simplified shape
-    if (expandedWidth > 10 * density) {
-        // Draw Tote Letter slightly above center
-        drawContext.canvas.nativeCanvas.drawText(
-            toteLetter,
-            centerX,
-            centerY - (5 * density),
-            letterPaint
-        )
-
-        // Draw Barcode below Tote Letter
-        drawContext.canvas.nativeCanvas.drawText(
-            last5Digits,
-            centerX,
-            centerY + (18 * density),
-            barcodePaint
-        )
+    // Only draw ID if it fits within the simplified shape
+    if (width > 25 * density) {
+        val displayId = if (id.length > 7) id.take(5) + ".." else id
+        drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }
