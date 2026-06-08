@@ -308,7 +308,7 @@ private fun DrawScope.drawAbstractUnit(
 
     // Only draw ID if it fits within the simplified shape
     if (width > 25 * density) {
-        val displayId = if (id.length > 7) id.take(5) + ".." else id
+        val displayId = if (id.length > 5) id.takeLast(5) else id
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }

@@ -125,7 +125,7 @@ fun ProductPickingItem(product: ProductInfo, totes: List<Pair<String, Int>>) {
                 style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
             )
             Text(
-                text = "Barcode: ${product.barcode} | Price: $${String.format(Locale.US, "%.2f", product.price)}",
+                text = "Barcode: ${if (product.barcode.length > 5) product.barcode.takeLast(5) else product.barcode} | Price: $${String.format(Locale.US, "%.2f", product.price)}",
                 style = TextStyle(fontSize = 14.sp, color = Color.Black)
             )
             

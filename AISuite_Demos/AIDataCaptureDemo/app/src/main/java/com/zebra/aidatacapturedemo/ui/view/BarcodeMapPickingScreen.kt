@@ -257,7 +257,7 @@ private fun DrawScope.drawAbstractPickingUnit(
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
     if (width > 25 * density) {
-        val displayId = if (id.length > 7) id.take(5) + ".." else id
+        val displayId = if (id.length > 5) id.takeLast(5) else id
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }
