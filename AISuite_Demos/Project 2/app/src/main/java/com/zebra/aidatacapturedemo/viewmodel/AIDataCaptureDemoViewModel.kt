@@ -108,6 +108,10 @@ class AIDataCaptureDemoViewModel(
     private val _uiState = MutableStateFlow(AIDataCaptureDemoUiState())
     val uiState: StateFlow<AIDataCaptureDemoUiState> = _uiState.asStateFlow()
 
+    // Map to track persistence of detected dates: Date String -> Count of frames seen
+    private val datePersistenceMap = mutableMapOf<String, Int>()
+    private val PERSISTENCE_THRESHOLD = 3
+
     private var executor: Executor? = null
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -574,7 +578,11 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 usecaseSelected = usecase,
-                isExpirationMode = (usecase == UsecaseState.Expiration.value)
+                isExpirationMode = (usecase == UsecaseState.Expiration.value),
+                extractedExpirationDate = null, // Reset expiration data on usecase change
+                detectedExpirationDates = emptyList(),
+                ocrResults = emptyList<ResultData>(),
+                barcodeResults = emptyList<ResultData>()
             )
         }
     }
@@ -1896,34 +1904,82 @@ class AIDataCaptureDemoViewModel(
     fun setExpirationMode(enabled: Boolean) {
         _uiState.update { currentState ->
             currentState.copy(
-                isExpirationMode = enabled
+                isExpirationMode = enabled,
+                extractedExpirationDate = null // Reset detection when entering/exiting mode
             )
+        }
+        if (!enabled) {
+            datePersistenceMap.clear()
         }
     }
 
     fun updateOcrResultData(results: List<ResultData>?) {
         val allResults = results ?: listOf()
-        val extractedExpDate = ExpirationDateParser.extractFromResults(allResults)
+        val formattedDates = mutableListOf<String>()
 
-        var filteredResults = allResults
-        if (uiState.value.isExpirationMode) {
-            // Keep items that contain keywords OR look like they have a date
-            val datePattern = Regex("""\d{1,2}\s*[/-]\s*\d{2,4}""")
-            filteredResults = allResults.filter { item ->
-                val upperText = item.text.uppercase()
-                ExpirationDateParser.KEYWORDS.any { upperText.contains(it) } || datePattern.containsMatchIn(item.text)
+        // 1. Pull matches from text blocks directly using the improved parser
+        val individualMatches = com.zebra.aidatacapturedemo.model.ExpirationDateParser.extractAllFormattedFromResults(allResults)
+        formattedDates.addAll(individualMatches)
+
+        // 2. Multi-line block stitching matching
+        val combinedText = allResults.joinToString(" ") { it.text }
+
+        val keywords = com.zebra.aidatacapturedemo.model.ExpirationDateParser.KEYWORDS
+        val datePatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.DATE_PATTERN_STR
+        val keywordPatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.KEYWORD_PATTERN_STR
+        val combinedRegex = Regex("(?i)($keywordPatternStr)[.:\\s]*$datePatternStr", RegexOption.IGNORE_CASE)
+
+        val matches = combinedRegex.findAll(combinedText)
+        for (match in matches) {
+            val cleanDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.formatWithMonthName(match.value)
+            if (cleanDate.isNotEmpty()) {
+                val fullString = "The Expiration Date is: $cleanDate"
+                if (!formattedDates.contains(fullString)) {
+                    formattedDates.add(fullString)
+                }
             }
         }
 
-        _uiState.update { textResults ->
-            textResults.copy(
+        // Secondary fallback check: Scan for standalone dates in the combined frame
+        val standaloneDateRegex = Regex(datePatternStr, RegexOption.IGNORE_CASE)
+        val standaloneMatches = standaloneDateRegex.findAll(combinedText)
+        for (match in standaloneMatches) {
+            val cleanDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.formatWithMonthName(match.value)
+            if (cleanDate.isNotEmpty()) {
+                val fullString = "The Expiration Date is: $cleanDate"
+                if (!formattedDates.contains(fullString)) {
+                    formattedDates.add(fullString)
+                }
+            }
+        }
+
+        // Stricter filtering for boxes: only show boxes if it looks like a date or keyword
+        var filteredResults = allResults
+        if (uiState.value.isExpirationMode) {
+            filteredResults = allResults.filter { result ->
+                com.zebra.aidatacapturedemo.model.ExpirationDateParser.isDateLike(result.text)
+            }
+        }
+
+        // Persistence filtering: Update counts for seen dates
+        formattedDates.forEach { date ->
+            datePersistenceMap[date] = (datePersistenceMap[date] ?: 0) + 1
+        }
+
+        // Only promote dates that have been seen consistently across multiple frames
+        val persistentDates = datePersistenceMap.filter { it.value >= PERSISTENCE_THRESHOLD }.keys.toList()
+
+        _uiState.update { currentState ->
+            // We use the persistent dates list as the source of truth for the UI
+            val updatedList = (currentState.detectedExpirationDates + persistentDates).distinct()
+
+            currentState.copy(
                 ocrResults = filteredResults,
-                extractedExpirationDate = extractedExpDate
+                detectedExpirationDates = updatedList,
+                extractedExpirationDate = if (persistentDates.isNotEmpty()) persistentDates.last() else currentState.extractedExpirationDate
             )
         }
     }
-
-
 //    fun updateExactMatchString(exactMatchString: String) {
 //        _uiState.update { selectedExactMatchString ->
 //            selectedExactMatchString.copy(
@@ -2154,5 +2210,15 @@ class AIDataCaptureDemoViewModel(
 
         // Automatically save to the local cache file
         FileUtils.saveBarcodeFilterData(barcodeFilterData = barcodeFilterData)
+    }
+
+    fun clearDetectedExpirationDates() {
+        _uiState.update { currentState ->
+            currentState.copy(
+                detectedExpirationDates = emptyList(),
+                extractedExpirationDate = null
+            )
+        }
+        datePersistenceMap.clear()
     }
 }

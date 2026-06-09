@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
@@ -159,7 +161,6 @@ fun OCRBarcodeResultCapturedScreen(
                     contentDescription = "Captured Image",
                     contentScale = ContentScale.Fit
                 )
-                val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
 
                 if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 2)) {
                     // Draw OCR results
@@ -184,14 +185,8 @@ fun OCRBarcodeResultCapturedScreen(
                     )
                 }
 
-                // Expiration Date Button and Text
-                if (expFound) {
-                    val status = ExpirationDateParser.getDateStatus(uiState.extractedExpirationDate ?: "")
-                    val buttonColor = when (status) {
-                        ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39) // Dark Green
-                        ExpirationDateParser.DateStatus.RED -> Color.Red
-                        else -> Color(0xFF007AFE)
-                    }
+                // Expiration Date Stack
+                if (uiState.detectedExpirationDates.isNotEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -200,21 +195,60 @@ fun OCRBarcodeResultCapturedScreen(
                     ) {
                         Column(
                             modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .fillMaxWidth(0.9f)
+                                .wrapContentHeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            ButtonWithIconOption(
-                                ButtonData(
-                                    titleId = R.string.expiration_date,
-                                    color = buttonColor,
-                                    alpha = 1f,
-                                    enabled = true,
-                                    onButtonClick = { },
-                                    titleString = uiState.extractedExpirationDate
-                                ),
-                                drawableRes = R.drawable.ic_check
-                            )
+                            uiState.detectedExpirationDates.forEach { dateText ->
+                                val fullText = "The expiration date is $dateText"
+                                val status = ExpirationDateParser.getDateStatus(dateText)
+                                val buttonColor = when (status) {
+                                    ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39)
+                                    ExpirationDateParser.DateStatus.YELLOW -> Color(0xFFFFC107)
+                                    ExpirationDateParser.DateStatus.RED -> Color.Red
+                                    else -> Color(0xFF007AFE)
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    ButtonWithIconOption(
+                                        ButtonData(
+                                            titleId = R.string.expiration_date,
+                                            color = buttonColor,
+                                            alpha = 1f,
+                                            enabled = true,
+                                            onButtonClick = { },
+                                            titleString = fullText
+                                        ),
+                                        drawableRes = R.drawable.ic_check
+                                    )
+
+                                    val months = ExpirationDateParser.getMonthsUntilExpiration(dateText)
+                                    val message = when (status) {
+                                        ExpirationDateParser.DateStatus.GREEN -> if (months > 0) "This medicine will be expired in $months months" else null
+                                        ExpirationDateParser.DateStatus.YELLOW -> "This medicine will be expired in 1 month"
+                                        ExpirationDateParser.DateStatus.RED -> "This medicine is already expired"
+                                        else -> null
+                                    }
+
+                                    if (message != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = message,
+                                            style = TextStyle(
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

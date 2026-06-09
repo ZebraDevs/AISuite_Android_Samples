@@ -153,7 +153,8 @@ data class OcrBarcodeCaptureSessionData(
     var barcodeResults: List<ResultData> = listOf(),
     var captureTime: String = "",
     var captureImage: String = "",
-    var extractedExpirationDate: String? = null
+    var extractedExpirationDate: String? = null,
+    var detectedExpirationDates: List<String> = emptyList()
 )
 
 /**
@@ -206,6 +207,7 @@ data class AIDataCaptureDemoUiState(
     var ocrBarcodeCaptureSessionIndex : Int = 0,
 
     var extractedExpirationDate: String? = null,
+    var detectedExpirationDates: List<String> = emptyList(),
     var isExpirationMode: Boolean = false,
 
     var selectedFilterType: FilterType = FilterType.NONE,

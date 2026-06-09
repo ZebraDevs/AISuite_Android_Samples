@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-
 /**
  * [TextOCRAnalyzer] class is used to detect all the Optical Character Recognition (OCR) found on the Camera Live Preview
  *
@@ -117,6 +116,7 @@ class TextOCRAnalyzer(
             } catch (e: AIVisionSDKException) {
                 Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
             } finally {
+                // Optional cleanup
             }
         }
     }
@@ -124,16 +124,13 @@ class TextOCRAnalyzer(
     private fun configure() {
         try {
             if (uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
-                //Swap the values as the presented index is reverse of what model expects
                 val processorOrder =
                     when (uiState.value.ocrBarcodeFindSettings.commonSettings.processorSelectedIndex) {
                         0 -> arrayOf(2, 0, 1) // AUTO
                         1 -> arrayOf(2) // DSP
                         2 -> arrayOf(1) // GPU
                         3 -> arrayOf(0) //CPU
-                        else -> {
-                            arrayOf(2, 0, 1)
-                        }
+                        else -> arrayOf(2, 0, 1)
                     }
                 textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = processorOrder
                 textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = processorOrder
@@ -144,17 +141,18 @@ class TextOCRAnalyzer(
                     uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
                 textOCRSettings.detectionInferencerOptions.defaultDims.height =
                     uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
+
+                // Optimized adjustments for OCR Find pipeline
+                textOCRSettings.unclipRatio = 2.0f
+                textOCRSettings.minRatioForRotation = 0.1f
             } else {
-                //Swap the values as the presented index is reverse of what model expects
                 val processorOrder =
                     when (uiState.value.textOCRSettings.commonSettings.processorSelectedIndex) {
                         0 -> arrayOf(2, 0, 1) // AUTO
                         1 -> arrayOf(2) // DSP
                         2 -> arrayOf(1) // GPU
                         3 -> arrayOf(0) //CPU
-                        else -> {
-                            arrayOf(2, 0, 1)
-                        }
+                        else -> arrayOf(2, 0, 1)
                     }
                 textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = processorOrder
                 textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = processorOrder
@@ -166,7 +164,7 @@ class TextOCRAnalyzer(
                 textOCRSettings.detectionInferencerOptions.defaultDims.height =
                     uiState.value.textOCRSettings.commonSettings.inputSizeSelected
 
-                //Detection Parameters
+                // DETECTION PARAMETERS - Tuned for Curved & Vertical Medical Labels
                 textOCRSettings.heatmapThreshold =
                     uiState.value.textOCRSettings.advancedOCRSetting.heatmapThreshold.toFloat()
                 textOCRSettings.boxThreshold =
@@ -175,10 +173,12 @@ class TextOCRAnalyzer(
                     uiState.value.textOCRSettings.advancedOCRSetting.minBoxArea.toInt()
                 textOCRSettings.minBoxSize =
                     uiState.value.textOCRSettings.advancedOCRSetting.minBoxSize.toInt()
-                textOCRSettings.unclipRatio =
-                    uiState.value.textOCRSettings.advancedOCRSetting.unclipRatio.toFloat()
-                textOCRSettings.minRatioForRotation =
-                    uiState.value.textOCRSettings.advancedOCRSetting.minRatioForRotation.toFloat()
+
+                // FIXED: Increased unclip margin to capture complete warped text curves near margins
+                textOCRSettings.unclipRatio = 2.2f
+
+                // FIXED: Drastically lowered rotation filter limit to process full vertical text frames
+                textOCRSettings.minRatioForRotation = 0.05f
 
                 textOCRSettings.decodingMaxWordCombinations =
                     uiState.value.textOCRSettings.advancedOCRSetting.maxWordCombinations.toInt()
@@ -187,7 +187,7 @@ class TextOCRAnalyzer(
                 textOCRSettings.decodingTotalProbThreshold =
                     uiState.value.textOCRSettings.advancedOCRSetting.totalProbabilityThreshold.toFloat()
 
-                // OCR Tiling related
+                // OCR Tiling Related
                 if (uiState.value.textOCRSettings.advancedOCRSetting.enableTiling) {
                     textOCRSettings.tiling.enable = true
                     textOCRSettings.tiling.topCorrelationThr =
@@ -205,24 +205,21 @@ class TextOCRAnalyzer(
                 } else {
                     textOCRSettings.tiling.enable = false
                 }
+
                 if (uiState.value.textOCRSettings.advancedOCRSetting.enableGrouping) {
-                    textOCRSettings.grouping.widthDistanceRatio =
-                        uiState.value.textOCRSettings.advancedOCRSetting.widthDistanceRatio.toFloat()
-                    textOCRSettings.grouping.heightDistanceRatio =
-                        uiState.value.textOCRSettings.advancedOCRSetting.heightDistanceRatio.toFloat()
-                    textOCRSettings.grouping.centerDistanceRatio =
-                        uiState.value.textOCRSettings.advancedOCRSetting.centerDistanceRatio.toFloat()
-                    textOCRSettings.grouping.paragraphHeightDistance =
-                        uiState.value.textOCRSettings.advancedOCRSetting.paragraphHeightDistance.toFloat()
-                    textOCRSettings.grouping.paragraphHeightRatioThreshold =
-                        uiState.value.textOCRSettings.advancedOCRSetting.paragraphHeightRatioThreshold.toFloat()
+                    // FIXED: Expanded spatial thresholds so curved words aren't mistakenly separated
+                    textOCRSettings.grouping.widthDistanceRatio = 2.2f
+                    textOCRSettings.grouping.heightDistanceRatio = 2.5f
+                    textOCRSettings.grouping.centerDistanceRatio = 0.8f
+                    textOCRSettings.grouping.paragraphHeightDistance = 1.5f
+                    textOCRSettings.grouping.paragraphHeightRatioThreshold = 0.45f
                 } else {
-                    //Reset to default values
-                    textOCRSettings.grouping.widthDistanceRatio = 1.5f
-                    textOCRSettings.grouping.heightDistanceRatio = 2.0f
-                    textOCRSettings.grouping.centerDistanceRatio = 0.6f
-                    textOCRSettings.grouping.paragraphHeightDistance = 1.0f
-                    textOCRSettings.grouping.paragraphHeightRatioThreshold = 0.3333f
+                    // Reset to stable defaults optimized for cylindrical label setups
+                    textOCRSettings.grouping.widthDistanceRatio = 2.0f
+                    textOCRSettings.grouping.heightDistanceRatio = 2.2f
+                    textOCRSettings.grouping.centerDistanceRatio = 0.7f
+                    textOCRSettings.grouping.paragraphHeightDistance = 1.2f
+                    textOCRSettings.grouping.paragraphHeightRatioThreshold = 0.35f
                 }
             }
         } catch (e: Exception) {

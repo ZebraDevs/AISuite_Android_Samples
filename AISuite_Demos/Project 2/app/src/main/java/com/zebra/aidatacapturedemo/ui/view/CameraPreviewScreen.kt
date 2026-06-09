@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +48,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -73,9 +77,16 @@ import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.AdvancedFilterOption
 import com.zebra.aidatacapturedemo.data.CharacterMatchFilterOption
+import com.zebra.aidatacapturedemo.data.FilterType
 import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
+import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.model.ExpirationDateParser
+import com.zebra.aidatacapturedemo.ui.view.Screen
+import com.zebra.aidatacapturedemo.ui.view.Variables
+import com.zebra.aidatacapturedemo.ui.view.FeedbackUtils
+import com.zebra.aidatacapturedemo.ui.view.ButtonData
+import com.zebra.aidatacapturedemo.ui.view.ButtonWithIconOption
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.min
@@ -405,13 +416,17 @@ fun CameraPreviewScreen(
             else -> {
                 // If the above cases didn't match, check by string literal just in case
                 if (selectedDemo == "Expiration Date Parser") {
-                    DrawOCRResult(
-                        uiState = uiState,
-                        scaler = scaler,
-                        gapX = gapX,
-                        gapY = gapY,
-                        displayMetricsDensity = displayMetricsDensity
-                    )
+                    val expFound = uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found"
+                    // If the date is already found and "locked", stop showing the jumpy OCR boxes
+                    if (!expFound) {
+                        DrawOCRResult(
+                            uiState = uiState,
+                            scaler = scaler,
+                            gapX = gapX,
+                            gapY = gapY,
+                            displayMetricsDensity = displayMetricsDensity
+                        )
+                    }
                 } else {
                     TODO("Unhandled usecaseState received = $selectedDemo")
                 }
@@ -443,39 +458,140 @@ fun CameraPreviewScreen(
             }
         }
 
-        // Expiration Date Button and Text (Live)
-        if (uiState.extractedExpirationDate != null && uiState.extractedExpirationDate != "Not found") {
-            val status = ExpirationDateParser.getDateStatus(uiState.extractedExpirationDate ?: "")
-            val buttonColor = when (status) {
-                ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39) // Dark Green
-                ExpirationDateParser.DateStatus.RED -> Color.Red
-                else -> Variables.mainPrimary
-            }
-
+        // Expiration Date Stack (Live)
+        if (uiState.detectedExpirationDates.isNotEmpty()) {
+            val scrollState = rememberScrollState()
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 100.dp),
+                    .padding(bottom = 80.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .fillMaxHeight(0.6f) // Increased height to show more items
+                        .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .padding(bottom = 8.dp)
+                ) {
                     Column(
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                            .padding(16.dp),
+                            .fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        ButtonWithIconOption(
-                            ButtonData(
-                                titleId = R.string.expiration_date,
-                                color = buttonColor,
-                                alpha = 1f,
-                                enabled = true,
-                                onButtonClick = { },
-                                titleString = uiState.extractedExpirationDate
-                            ),
-                            drawableRes = R.drawable.ic_check
-                        )
+                        // Header with Clear Button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Found Dates (${uiState.detectedExpirationDates.size})",
+                                style = TextStyle(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            )
+                            
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.Red.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.clearDetectedExpirationDates() }
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Clear All",
+                                    style = TextStyle(color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(scrollState)
+                                    .drawWithContent {
+                                        drawContent()
+                                        // Custom Scrollbar - More Visible
+                                        val needScroll = scrollState.maxValue > 0
+                                        if (needScroll) {
+                                            val viewPortHeight = this.size.height
+                                            val contentHeight = viewPortHeight + scrollState.maxValue
+                                            val scrollbarHeight = (viewPortHeight / contentHeight) * viewPortHeight
+                                            val scrollbarOffset = (scrollState.value.toFloat() / contentHeight) * viewPortHeight
+                                            
+                                            drawRect(
+                                                color = Color.White,
+                                                topLeft = Offset(this.size.width - 4.dp.toPx(), scrollbarOffset),
+                                                size = androidx.compose.ui.geometry.Size(4.dp.toPx(), scrollbarHeight)
+                                            )
+                                        }
+                                    },
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                uiState.detectedExpirationDates.forEach { dateText ->
+                                    val status = ExpirationDateParser.getDateStatus(dateText)
+                                    val buttonColor = when (status) {
+                                        ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39)
+                                        ExpirationDateParser.DateStatus.YELLOW -> Color(0xFFFFC107)
+                                        ExpirationDateParser.DateStatus.RED -> Color.Red
+                                        else -> Variables.mainPrimary
+                                    }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        ButtonWithIconOption(
+                                            ButtonData(
+                                                titleId = R.string.expiration_date,
+                                                color = buttonColor,
+                                                alpha = 1f,
+                                                enabled = true,
+                                                onButtonClick = { },
+                                                titleString = dateText
+                                            ),
+                                            drawableRes = R.drawable.ic_check
+                                        )
+
+                                        val months = ExpirationDateParser.getMonthsUntilExpiration(dateText)
+                                        val message = when (status) {
+                                            ExpirationDateParser.DateStatus.GREEN -> if (months > 0) "This medicine will be expired in $months months" else null
+                                            ExpirationDateParser.DateStatus.YELLOW -> "This medicine will be expired in 1 month"
+                                            ExpirationDateParser.DateStatus.RED -> "This medicine is already expired"
+                                            else -> null
+                                        }
+
+                                        if (message != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = message,
+                                                style = TextStyle(
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
                     }
+                }
             }
         }
     }
@@ -563,6 +679,7 @@ fun DrawOCRResult(
                     val status = ExpirationDateParser.getDateStatus(ocrResultData.text)
                     borderColor = when (status) {
                         ExpirationDateParser.DateStatus.GREEN -> Color.Green
+                        ExpirationDateParser.DateStatus.YELLOW -> Color.Yellow
                         ExpirationDateParser.DateStatus.RED -> Color.Red
                         else -> Color(0xFFFF7B00)
                     }
@@ -701,6 +818,7 @@ fun DrawOCRResultWithTextSizeScaling(
                     val status = ExpirationDateParser.getDateStatus(ocrResultData.text)
                     borderColor = when (status) {
                         ExpirationDateParser.DateStatus.GREEN -> Color.Green
+                        ExpirationDateParser.DateStatus.YELLOW -> Color.Yellow
                         ExpirationDateParser.DateStatus.RED -> Color.Red
                         else -> Color(0xFFFF7B00)
                     }
@@ -840,6 +958,7 @@ fun DrawOCRResultWithTextSizeScalingAndCheckMark(
                     val status = ExpirationDateParser.getDateStatus(ocrResultData.text)
                     borderColor = when (status) {
                         ExpirationDateParser.DateStatus.GREEN -> Color.Green
+                        ExpirationDateParser.DateStatus.YELLOW -> Color.Yellow
                         ExpirationDateParser.DateStatus.RED -> Color.Red
                         else -> Color(0xFFFF7B00)
                     }
@@ -1358,20 +1477,18 @@ fun showBottomBar(
                         .clickable {
                             var zoomRatio: Float = uiState.zoomLevel * 2.0f
                             if (zoomRatio > 4.0f) {
-                                zoomRatio = 1.0F
+                                zoomRatio = 1.0f
                             }
                             viewModel.setZoom(zoomRatio)
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    val roundedValue = ((uiState.zoomLevel * 10).toInt()).toFloat() / 10
                     Text(
-                        text = roundedValue.toString() + "x",
+                        text = "${uiState.zoomLevel.toInt()}X",
                         style = TextStyle(
                             fontSize = 12.sp,
-                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans_regular)),
-                            fontWeight = FontWeight(400),
-                            color = Variables.mainInverse
+                            fontWeight = FontWeight.Bold,
+                            color = Variables.stateDefaultEnabled
                         )
                     )
                 }
@@ -1379,128 +1496,61 @@ fun showBottomBar(
         }
     }
 }
-
 @Composable
-fun HandleTopInfo(
-    icon: Int,
-    info: String,
-    showInfo: MutableState<Boolean>
-) {
+fun showInformationBox(info: String, topPadding: androidx.compose.ui.unit.Dp) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-            .padding(top = 16.dp, start = 21.dp, end = 21.dp)
+            .fillMaxWidth()
+            .padding(top = topPadding, start = 16.dp, end = 16.dp)
+            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 0.87838.dp,
-                    color = Color(0xFFF8D249),
-                    shape = RoundedCornerShape(size = 360.13556.dp)
-                )
-                .background(
-                    color = Color(0xD9151519),
-                    shape = RoundedCornerShape(size = 360.13556.dp)
-                )
-        ) {
-            Row(
-                modifier = Modifier.padding(
-                    top = Variables.spacingLarge,
-                    bottom = Variables.spacingMedium
-                ),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(modifier = Modifier.width(Variables.spacingLarge))
-                Image(
-                    painter = painterResource(id = icon),
-                    contentDescription = "shutter",
-                )
-                Spacer(modifier = Modifier.width(Variables.spacingLarge))
-                Text(
-                    text = info,
-                    modifier = Modifier
-                        .padding(end = 36.dp)
-                        .weight(1f),
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        lineHeight = 21.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(400),
-                        color = Variables.mainInverse,
-                    )
-                )
-                Image(
-                    painter = painterResource(id = R.drawable.icon_close),
-                    contentDescription = "close",
-                    modifier = Modifier
-                        .clickable {
-                            showInfo.value = false
-                        }
-                        .background(
-                            Color.Black,
-                            shape = RoundedCornerShape(size = 360.13556.dp)
-                        )
-                )
-                Spacer(modifier = Modifier.width(Variables.spacingLarge))
-            }
-        }
+        Text(
+            text = info,
+            style = TextStyle(
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+        )
     }
 }
 
 @Composable
-fun showInformationBox(
-    info: String,
-    topPadding: Dp
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-            .padding(top = topPadding, start = 21.dp, end = 21.dp)
-    ) {
-        Column(
+fun HandleTopInfo(icon: Int, info: String, showInfo: MutableState<Boolean>) {
+    if (showInfo.value) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(
-                    width = 0.87838.dp,
-                    color = Color(0xFFF8D249),
-                    shape = RoundedCornerShape(size = 360.13556.dp)
-                )
-                .background(
-                    Color.Black.copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(size = 360.13556.dp)
-                )
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp),
+            contentAlignment = Alignment.TopCenter
         ) {
             Row(
-                modifier = Modifier.padding(
-                    top = Variables.spacingLarge,
-                    bottom = Variables.spacingMedium
-                ),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                    .clickable { showInfo.value = false } // Tap to dismiss
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Spacer(modifier = Modifier.width(Variables.spacingLarge))
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = "Search Icon",
-                    tint = Variables.mainInverse
+                Image(
+                    painter = painterResource(id = icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(Variables.spacingLarge))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = info,
-                    modifier = Modifier
-                        .padding(end = 36.dp)
-                        .weight(1f),
                     style = TextStyle(
+                        color = Color.White,
                         fontSize = 14.sp,
-                        lineHeight = 21.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(400),
-                        color = Variables.mainInverse,
-                    )
+                        fontWeight = FontWeight.Normal
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(Variables.spacingLarge))
             }
         }
     }
