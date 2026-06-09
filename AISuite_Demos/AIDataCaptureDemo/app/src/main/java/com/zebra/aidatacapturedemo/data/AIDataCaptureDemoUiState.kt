@@ -188,6 +188,8 @@ data class AIDataCaptureDemoUiState(
     val ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
     var barcodeLabels: Map<String, String> = emptyMap(),
+    var pickingBarcodeResults: List<ResultData> = listOf(),
+    var pickingBarcodeLabels: Map<String, String> = emptyMap(),
     var selectedToteId: String? = null,
     var allCustomers: List<CustomerInfo> = listOf(),
     var selectedCustomer: CustomerInfo? = null,
@@ -195,6 +197,7 @@ data class AIDataCaptureDemoUiState(
     var lastScannedProduct: ProductInfo? = null,
     var targetTotes: List<Pair<String, Int>> = listOf(), // Tote ID to Quantity
     var pickedProductBarcodes: Set<String> = emptySet(),
+    var validatedTotes: Set<String> = emptySet(), // Tote Labels confirmed by scan
 
     // Choices
     var isBarcodeModelEnabled: Boolean = true,

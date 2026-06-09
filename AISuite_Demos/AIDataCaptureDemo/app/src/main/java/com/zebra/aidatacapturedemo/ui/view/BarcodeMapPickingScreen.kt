@@ -3,6 +3,9 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
 import android.view.WindowManager
 import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
@@ -32,7 +35,15 @@ import kotlin.math.min
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.zebra.aidatacapturedemo.data.ResultData
 import kotlin.math.abs
+import android.annotation.SuppressLint
 
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.view.PreviewView
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.util.Size
+
+@SuppressLint("UnusedContentLambdaTargetStateParameter")
 @Composable
 fun BarcodeMapPickingScreen(
     viewModel: AIDataCaptureDemoViewModel,
@@ -40,14 +51,39 @@ fun BarcodeMapPickingScreen(
     @Suppress("UNUSED_PARAMETER") context: Context,
     @Suppress("UNUSED_PARAMETER") activityInnerPadding: PaddingValues,
     innerPadding: PaddingValues,
-    @Suppress("UNUSED_PARAMETER") activityLifecycle: Lifecycle
+    activityLifecycle: Lifecycle
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val localContext = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
     viewModel.updateAppBarTitle("Picking Map")
+
+    // Initialize Camera for Live Scanning on Map
+    LaunchedEffect(Unit) {
+        // We use a standard resolution for picking
+        viewModel.updateCameraReady(false)
+    }
+
+    // Register BroadcastReceiver for DataWedge
+    DisposableEffect(Unit) {
+        val filter = IntentFilter("com.zebra.aidatacapturedemo.SCAN")
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val scanData = intent?.getStringExtra("com.symbol.datawedge.data_string")
+                if (scanData != null) {
+                    viewModel.processHardwareScan(scanData)
+                }
+            }
+        }
+        localContext.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        onDispose {
+            localContext.unregisterReceiver(receiver)
+        }
+    }
 
     // Removed automatic selectedToteId update to prevent overwriting "Show on Map" target
     /*
@@ -63,20 +99,38 @@ fun BarcodeMapPickingScreen(
         .fillMaxSize()
         .padding(innerPadding)
     ) {
-        // 1. Full screen Abstract Map (The "Digital Twin")
+        // 1. Background Camera Preview (Low alpha to ensure it's active but hidden)
+        AndroidView(
+            factory = { ctx ->
+                PreviewView(ctx).apply {
+                    this.scaleType = PreviewView.ScaleType.FILL_CENTER
+                    viewModel.setupCameraController(
+                        previewView = this,
+                        analysisUseCaseCameraResolution = Size(1280, 720),
+                        lifecycleOwner = lifecycleOwner,
+                        activityLifecycle = activityLifecycle
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize().alpha(0.1f)
+        )
+
+        // 2. Full screen Abstract Map (The "Digital Twin")
         AbstractMapLayer(uiState)
 
-        // 2. Guidance Overlay
+        // 3. Guidance Overlay
         val feedback = uiState.pickingFeedback
-        if (feedback != null) {
-            val isWarning = feedback.contains("incorrect", ignoreCase = true) || feedback.contains("already picked", ignoreCase = true)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF0F2F5)) // Barrier background
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 100.dp), // Increased padding to avoid being blocked by top bar
+            contentAlignment = Alignment.TopCenter
+        ) {
+            if (feedback != null) {
+                val isWarning = feedback.contains("incorrect", ignoreCase = true) || 
+                                feedback.contains("already picked", ignoreCase = true) ||
+                                feedback.contains("Unrecognized", ignoreCase = true)
+                
                 Text(
                     text = feedback,
                     style = TextStyle(
@@ -89,27 +143,19 @@ fun BarcodeMapPickingScreen(
                             if (isWarning) Color.Red else Color(0xFF006D39),
                             RoundedCornerShape(8.dp)
                         )
-                        .padding(16.dp)
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                 )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF0F2F5)) // Barrier background
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
+            } else {
                 Text(
-                    text = "Scan Item Barcode",
+                    text = "Scan Tote Barcode",
                     style = TextStyle(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     ),
                     modifier = Modifier
-                        .background(Color.White, RoundedCornerShape(8.dp)) // Fully opaque white
-                        .padding(16.dp)
+                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                 )
             }
         }
@@ -118,7 +164,7 @@ fun BarcodeMapPickingScreen(
 
 @Composable
 private fun AbstractMapLayer(uiState: AIDataCaptureDemoUiState) {
-    val barcodeResults = uiState.barcodeResults
+    val barcodeResults = uiState.pickingBarcodeResults
     if (barcodeResults.isEmpty()) return
 
     // Calculate the bounding box of all detected barcodes to center the content
@@ -174,7 +220,7 @@ private fun DrawAbstractBarcodeMapLayer(
     gapY: Float,
     displayMetricsDensity: Float
 ) {
-    val barcodeResults = uiState.barcodeResults
+    val barcodeResults = uiState.pickingBarcodeResults
     if (barcodeResults.isEmpty()) return
 
     // Grouping logic for columns first (to identify vertical stacks)
@@ -232,15 +278,18 @@ private fun DrawAbstractBarcodeMapLayer(
                 val scaledTop = (scaler * avgCenterY) + gapY - (scaledHeight / 2)
 
                 // Use the pre-calculated labels from the ViewModel
-                val label = uiState.barcodeLabels[barcode.text] ?: ""
+                val label = uiState.pickingBarcodeLabels[barcode.text] ?: ""
                 
                 // Find quantity if this tote is one of the targets for the current product
                 val qty = uiState.targetTotes.find { it.first == label }?.second
                 
-                // Highlight if this box's label matches the selected tote OR it's a target
-                val isTarget = uiState.selectedToteId == label || qty != null
+                // Check if this specific tote box has already been validated by a scan
+                val isValidated = uiState.validatedTotes.contains(label)
+
+                // Highlight if this box's label matches the selected tote OR it's a target AND not validated yet
+                val isTarget = (uiState.selectedToteId == label || qty != null) && !isValidated
                 
-                val displayText = if (qty != null) "QTY: $qty" else barcode.text
+                val displayText = if (qty != null && !isValidated) "QTY: $qty" else barcode.text
 
                 drawAbstractPickingUnit(
                     barcode = displayText,
