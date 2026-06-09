@@ -21,10 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.zebra.aidatacapturedemo.data.CustomerDataGenerator
 import com.zebra.aidatacapturedemo.data.ProductInfo
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
-import java.util.Locale
 
 @Composable
 fun CustomerInformationScreen(
@@ -35,23 +33,7 @@ fun CustomerInformationScreen(
     val uiState by viewModel.uiState.collectAsState()
     viewModel.updateAppBarTitle("Product List")
 
-    val availableToteLabels = remember(uiState.barcodeLabels) {
-        uiState.barcodeLabels.values.distinct().sorted()
-    }
-
-    // Generate data once using detected tote labels
-    val customers = remember(availableToteLabels) {
-        if (availableToteLabels.isNotEmpty()) {
-            CustomerDataGenerator.generateCustomers(availableToteLabels)
-        } else {
-            CustomerDataGenerator.generateCustomers()
-        }
-    }
-    
-    // Store in ViewModel so we can access it during scanning
-    LaunchedEffect(customers) {
-        viewModel.setAllCustomers(customers)
-    }
+    val customers = uiState.allCustomers
 
     // Process data to group by product
     val productGroups = remember(customers) {
@@ -197,13 +179,6 @@ fun ProductPickingItem(product: ProductInfo, totes: List<Pair<String, Int>>) {
                         Text(text = "Qty: $qty", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black))
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Total Price: $${String.format(Locale.US, "%.2f", product.price * totes.sumOf { it.second })}",
-                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF006D39)),
-                    modifier = Modifier.align(Alignment.End)
-                )
             }
         }
     }
