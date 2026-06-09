@@ -150,6 +150,7 @@ fun NavigationStack(
                 navController = navController,
                 context = context,
                 activityInnerPadding = activityInnerPadding,
+                innerPadding = innerPadding,
                 activityLifecycle = activityLifecycle
             )
         }

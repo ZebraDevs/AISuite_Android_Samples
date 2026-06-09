@@ -15,8 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +32,11 @@ fun CustomerInformationScreen(
     innerPadding: PaddingValues
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    LaunchedEffect(Unit) {
+        viewModel.updateAppBarTitle("Product List")
+    }
+
     val availableToteLabels = remember(uiState.barcodeLabels) {
         uiState.barcodeLabels.values.distinct().sorted()
     }
@@ -79,34 +82,6 @@ fun CustomerInformationScreen(
             .background(Color(0xFFF8F9FA))
             .padding(innerPadding)
     ) {
-        // Title with bottom border
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFF8F9FA))
-                .padding(horizontal = 16.dp)
-                .drawBehind {
-                    val borderSize = 1.dp.toPx()
-                    val y = size.height - borderSize / 2
-                    drawLine(
-                        color = Color.Black,
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = borderSize
-                    )
-                }
-                .padding(bottom = 8.dp)
-        ) {
-            Text(
-                text = "Product Picking List",
-                style = TextStyle(
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-            )
-        }
-
         TabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = Color.White,

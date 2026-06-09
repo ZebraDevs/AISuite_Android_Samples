@@ -63,7 +63,7 @@ fun BarcodeMapResultScreen(
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle("Barcode Layout Map")
+    viewModel.updateAppBarTitle("Product List")
 
     val capturedBitmap = uiState.captureBitmap
     if (capturedBitmap == null) {
@@ -132,33 +132,6 @@ fun BarcodeMapResultScreen(
                 }
             }
 
-            // SUMMARY OVERLAY
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF0F2F5)) // Solid background to match screen
-                    .padding(vertical = 16.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Barcode Layout Map",
-                        style = TextStyle(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A1C1E)
-                        )
-                    )
-                    Text(
-                        text = "${uiState.barcodeResults.size} barcodes mapped",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFF44474E)
-                        )
-                    )
-                }
-            }
 
             // SAVE BUTTON
             Box(

@@ -1857,13 +1857,13 @@ class AIDataCaptureDemoViewModel(
 
         if (productMatch != null) {
             _uiState.update { it.copy(
-                pickingFeedback = "Item Identified Barcode: $scannedBarcode",
+                pickingFeedback = "Product Identified Barcode: $scannedBarcode",
                 selectedToteId = scannedBarcode, // Highlight it on the map
                 pickedProductBarcodes = it.pickedProductBarcodes + scannedBarcode
             ) }
         } else {
             _uiState.update { it.copy(
-                pickingFeedback = "Incorrect Item"
+                pickingFeedback = "Incorrect Product"
             ) }
         }
     }
@@ -1896,14 +1896,14 @@ class AIDataCaptureDemoViewModel(
             _uiState.update { it.copy(
                 lastScannedProduct = productInfo,
                 targetTotes = matches,
-                pickingFeedback = "Item Identified Barcode: $barcode",
+                pickingFeedback = "Product Identified Barcode: $barcode",
                 pickedProductBarcodes = it.pickedProductBarcodes + barcode
             ) }
         } else {
             _uiState.update { it.copy(
                 lastScannedProduct = null,
                 targetTotes = listOf(),
-                pickingFeedback = "Incorrect Item"
+                pickingFeedback = "Incorrect Product"
             ) }
         }
     }

@@ -39,6 +39,7 @@ fun BarcodeMapPickingScreen(
     navController: NavController,
     @Suppress("UNUSED_PARAMETER") context: Context,
     @Suppress("UNUSED_PARAMETER") activityInnerPadding: PaddingValues,
+    innerPadding: PaddingValues,
     @Suppress("UNUSED_PARAMETER") activityLifecycle: Lifecycle
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -46,7 +47,7 @@ fun BarcodeMapPickingScreen(
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle("Item Picking")
+    viewModel.updateAppBarTitle("Product Scan")
 
     // Removed automatic selectedToteId update to prevent overwriting "Show on Map" target
     /*
@@ -60,7 +61,7 @@ fun BarcodeMapPickingScreen(
 
     Box(modifier = Modifier
         .fillMaxSize()
-        .padding(activityInnerPadding)
+        .padding(innerPadding)
     ) {
         // 1. Full screen Abstract Map (The "Digital Twin")
         AbstractMapLayer(uiState)
