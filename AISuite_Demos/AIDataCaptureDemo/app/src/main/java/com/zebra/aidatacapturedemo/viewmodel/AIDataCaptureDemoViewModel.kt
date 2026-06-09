@@ -1856,46 +1856,10 @@ class AIDataCaptureDemoViewModel(
 
     private fun handlePickingScan(results: List<ResultData>) {
         if (results.isEmpty()) return
-
-        val scannedBarcode = results.first().text
-        val customer = uiState.value.selectedCustomer ?: return
-
-        // Check if already picked
-        if (uiState.value.pickedProductBarcodes.contains(scannedBarcode)) {
-            _uiState.update { it.copy(
-                pickingFeedback = "Product already picked: $scannedBarcode"
-            ) }
-            return
-        }
-
-        val productMatch = customer.products.find { it.barcode == scannedBarcode }
-
-        if (productMatch != null) {
-            _uiState.update { it.copy(
-                pickingFeedback = "Product Identified Barcode: $scannedBarcode",
-                selectedToteId = scannedBarcode, // Highlight it on the map
-                pickedProductBarcodes = it.pickedProductBarcodes + scannedBarcode
-            ) }
-        } else {
-            _uiState.update { it.copy(
-                pickingFeedback = "Incorrect Product"
-            ) }
-        }
+        processScanResult(results.first().text)
     }
 
-    fun updateSelectedCustomer(customer: com.zebra.aidatacapturedemo.data.CustomerInfo?) {
-        _uiState.update { it.copy(selectedCustomer = customer) }
-    }
-
-    fun updatePickingFeedback(feedback: String?) {
-        _uiState.update { it.copy(pickingFeedback = feedback) }
-    }
-
-    fun setAllCustomers(customers: List<CustomerInfo>) {
-        _uiState.update { it.copy(allCustomers = customers) }
-    }
-
-    fun processHardwareScan(barcode: String) {
+    private fun processScanResult(barcode: String) {
         // Check if already picked
         if (uiState.value.pickedProductBarcodes.contains(barcode)) {
             _uiState.update { it.copy(
@@ -1929,6 +1893,22 @@ class AIDataCaptureDemoViewModel(
                 pickingFeedback = "Incorrect Product"
             ) }
         }
+    }
+
+    fun updateSelectedCustomer(customer: com.zebra.aidatacapturedemo.data.CustomerInfo?) {
+        _uiState.update { it.copy(selectedCustomer = customer) }
+    }
+
+    fun updatePickingFeedback(feedback: String?) {
+        _uiState.update { it.copy(pickingFeedback = feedback) }
+    }
+
+    fun setAllCustomers(customers: List<CustomerInfo>) {
+        _uiState.update { it.copy(allCustomers = customers) }
+    }
+
+    fun processHardwareScan(barcode: String) {
+        processScanResult(barcode)
     }
 
     fun updateRetailShelfDetectionResult(results: Array<BBox?>?) {
@@ -2039,10 +2019,27 @@ class AIDataCaptureDemoViewModel(
     fun saveBarcodeLayout() {
         if (uiState.value.barcodeResults.isNotEmpty()) {
             FileUtils.saveBarcodeResultsToFile(uiState.value.barcodeResults)
+            initializePickingDemo()
             toast("Barcode layout saved successfully")
         } else {
             toast("No barcode results to save")
         }
+    }
+
+    private fun initializePickingDemo() {
+        val toteLabels = uiState.value.barcodeLabels.values.distinct().sorted()
+        val customers = if (toteLabels.isNotEmpty()) {
+            com.zebra.aidatacapturedemo.data.CustomerDataGenerator.generateCustomers(toteLabels)
+        } else {
+            com.zebra.aidatacapturedemo.data.CustomerDataGenerator.generateCustomers()
+        }
+        _uiState.update { it.copy(
+            allCustomers = customers,
+            pickedProductBarcodes = emptySet(),
+            pickingFeedback = null,
+            lastScannedProduct = null,
+            targetTotes = listOf()
+        ) }
     }
 
     fun toast(toastString: String) {
