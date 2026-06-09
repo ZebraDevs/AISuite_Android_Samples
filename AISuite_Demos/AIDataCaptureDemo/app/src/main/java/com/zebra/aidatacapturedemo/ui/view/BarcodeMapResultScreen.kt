@@ -63,7 +63,7 @@ fun BarcodeMapResultScreen(
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle("Product List")
+    viewModel.updateAppBarTitle("Layout Map")
 
     val capturedBitmap = uiState.captureBitmap
     if (capturedBitmap == null) {

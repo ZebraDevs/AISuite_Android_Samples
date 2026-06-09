@@ -29,6 +29,7 @@ fun BarcodeMapScanPickingScreen(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     var manualInput by remember { mutableStateOf("") }
+    viewModel.updateAppBarTitle("Product Scan")
 
     // Register BroadcastReceiver for DataWedge
     DisposableEffect(Unit) {
@@ -49,7 +50,6 @@ fun BarcodeMapScanPickingScreen(
 
     // Auto-focus the manual input field to capture keyboard wedge scans
     LaunchedEffect(Unit) {
-        viewModel.updateAppBarTitle("Product Scan")
         focusRequester.requestFocus()
     }
 

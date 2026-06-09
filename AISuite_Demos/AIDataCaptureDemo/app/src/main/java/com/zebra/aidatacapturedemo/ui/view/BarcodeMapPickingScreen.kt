@@ -47,7 +47,7 @@ fun BarcodeMapPickingScreen(
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle("Product Scan")
+    viewModel.updateAppBarTitle("Picking Map")
 
     // Removed automatic selectedToteId update to prevent overwriting "Show on Map" target
     /*
