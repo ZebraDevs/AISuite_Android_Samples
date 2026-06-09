@@ -1856,7 +1856,12 @@ class AIDataCaptureDemoViewModel(
 
     private fun handlePickingScan(results: List<ResultData>) {
         if (results.isEmpty()) return
-        processScanResult(results.first().text)
+        val barcode = results.first().text
+        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
+            processToteScan(barcode)
+        } else {
+            processScanResult(barcode)
+        }
     }
 
     private fun processScanResult(barcode: String) {
@@ -1884,7 +1889,8 @@ class AIDataCaptureDemoViewModel(
                 lastScannedProduct = productInfo,
                 targetTotes = matches,
                 pickingFeedback = "Product Identified Barcode: $barcode",
-                pickedProductBarcodes = it.pickedProductBarcodes + barcode
+                pickedProductBarcodes = it.pickedProductBarcodes + barcode,
+                validatedTotes = emptySet() // Reset for new product
             ) }
         } else {
             _uiState.update { it.copy(
@@ -1892,6 +1898,32 @@ class AIDataCaptureDemoViewModel(
                 targetTotes = listOf(),
                 pickingFeedback = "Incorrect Product"
             ) }
+        }
+    }
+
+    private fun processToteScan(barcode: String) {
+        val label = uiState.value.pickingBarcodeLabels[barcode]
+        Log.d(TAG, "processToteScan: barcode=$barcode, label=$label")
+        if (label != null) {
+            val isTarget = uiState.value.targetTotes.any { it.first == label }
+            if (isTarget) {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Correct tote: $label",
+                    validatedTotes = it.validatedTotes + label
+                ) }
+            } else {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Incorrect tote: $label"
+                ) }
+            }
+        } else {
+            // Only update if we don't already have a meaningful status, 
+            // to avoid overwriting "Correct tote" with "Unrecognized" if multiple barcodes are in frame
+            if (uiState.value.pickingFeedback?.startsWith("Correct") != true) {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Unrecognized barcode: $barcode"
+                ) }
+            }
         }
     }
 
@@ -1908,7 +1940,11 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun processHardwareScan(barcode: String) {
-        processScanResult(barcode)
+        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
+            processToteScan(barcode)
+        } else {
+            processScanResult(barcode)
+        }
     }
 
     fun updateRetailShelfDetectionResult(results: Array<BBox?>?) {
@@ -2035,6 +2071,8 @@ class AIDataCaptureDemoViewModel(
         }
         _uiState.update { it.copy(
             allCustomers = customers,
+            pickingBarcodeResults = it.barcodeResults,
+            pickingBarcodeLabels = it.barcodeLabels,
             pickedProductBarcodes = emptySet(),
             pickingFeedback = null,
             lastScannedProduct = null,
