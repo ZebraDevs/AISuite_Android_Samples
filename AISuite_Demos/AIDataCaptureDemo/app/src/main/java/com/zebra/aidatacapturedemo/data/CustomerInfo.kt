@@ -18,11 +18,22 @@ data class CustomerInfo(
 
 object CustomerDataGenerator {
     private val availableProducts = listOf(
-        ProductInfo("Heidrun opbergbox met klapedeksel", 2.99, "2540068"),
-        ProductInfo("Opbergbox+klemdeksel A4", 2.49, "2543429"),
-        ProductInfo("Onderbedboxklemdeksel", 5.95, "2568528"),
-        ProductInfo("Opbergbox met klemdeksel", 7.49, "3205800")
-    )
+        ProductInfo("Purell Hand Sanitizer", 5.99, "073852401097"),
+        ProductInfo("Maltese", 2.49, "6936749026602"),
+        ProductInfo("Clip", 3.95, "6936590040130"),
+        ProductInfo("Premium Skincare Facial Tissue", 7.49, "627987553635"),
+        ProductInfo("Blue Pen", 1.49, "4901681143122"),
+        ProductInfo("Red Pen", 1.49, "4901681143139"),
+        ProductInfo("Green Highlighter", 1.79, "04588878145"),
+        ProductInfo("Yellow Highlighter", 1.79, "045888783508"),
+        ProductInfo("Staedtler Mars Plastic Erazer", 2.25, "031901907983"),
+        ProductInfo("Uni-Ball Black Pen", 1.99, "4902778497814"),
+        ProductInfo("Ain Stein 0.5 HB", 1.55, "4902506269249"),
+        ProductInfo("Black board", 1.79, "024680135791"),
+        ProductInfo("Pencil", 1.25, "4007817182260"),
+        ProductInfo("Equate Instant Hand Sanitizer Gel", 1.25, "628915089622"),
+        ProductInfo("Math Sudoku", 1.25, "4952583053415"),
+        )
 
     fun generateCustomers(toteIds: List<String> = listOf("A", "B", "C", "D", "E", "F")): List<CustomerInfo> {
         return toteIds.map { id ->
