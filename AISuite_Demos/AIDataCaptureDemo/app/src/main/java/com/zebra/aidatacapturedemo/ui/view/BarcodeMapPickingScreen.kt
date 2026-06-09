@@ -69,6 +69,7 @@ fun BarcodeMapPickingScreen(
         // 2. Guidance Overlay
         val feedback = uiState.pickingFeedback
         if (feedback != null) {
+            val isWarning = feedback.contains("incorrect", ignoreCase = true) || feedback.contains("already picked", ignoreCase = true)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -85,7 +86,7 @@ fun BarcodeMapPickingScreen(
                     ),
                     modifier = Modifier
                         .background(
-                            if (feedback.contains("incorrect")) Color.Red else Color(0xFF006D39),
+                            if (isWarning) Color.Red else Color(0xFF006D39),
                             RoundedCornerShape(8.dp)
                         )
                         .padding(16.dp)
@@ -117,8 +118,18 @@ fun BarcodeMapPickingScreen(
 
 @Composable
 private fun AbstractMapLayer(uiState: AIDataCaptureDemoUiState) {
-    val capturedBitmap = uiState.captureBitmap ?: return
-    
+    val barcodeResults = uiState.barcodeResults
+    if (barcodeResults.isEmpty()) return
+
+    // Calculate the bounding box of all detected barcodes to center the content
+    val minX = barcodeResults.minOf { it.boundingBox.left }.toFloat()
+    val maxX = barcodeResults.maxOf { it.boundingBox.right }.toFloat()
+    val minY = barcodeResults.minOf { it.boundingBox.top }.toFloat()
+    val maxY = barcodeResults.maxOf { it.boundingBox.bottom }.toFloat()
+
+    val contentWidth = maxX - minX
+    val contentHeight = maxY - minY
+
     val displayMetrics = LocalContext.current.resources.displayMetrics
     val displayMetricsDensity = displayMetrics.density
     val windowManager = getSystemService(LocalContext.current, WindowManager::class.java)
@@ -126,13 +137,19 @@ private fun AbstractMapLayer(uiState: AIDataCaptureDemoUiState) {
     val displayTotalWidthInPx = windowMetrics.bounds.width()
     val displayTotalHeightInPx = windowMetrics.bounds.height()
 
-    // Simplified scaling logic for the abstract map
+    // Use 80% of the screen to keep them "far from the side"
+    val paddingFactor = 0.8f
+    val availableWidth = displayTotalWidthInPx * paddingFactor
+    val availableHeight = displayTotalHeightInPx * paddingFactor
+
     val scaler = min(
-        displayTotalWidthInPx.toFloat() / capturedBitmap.width.toFloat(),
-        displayTotalHeightInPx.toFloat() / capturedBitmap.height.toFloat()
-    )
-    val gapX = (displayTotalWidthInPx - (scaler * capturedBitmap.width.toFloat())) / 2f
-    val gapY = (displayTotalHeightInPx - (scaler * capturedBitmap.height.toFloat())) / 2f
+        availableWidth / contentWidth,
+        availableHeight / contentHeight
+    ).coerceAtMost(displayMetricsDensity * 2.0f) // Cap scaler so single barcodes don't explode
+
+    // Calculate offsets to center the content bounding box on screen
+    val gapX = (displayTotalWidthInPx - (scaler * contentWidth)) / 2f - (scaler * minX)
+    val gapY = (displayTotalHeightInPx - (scaler * contentHeight)) / 2f - (scaler * minY)
 
     Box(
         modifier = Modifier
@@ -160,26 +177,43 @@ private fun DrawAbstractBarcodeMapLayer(
     val barcodeResults = uiState.barcodeResults
     if (barcodeResults.isEmpty()) return
 
-    // Grouping logic for rows (Reusing logic from Result screen)
-    val sortedByY = barcodeResults.sortedBy { it.boundingBox.centerY() }
-    val rows = mutableListOf<MutableList<ResultData>>()
-    
-    if (sortedByY.isNotEmpty()) {
-        var currentRow = mutableListOf<ResultData>()
-        currentRow.add(sortedByY[0])
-        rows.add(currentRow)
+    // Grouping logic for columns first (to identify vertical stacks)
+    val sortedByX = barcodeResults.sortedBy { it.boundingBox.centerX() }
+    val columns = mutableListOf<MutableList<ResultData>>()
 
-        for (i in 1 until sortedByY.size) {
-            val prev = sortedByY[i - 1]
-            val curr = sortedByY[i]
-            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
-                currentRow.add(curr)
+    if (sortedByX.isNotEmpty()) {
+        var currentColumn = mutableListOf<ResultData>()
+        currentColumn.add(sortedByX[0])
+        columns.add(currentColumn)
+
+        for (i in 1 until sortedByX.size) {
+            val prev = sortedByX[i - 1]
+            val curr = sortedByX[i]
+            // Overlap threshold for same column: 60% of width
+            if (abs(curr.boundingBox.centerX() - prev.boundingBox.centerX()) < (prev.boundingBox.width() * 0.6)) {
+                currentColumn.add(curr)
             } else {
-                currentRow = mutableListOf<ResultData>()
-                currentRow.add(curr)
-                rows.add(currentRow)
+                currentColumn = mutableListOf<ResultData>()
+                currentColumn.add(curr)
+                columns.add(currentColumn)
             }
         }
+    }
+
+    // Sort each column by Y (top-to-bottom)
+    columns.forEach { it.sortBy { item -> item.boundingBox.centerY() } }
+
+    // Synthesize rows from columns for consistent alignment and labeling
+    val rows = mutableListOf<List<ResultData>>()
+    val maxItemsInColumn = columns.maxOfOrNull { it.size } ?: 0
+    for (rowIdx in 0 until maxItemsInColumn) {
+        val row = mutableListOf<ResultData>()
+        for (colIdx in 0 until columns.size) {
+            if (rowIdx < columns[colIdx].size) {
+                row.add(columns[colIdx][rowIdx])
+            }
+        }
+        rows.add(row)
     }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -188,22 +222,14 @@ private fun DrawAbstractBarcodeMapLayer(
             val avgHeight = sortedRow.map { it.boundingBox.height() }.average().toFloat()
             val avgCenterY = sortedRow.map { it.boundingBox.centerY() }.average().toFloat()
 
-            var currentLeftX = -1f
-
             sortedRow.forEach { barcode ->
                 val bBoxWidth = barcode.boundingBox.width().toFloat()
-                var left = barcode.boundingBox.left.toFloat()
-                
-                if (currentLeftX != -1f) {
-                    if (abs(left - currentLeftX) < bBoxWidth * 0.4) {
-                        left = currentLeftX
-                    }
-                }
+                val centerX = barcode.boundingBox.centerX().toFloat()
 
-                val scaledLeft = (scaler * left) + gapX
-                val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth) * 1.5f
-                val scaledHeight = (scaler * avgHeight) * 1.5f
+                val scaledWidth = (scaler * bBoxWidth) * 2.0f
+                val scaledHeight = (scaler * avgHeight) * 3.5f
+                val scaledLeft = (scaler * centerX) + gapX - (scaledWidth / 2)
+                val scaledTop = (scaler * avgCenterY) + gapY - (scaledHeight / 2)
 
                 // Use the pre-calculated labels from the ViewModel
                 val label = uiState.barcodeLabels[barcode.text] ?: ""
@@ -226,8 +252,6 @@ private fun DrawAbstractBarcodeMapLayer(
                     density = displayMetricsDensity,
                     isTarget = isTarget
                 )
-                
-                currentLeftX = left + bBoxWidth
             }
         }
     }

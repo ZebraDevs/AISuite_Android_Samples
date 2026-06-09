@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @Composable
 fun BarcodeMapScanPickingScreen(
     viewModel: AIDataCaptureDemoViewModel,
@@ -29,6 +32,8 @@ fun BarcodeMapScanPickingScreen(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     var manualInput by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
+
     viewModel.updateAppBarTitle("Product Scan")
 
     // Register BroadcastReceiver for DataWedge
@@ -57,11 +62,12 @@ fun BarcodeMapScanPickingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF0F2F5))
+            .verticalScroll(scrollState)
             .padding(innerPadding)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Invisible or small TextField to capture keyboard wedge input
+        // ... (rest of the text field and button)
         OutlinedTextField(
             value = manualInput,
             onValueChange = { 
@@ -99,10 +105,11 @@ fun BarcodeMapScanPickingScreen(
         // Feedback Display
         val feedback = uiState.pickingFeedback
         if (feedback != null) {
+            val isError = feedback.contains("Incorrect") || feedback.contains("already picked")
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (feedback.contains("Incorrect")) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
+                    containerColor = if (isError) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -112,12 +119,12 @@ fun BarcodeMapScanPickingScreen(
                         style = TextStyle(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (feedback.contains("Incorrect")) Color.Red else Color(0xFF2E7D32)
+                            color = if (isError) Color.Red else Color(0xFF2E7D32)
                         )
                     )
                     
                     val product = uiState.lastScannedProduct
-                    if (product != null && !feedback.contains("Incorrect")) {
+                    if (product != null && !isError) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(text = "Product: ${product.name}", color = Color.Black, fontWeight = FontWeight.Bold)
                         
