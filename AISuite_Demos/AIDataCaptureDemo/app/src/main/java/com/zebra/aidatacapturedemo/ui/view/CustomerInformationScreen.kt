@@ -33,10 +33,7 @@ fun CustomerInformationScreen(
     innerPadding: PaddingValues
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    LaunchedEffect(Unit) {
-        viewModel.updateAppBarTitle("Product List")
-    }
+    viewModel.updateAppBarTitle("Product List")
 
     val availableToteLabels = remember(uiState.barcodeLabels) {
         uiState.barcodeLabels.values.distinct().sorted()
