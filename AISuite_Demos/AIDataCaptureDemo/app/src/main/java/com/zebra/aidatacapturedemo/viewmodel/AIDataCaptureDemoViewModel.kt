@@ -1802,36 +1802,43 @@ class AIDataCaptureDemoViewModel(
     private fun calculateBarcodeLabels(results: List<ResultData>): Map<String, String> {
         if (results.isEmpty()) return emptyMap()
 
-        // Grouping logic for rows (top-to-bottom)
-        val sortedByY = results.sortedBy { it.boundingBox.centerY() }
-        val rows = mutableListOf<MutableList<ResultData>>()
+        // Grouping logic for columns (left-to-right) to identify vertical stacks
+        val sortedByX = results.sortedBy { it.boundingBox.centerX() }
+        val columns = mutableListOf<MutableList<ResultData>>()
         
-        if (sortedByY.isNotEmpty()) {
-            var currentRow = mutableListOf<ResultData>()
-            currentRow.add(sortedByY[0])
-            rows.add(currentRow)
+        if (sortedByX.isNotEmpty()) {
+            var currentColumn = mutableListOf<ResultData>()
+            currentColumn.add(sortedByX[0])
+            columns.add(currentColumn)
 
-            for (i in 1 until sortedByY.size) {
-                val prev = sortedByY[i - 1]
-                val curr = sortedByY[i]
-                // Overlap threshold for same row: 60% of height
-                if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
-                    currentRow.add(curr)
+            for (i in 1 until sortedByX.size) {
+                val prev = sortedByX[i - 1]
+                val curr = sortedByX[i]
+                // Overlap threshold for same column: 60% of width
+                if (abs(curr.boundingBox.centerX() - prev.boundingBox.centerX()) < (prev.boundingBox.width() * 0.6)) {
+                    currentColumn.add(curr)
                 } else {
-                    currentRow = mutableListOf<ResultData>()
-                    currentRow.add(curr)
-                    rows.add(currentRow)
+                    currentColumn = mutableListOf<ResultData>()
+                    currentColumn.add(curr)
+                    columns.add(currentColumn)
                 }
             }
         }
 
+        // Sort each column by Y (top-to-bottom)
+        columns.forEach { it.sortBy { item -> item.boundingBox.centerY() } }
+
         val labelMap = mutableMapOf<String, String>()
         var labelCounter = 0
-        // Rows are sorted by Y. Within each row, sort by X (left-to-right).
-        rows.forEach { row ->
-            val sortedRow = row.sortedBy { it.boundingBox.left }
-            sortedRow.forEach { barcode ->
-                labelMap[barcode.text] = getLabelFromIndex(labelCounter++)
+        
+        // Labeling row-by-row across columns (Top item of each column, then second item, etc.)
+        val maxItemsInColumn = columns.maxOfOrNull { it.size } ?: 0
+        for (rowIdx in 0 until maxItemsInColumn) {
+            for (colIdx in 0 until columns.size) {
+                if (rowIdx < columns[colIdx].size) {
+                    val barcode = columns[colIdx][rowIdx]
+                    labelMap[barcode.text] = getLabelFromIndex(labelCounter++)
+                }
             }
         }
         return labelMap
@@ -1852,6 +1859,14 @@ class AIDataCaptureDemoViewModel(
 
         val scannedBarcode = results.first().text
         val customer = uiState.value.selectedCustomer ?: return
+
+        // Check if already picked
+        if (uiState.value.pickedProductBarcodes.contains(scannedBarcode)) {
+            _uiState.update { it.copy(
+                pickingFeedback = "Product already picked: $scannedBarcode"
+            ) }
+            return
+        }
 
         val productMatch = customer.products.find { it.barcode == scannedBarcode }
 
@@ -1881,6 +1896,14 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun processHardwareScan(barcode: String) {
+        // Check if already picked
+        if (uiState.value.pickedProductBarcodes.contains(barcode)) {
+            _uiState.update { it.copy(
+                pickingFeedback = "Product already picked: $barcode"
+            ) }
+            return
+        }
+
         val customers = uiState.value.allCustomers
         val matches = mutableListOf<Pair<String, Int>>()
         var productInfo: ProductInfo? = null
