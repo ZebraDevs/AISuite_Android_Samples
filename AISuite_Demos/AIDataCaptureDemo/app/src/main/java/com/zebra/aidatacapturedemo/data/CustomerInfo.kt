@@ -24,7 +24,7 @@ object CustomerDataGenerator {
         ProductInfo("Premium Skincare Facial Tissue", 7.49, "627987553635"),
         ProductInfo("Blue Pen", 1.49, "4901681143122"),
         ProductInfo("Red Pen", 1.49, "4901681143139"),
-        ProductInfo("Green Highlighter", 1.79, "04588878145"),
+        ProductInfo("Green Highlighter", 1.79, "045888781405"),
         ProductInfo("Yellow Highlighter", 1.79, "045888783508"),
         ProductInfo("Staedtler Mars Plastic Erazer", 2.25, "031901907983"),
         ProductInfo("Uni-Ball Black Pen", 1.99, "4902778497814"),
