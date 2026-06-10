@@ -1857,74 +1857,60 @@ class AIDataCaptureDemoViewModel(
     private fun handlePickingScan(results: List<ResultData>) {
         if (results.isEmpty()) return
         val barcode = results.first().text
-        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
-            processToteScan(barcode)
-        } else {
-            processScanResult(barcode)
-        }
+        processHardwareScan(barcode)
     }
 
     private fun processScanResult(barcode: String) {
-        // Check if already picked
-        if (uiState.value.pickedProductBarcodes.contains(barcode)) {
+        val currentState = uiState.value
+        val customers = currentState.allCustomers
+        val productMatches = mutableListOf<Pair<String, Int>>()
+        var productFound: ProductInfo? = null
+
+        // 1. Check if it's a Product Scan
+        customers.forEach { customer ->
+            customer.products.find { it.barcode == barcode }?.let { product ->
+                productMatches.add(customer.id to product.quantity)
+                productFound = product
+            }
+        }
+
+        if (productMatches.isNotEmpty()) {
             _uiState.update { it.copy(
-                pickingFeedback = "Product already picked: $barcode"
+                lastScannedProduct = productFound,
+                targetTotes = productMatches,
+                pickingFeedback = "Product Identified. Place in highlighted totes."
             ) }
             return
         }
 
-        val customers = uiState.value.allCustomers
-        val matches = mutableListOf<Pair<String, Int>>()
-        var productInfo: ProductInfo? = null
-
-        customers.forEach { customer ->
-            customer.products.find { it.barcode == barcode }?.let { product ->
-                matches.add(customer.id to product.quantity)
-                productInfo = product
+        // 2. Check if it's a Tote Scan
+        // A tote scan usually happens after a product is identified
+        if (currentState.lastScannedProduct != null) {
+            // First check direct barcode match, then label match
+            val toteLabel = currentState.barcodeLabels[barcode]
+            if (toteLabel != null) {
+                val isCorrectTote = currentState.targetTotes.any { it.first == toteLabel }
+                if (isCorrectTote) {
+                    _uiState.update { it.copy(
+                        pickingFeedback = "Correct Tote! Item placed in Tote $toteLabel",
+                        pickedProductBarcodes = it.pickedProductBarcodes + currentState.lastScannedProduct!!.barcode,
+                        lastScannedProduct = null, // Reset after successful placement
+                        targetTotes = listOf()
+                    ) }
+                } else {
+                    _uiState.update { it.copy(
+                        pickingFeedback = "Item placed in wrong tote!"
+                    ) }
+                    toast("Item placed in wrong tote!")
+                }
+                return
             }
         }
 
-        if (matches.isNotEmpty()) {
-            _uiState.update { it.copy(
-                lastScannedProduct = productInfo,
-                targetTotes = matches,
-                pickingFeedback = "Product Identified Barcode: $barcode",
-                pickedProductBarcodes = it.pickedProductBarcodes + barcode,
-                validatedTotes = emptySet() // Reset for new product
-            ) }
-        } else {
-            _uiState.update { it.copy(
-                lastScannedProduct = null,
-                targetTotes = listOf(),
-                pickingFeedback = "Incorrect Product"
-            ) }
-        }
-    }
-
-    private fun processToteScan(barcode: String) {
-        val label = uiState.value.pickingBarcodeLabels[barcode]
-        Log.d(TAG, "processToteScan: barcode=$barcode, label=$label")
-        if (label != null) {
-            val isTarget = uiState.value.targetTotes.any { it.first == label }
-            if (isTarget) {
-                _uiState.update { it.copy(
-                    pickingFeedback = "Correct tote: $label",
-                    validatedTotes = it.validatedTotes + label
-                ) }
-            } else {
-                _uiState.update { it.copy(
-                    pickingFeedback = "Incorrect tote: $label"
-                ) }
-            }
-        } else {
-            // Only update if we don't already have a meaningful status, 
-            // to avoid overwriting "Correct tote" with "Unrecognized" if multiple barcodes are in frame
-            if (uiState.value.pickingFeedback?.startsWith("Correct") != true) {
-                _uiState.update { it.copy(
-                    pickingFeedback = "Unrecognized barcode: $barcode"
-                ) }
-            }
-        }
+        // 3. Fallback: Not a product and not a known tote
+        _uiState.update { it.copy(
+            pickingFeedback = "Barcode Not Recognized"
+        ) }
     }
 
     fun updateSelectedCustomer(customer: com.zebra.aidatacapturedemo.data.CustomerInfo?) {
@@ -1940,11 +1926,7 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun processHardwareScan(barcode: String) {
-        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
-            processToteScan(barcode)
-        } else {
-            processScanResult(barcode)
-        }
+        processScanResult(barcode)
     }
 
     fun updateRetailShelfDetectionResult(results: Array<BBox?>?) {
