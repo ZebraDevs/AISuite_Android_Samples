@@ -9,6 +9,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,6 +33,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -36,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -74,6 +82,8 @@ import com.zebra.ai.barcodefinder.application.presentation.ui.theme.AppTextStyle
 import com.zebra.ai.barcodefinder.application.presentation.ui.theme.borderPrimaryMain
 import com.zebra.ai.barcodefinder.application.presentation.ui.theme.disabledMain
 import com.zebra.ai.barcodefinder.application.presentation.ui.theme.headerBackgroundColor
+import com.zebra.ai.barcodefinder.application.presentation.ui.theme.iconGreen
+import com.zebra.ai.barcodefinder.application.presentation.ui.theme.iconRed
 import com.zebra.ai.barcodefinder.application.presentation.viewmodel.HomeViewModel
 
 /**
@@ -118,6 +128,18 @@ fun HomeScreen(
     val context = LocalContext.current
     var cameraPermissionDenied by remember { mutableStateOf(false) }
 
+    // Pulse animation for the Start Scan button when ready
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    val pulseColor by infiniteTransition.animateColor(
+        initialValue = borderPrimaryMain,
+        targetValue = borderPrimaryMain.copy(alpha = 0.7f),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseColor"
+    )
+
     // The launcher stays in the Composable, as it's part of the UI layer.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -156,11 +178,44 @@ fun HomeScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     TopAppBar(
                         title = {
-                            ZebraText(
-                                textValue = stringResource(id = R.string.home_screen_content_app_name),
-                                style = AppTextStyles.TitleTextLight,
-                                textColor = AppColors.TextWhite
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                ZebraText(
+                                    textValue = stringResource(id = R.string.home_screen_content_app_name),
+                                    style = AppTextStyles.TitleTextLight,
+                                    textColor = AppColors.TextWhite
+                                )
+                                // SDK Status Indicator
+                                Surface(
+                                    shape = RoundedCornerShape(AppDimensions.dimension_12dp),
+                                    color = if (entityTrackerInitState.isInitialized) iconGreen.copy(alpha = 0.2f) else iconRed.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(end = AppDimensions.dimension_16dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = AppDimensions.dimension_8dp, vertical = AppDimensions.dimension_2dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(AppDimensions.dimension_8dp)
+                                                .background(
+                                                    color = if (entityTrackerInitState.isInitialized) iconGreen else iconRed,
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                        Spacer(modifier = Modifier.width(AppDimensions.dimension_4dp))
+                                        Text(
+                                            text = if (entityTrackerInitState.isInitialized) "READY" else "INIT",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppColors.TextWhite,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                         },
                         navigationIcon = {
                             IconButton(
@@ -200,102 +255,103 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(AppDimensions.dimension_40dp))
                         }
                         Spacer(modifier = Modifier.height(AppDimensions.dimension_12dp))
-                        Column(
+                        // Settings Summary Card
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = AppDimensions.dimension_16dp),
-                            verticalArrangement = Arrangement.spacedBy(AppDimensions.dimension_8dp)
+                                .padding(horizontal = AppDimensions.dimension_16dp),
+                            shape = RoundedCornerShape(AppDimensions.dimension_8dp),
+                            color = AppColors.TextWhite,
+                            shadowElevation = AppDimensions.dimension_2dp,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.Divider.copy(alpha = 0.1f))
                         ) {
-                            ZebraText(
-                                textValue = stringResource(id = R.string.home_screen_content_settings_header),
-                                fontSize = AppDimensions.dialogTextFontSizeMedium,
-                                fontWeight = FontWeight.Bold,
-                                textColor = AppColors.TextBlack,
-                                textAlign = TextAlign.Start,
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .semantics { contentDescription = "HomeScreenText" }
-                                    .padding(start = AppDimensions.dimension_16dp)
-                            )
-//                    Spacer(modifier = Modifier.height(AppDimensions.dimension_2dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = AppDimensions.dimension_16dp),
-                                verticalAlignment = Alignment.Top
+                                    .padding(AppDimensions.dimension_16dp),
+                                verticalArrangement = Arrangement.spacedBy(AppDimensions.dimension_8dp)
                             ) {
                                 ZebraText(
-                                    textValue = stringResource(id = R.string.home_screen_content_bullet_point),
+                                    textValue = stringResource(id = R.string.home_screen_content_settings_header),
                                     fontSize = AppDimensions.dialogTextFontSizeMedium,
+                                    fontWeight = FontWeight.Bold,
                                     textColor = AppColors.TextBlack,
-                                    fontWeight = FontWeight.Bold
+                                    textAlign = TextAlign.Start,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics { contentDescription = "HomeScreenText" }
                                 )
-                                Column {
-                                    Text( // Keep Material Text for buildAnnotatedString
-                                        text = buildAnnotatedString {
-                                            append(stringResource(id = R.string.home_screen_content_model_input))
-                                            withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
-                                                append(stringResource(id = settings.modelInput.homeDisplayNameResId))
-                                            }
-                                        },
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    ZebraText(
+                                        textValue = stringResource(id = R.string.home_screen_content_bullet_point),
                                         fontSize = AppDimensions.dialogTextFontSizeMedium,
-                                        color = AppColors.TextBlack,
+                                        textColor = AppColors.TextBlack,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Column {
+                                        Text( // Keep Material Text for buildAnnotatedString
+                                            text = buildAnnotatedString {
+                                                append(stringResource(id = R.string.home_screen_content_model_input))
+                                                withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
+                                                    append(stringResource(id = settings.modelInput.homeDisplayNameResId))
+                                                }
+                                            },
+                                            fontSize = AppDimensions.dialogTextFontSizeMedium,
+                                            color = AppColors.TextBlack,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
-                            }
-//                    Spacer(modifier = Modifier.height(AppDimensions.dimension_2dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = AppDimensions.dimension_16dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                ZebraText(
-                                    textValue = stringResource(id = R.string.home_screen_content_bullet_point),
-                                    fontSize = AppDimensions.dialogTextFontSizeMedium,
-                                    textColor = AppColors.TextBlack,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Column {
-                                    Text( // Keep Material Text for buildAnnotatedString
-                                        text = buildAnnotatedString {
-                                            append(stringResource(id = R.string.home_screen_content_resolution))
-                                            withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
-                                                append(stringResource(id = settings.resolution.displayNameResId))
-                                            }
-                                        },
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    ZebraText(
+                                        textValue = stringResource(id = R.string.home_screen_content_bullet_point),
                                         fontSize = AppDimensions.dialogTextFontSizeMedium,
-                                        color = AppColors.TextBlack,
+                                        textColor = AppColors.TextBlack,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Column {
+                                        Text( // Keep Material Text for buildAnnotatedString
+                                            text = buildAnnotatedString {
+                                                append(stringResource(id = R.string.home_screen_content_resolution))
+                                                withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
+                                                    append(stringResource(id = settings.resolution.displayNameResId))
+                                                }
+                                            },
+                                            fontSize = AppDimensions.dialogTextFontSizeMedium,
+                                            color = AppColors.TextBlack,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
-                            }
-//                    Spacer(modifier = Modifier.height(AppDimensions.dimension_2dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = AppDimensions.dimension_16dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                ZebraText(
-                                    textValue = stringResource(id = R.string.home_screen_content_bullet_point),
-                                    fontSize = AppDimensions.dialogTextFontSizeMedium,
-                                    textColor = AppColors.TextBlack,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Column {
-                                    Text( // Keep Material Text for buildAnnotatedString
-                                        text = buildAnnotatedString {
-                                            append(stringResource(id = R.string.home_screen_content_processor_type))
-                                            withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
-                                                append(stringResource(id = settings.processorType.displayNameResId))
-                                            }
-                                        },
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    ZebraText(
+                                        textValue = stringResource(id = R.string.home_screen_content_bullet_point),
                                         fontSize = AppDimensions.dialogTextFontSizeMedium,
-                                        color = AppColors.TextBlack,
+                                        textColor = AppColors.TextBlack,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Column {
+                                        Text( // Keep Material Text for buildAnnotatedString
+                                            text = buildAnnotatedString {
+                                                append(stringResource(id = R.string.home_screen_content_processor_type))
+                                                withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
+                                                    append(stringResource(id = settings.processorType.displayNameResId))
+                                                }
+                                            },
+                                            fontSize = AppDimensions.dialogTextFontSizeMedium,
+                                            color = AppColors.TextBlack,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -306,6 +362,7 @@ fun HomeScreen(
                             onClick = {
                                 homeViewModel.resetToDefaultSettings()
                                 homeViewModel.applySettingsToSDK()
+                                android.widget.Toast.makeText(appContext, "Settings restored to default", android.widget.Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = entityTrackerInitState.isInitialized,
@@ -334,7 +391,7 @@ fun HomeScreen(
                                 },
                             enabled = entityTrackerInitState.isInitialized,
                             shapes = RoundedCornerShape(AppDimensions.dimension_4dp),
-                            backgroundColor = if (entityTrackerInitState.isInitialized) borderPrimaryMain else disabledMain,
+                            backgroundColor = if (entityTrackerInitState.isInitialized) pulseColor else disabledMain,
                             textColor = AppColors.TextWhite,
 //                            leadingIcon = if (!entityTrackerInitState.isInitialized) {
 //                                {

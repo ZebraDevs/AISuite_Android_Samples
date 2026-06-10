@@ -144,6 +144,13 @@ fun CameraPreviewScreen(
 
     val previewView = remember { PreviewView(context) }
 
+    // Navigation for Picking Flow
+    LaunchedEffect(uiState.pickingFeedback) {
+        if (uiState.pickingFeedback?.startsWith("Product identified") == true) {
+            navController.navigate(Screen.BarcodeMapPicking.route)
+        }
+    }
+
     LaunchedEffect(key1 = "clear all the previous results") {
         // clear all the previous results during Fresh Launch
         when (uiState.usecaseSelected) {
@@ -156,7 +163,8 @@ fun CameraPreviewScreen(
                 viewModel.updateOcrResultData(results = null)
             }
 
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value,
+            UsecaseState.BarcodeMap.value -> {
                 viewModel.updateBarcodeResultData(results = listOf())
             }
 
@@ -333,7 +341,8 @@ fun CameraPreviewScreen(
                 )
             }
 
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value,
+            UsecaseState.BarcodeMap.value -> {
                 DrawBarcodeResult(
                     uiState = uiState,
                     scaler = scaler,
@@ -383,6 +392,31 @@ fun CameraPreviewScreen(
 
             else -> {
                 TODO("Unhandled usecaseState received = $selectedDemo")
+            }
+        }
+
+        // Show Picking Feedback overlay
+        if (uiState.selectedCustomer != null && uiState.pickingFeedback != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 100.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Text(
+                    text = uiState.pickingFeedback ?: "",
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    ),
+                    modifier = Modifier
+                        .background(
+                            if (uiState.pickingFeedback?.contains("incorrect") == true) Color.Red else Color(0xFF006D39),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(16.dp)
+                )
             }
         }
     }
@@ -818,6 +852,30 @@ fun DrawBarcodeResult(
                     size = androidx.compose.ui.geometry.Size(rectangleWidth, rectangleHeight),
                     style = Stroke(width = (1f * displayMetricsDensity))
                 )
+
+                // Draw label badge above the box
+                val label = uiState.barcodeLabels[barcodeData.text]
+                if (label != null) {
+                    val radius = 10f * displayMetricsDensity
+                    val centerX = scaledBBoxLeftInPx + rectangleWidth / 2
+                    val centerY = scaledBBoxTopInPx - radius - 2f * displayMetricsDensity
+                    
+                    drawCircle(
+                        color = Color(0xFF006D39),
+                        radius = radius,
+                        center = Offset(centerX, centerY)
+                    )
+                    
+                    val labelPaint = android.graphics.Paint().apply {
+                        this.color = android.graphics.Color.WHITE
+                        this.textSize = 8f * displayMetricsDensity
+                        this.textAlign = android.graphics.Paint.Align.CENTER
+                        this.isAntiAlias = true
+                        this.isFakeBoldText = true
+                    }
+                    val labelY = centerY - (labelPaint.fontMetrics.ascent + labelPaint.fontMetrics.descent) / 2
+                    drawContext.canvas.nativeCanvas.drawText(label, centerX, labelY, labelPaint)
+                }
             }
         }
     }
@@ -834,7 +892,7 @@ fun DrawBarcodeResult(
             if (barcodeData.text != null && barcodeData.text != "") {
                 Text(
                     text = barcodeData.text,
-                    fontSize = 10.sp,
+                    fontSize = 14.sp,
                     color = Color.White,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(
@@ -1163,6 +1221,7 @@ fun showBottomBar(
                     )
                 }
                 if ((uiState.usecaseSelected == UsecaseState.Product.value) ||
+                    (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) ||
                     ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.isCaptureOrLiveEnabled == 0))){
                     var isClickable = remember { mutableStateOf(true) }
                     Icon(
@@ -1189,6 +1248,8 @@ fun showBottomBar(
                                     if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
                                         viewModel.updateOcrBarcodeCaptureSessionCount(uiState.ocrBarcodeCaptureSessionCount + 1)
                                         navController.navigate(route = Screen.OCRBarcodeCapture.route)
+                                    } else if (uiState.usecaseSelected == UsecaseState.BarcodeMap.value) {
+                                        navController.navigate(route = Screen.BarcodeMapResults.route)
                                     } else {
                                         navController.navigate(route = Screen.ProductsCapture.route)
                                     }
