@@ -1909,7 +1909,7 @@ class AIDataCaptureDemoViewModel(
 
         // 3. Fallback: Not a product and not a known tote
         _uiState.update { it.copy(
-            pickingFeedback = "Barcode Not Recognized"
+            pickingFeedback = "Incorrect Product"
         ) }
     }
 
