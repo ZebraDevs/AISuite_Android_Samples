@@ -1869,8 +1869,11 @@ class AIDataCaptureDemoViewModel(
         // 1. Check if it's a Product Scan
         customers.forEach { customer ->
             customer.products.find { it.barcode == barcode }?.let { product ->
-                productMatches.add(customer.id to product.quantity)
-                productFound = product
+                // Check if this product has already been picked for this customer/tote
+                if (!currentState.pickedProductBarcodes.contains("${product.barcode}:${customer.id}")) {
+                    productMatches.add(customer.id to product.quantity)
+                    productFound = product
+                }
             }
         }
 
@@ -1878,7 +1881,8 @@ class AIDataCaptureDemoViewModel(
             _uiState.update { it.copy(
                 lastScannedProduct = productFound,
                 targetTotes = productMatches,
-                pickingFeedback = "Product Identified. Place in highlighted totes."
+                pickingFeedback = "Product Identified: ${productFound?.name}.",
+                validatedTotes = emptySet() // Clear previous validations for the new product
             ) }
             return
         }
@@ -1887,19 +1891,32 @@ class AIDataCaptureDemoViewModel(
         // A tote scan usually happens after a product is identified
         if (currentState.lastScannedProduct != null) {
             // First check direct barcode match, then label match
-            val toteLabel = currentState.barcodeLabels[barcode]
+            var toteLabel = currentState.barcodeLabels[barcode]
+            // Allow manual entry of tote label (A, B, C...)
+            if (toteLabel == null && currentState.barcodeLabels.values.contains(barcode)) {
+                toteLabel = barcode
+            }
+
             if (toteLabel != null) {
-                val isCorrectTote = currentState.targetTotes.any { it.first == toteLabel }
-                if (isCorrectTote) {
+                val matchingTote = currentState.targetTotes.find { it.first == toteLabel }
+                if (matchingTote != null) {
+                    val updatedTargetTotes = currentState.targetTotes.filter { it.first != toteLabel }
+                    val isLastTote = updatedTargetTotes.isEmpty()
+                    val currentBarcode = currentState.lastScannedProduct!!.barcode
+
                     _uiState.update { it.copy(
-                        pickingFeedback = "Correct Tote! Item placed in Tote $toteLabel",
-                        pickedProductBarcodes = it.pickedProductBarcodes + currentState.lastScannedProduct!!.barcode,
-                        lastScannedProduct = null, // Reset after successful placement
-                        targetTotes = listOf()
+                        pickingFeedback = if (isLastTote)
+                            "Correct Tote! All placements for ${currentState.lastScannedProduct!!.name} completed."
+                        else "Correct Tote! Item placed in Tote $toteLabel.",
+                        pickedProductBarcodes = it.pickedProductBarcodes + "$currentBarcode:$toteLabel",
+                        lastScannedProduct = if (isLastTote) null else it.lastScannedProduct,
+                        targetTotes = updatedTargetTotes,
+                        validatedTotes = it.validatedTotes + toteLabel // Helps in map visualization
                     ) }
+                    return
                 } else {
                     _uiState.update { it.copy(
-                        pickingFeedback = "Item placed in wrong tote!"
+                        pickingFeedback = "Item placed in wrong tote! Target totes: ${currentState.targetTotes.joinToString { it.first }}"
                     ) }
                     toast("Item placed in wrong tote!")
                 }
@@ -1909,7 +1926,7 @@ class AIDataCaptureDemoViewModel(
 
         // 3. Fallback: Not a product and not a known tote
         _uiState.update { it.copy(
-            pickingFeedback = "Incorrect Product"
+            pickingFeedback = "Unrecognized Barcode: $barcode"
         ) }
     }
 

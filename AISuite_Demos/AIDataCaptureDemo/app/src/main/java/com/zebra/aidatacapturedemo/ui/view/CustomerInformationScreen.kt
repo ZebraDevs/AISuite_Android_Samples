@@ -50,8 +50,19 @@ fun CustomerInformationScreen(
         productInfoMap.values.sortedBy { it.name }.map { it to groups[it.barcode]!! }
     }
 
-    val toPickGroups = productGroups.filter { !uiState.pickedProductBarcodes.contains(it.first.barcode) }
-    val pickedGroups = productGroups.filter { uiState.pickedProductBarcodes.contains(it.first.barcode) }
+    val toPickGroups = productGroups.mapNotNull { (product, totes) ->
+        val remainingTotes = totes.filter { (toteId, _) ->
+            !uiState.pickedProductBarcodes.contains("${product.barcode}:$toteId")
+        }
+        if (remainingTotes.isNotEmpty()) product to remainingTotes else null
+    }
+
+    val pickedGroups = productGroups.mapNotNull { (product, totes) ->
+        val pickedTotes = totes.filter { (toteId, _) ->
+            uiState.pickedProductBarcodes.contains("${product.barcode}:$toteId")
+        }
+        if (pickedTotes.isNotEmpty()) product to pickedTotes else null
+    }
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Products to Pick", "Products Already Picked")
