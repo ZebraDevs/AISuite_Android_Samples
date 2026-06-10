@@ -20,7 +20,8 @@ enum class UsecaseState(val value: String) {
     OCR("Text/OCR Recognizer"),
     Retail("Product & Shelf Recognizer"),
     OCRBarcodeFind("OCR & Barcode Find"),
-    Product("Product & Shelf Enrollment")
+    Product("Product & Shelf Enrollment"),
+    Expiration("Expiration Date Parser")
 }
 
 data class BarcodeSymbology(
@@ -151,7 +152,9 @@ data class OcrBarcodeCaptureSessionData(
     var ocrResults: List<ResultData> = listOf(),
     var barcodeResults: List<ResultData> = listOf(),
     var captureTime: String = "",
-    var captureImage: String = ""
+    var captureImage: String = "",
+    var extractedExpirationDate: String? = null,
+    var detectedExpirationDates: List<String> = emptyList()
 )
 
 /**
@@ -202,6 +205,10 @@ data class AIDataCaptureDemoUiState(
 
     var ocrBarcodeCaptureSessionCount : Int = 0,
     var ocrBarcodeCaptureSessionIndex : Int = 0,
+
+    var extractedExpirationDate: String? = null,
+    var detectedExpirationDates: List<String> = emptyList(),
+    var isExpirationMode: Boolean = false,
 
     var selectedFilterType: FilterType = FilterType.NONE,
     var ocrFilterData: OcrFilterData = FileUtils.loadOcrFilterData(),

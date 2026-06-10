@@ -5,6 +5,8 @@
     <string name="usecase_demos">Use Case Demos</string>
     <string name="ocr_barcode_find">OCR &amp; Barcode Find</string>
     <string name="ocr_barcode_find_desc">Search for specific text or barcode</string>
+    <string name="expiration_demo">Expiration Date Parser</string>
+    <string name="expiration_desc">Specifically detect and parse expiration dates</string>
     <string name="product_enrollment_recognition_demo">Product &amp; Shelf Enrollment</string>
     <string name="product_enrollment_recognition_desc">Enroll and recognize products on shelves and peg boards</string>
 
@@ -222,4 +224,5 @@
     <string name="ocr_filter_string_length_title">String Length</string>
     <string name="ocr_filter_regex_title">Regex</string>
     <string name="barcode_filter_title">Barcode Filters</string>
+    <string name="expiration_date">Expiration Date</string>
 </resources>

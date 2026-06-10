@@ -685,7 +685,8 @@ private fun LoadingScreen(
                 isStartDisabledChanged(true)
             }
         }
-        UsecaseState.OCR.value -> {
+        UsecaseState.OCR.value,
+        UsecaseState.Expiration.value -> {
             if (uiState.isOcrModelDemoReady) {
                 isLoading.value = false
                 isStartDisabledChanged(false)

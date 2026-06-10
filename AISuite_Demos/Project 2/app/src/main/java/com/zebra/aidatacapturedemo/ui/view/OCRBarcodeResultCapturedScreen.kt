@@ -14,18 +14,28 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -36,6 +46,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getSystemService
@@ -43,6 +54,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.model.ExpirationDateParser
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.saveOcrBarcodeCaptureSessionDataToPrefs
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlin.math.min
@@ -149,6 +161,7 @@ fun OCRBarcodeResultCapturedScreen(
                     contentDescription = "Captured Image",
                     contentScale = ContentScale.Fit
                 )
+
                 if ((uiState.allBarcodeOCRCaptureFilter == 0 || uiState.allBarcodeOCRCaptureFilter == 2)) {
                     // Draw OCR results
                     DrawOCRResultWithTextSizeScaling(
@@ -171,6 +184,75 @@ fun OCRBarcodeResultCapturedScreen(
                         displayMetricsDensity = displayMetricsDensity
                     )
                 }
+
+                // Expiration Date Stack
+                if (uiState.detectedExpirationDates.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 100.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .wrapContentHeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            uiState.detectedExpirationDates.forEach { dateText ->
+                                val fullText = "The expiration date is $dateText"
+                                val status = ExpirationDateParser.getDateStatus(dateText)
+                                val buttonColor = when (status) {
+                                    ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39)
+                                    ExpirationDateParser.DateStatus.YELLOW -> Color(0xFFFFC107)
+                                    ExpirationDateParser.DateStatus.RED -> Color.Red
+                                    else -> Color(0xFF007AFE)
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    ButtonWithIconOption(
+                                        ButtonData(
+                                            titleId = R.string.expiration_date,
+                                            color = buttonColor,
+                                            alpha = 1f,
+                                            enabled = true,
+                                            onButtonClick = { },
+                                            titleString = fullText
+                                        ),
+                                        drawableRes = R.drawable.ic_check
+                                    )
+
+                                    val months = ExpirationDateParser.getMonthsUntilExpiration(dateText)
+                                    val message = when (status) {
+                                        ExpirationDateParser.DateStatus.GREEN -> if (months > 0) "This medicine will be expired in $months months" else null
+                                        ExpirationDateParser.DateStatus.YELLOW -> "This medicine will be expired in 1 month"
+                                        ExpirationDateParser.DateStatus.RED -> "This medicine is already expired"
+                                        else -> null
+                                    }
+
+                                    if (message != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = message,
+                                            style = TextStyle(
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Place RoundIconButton at bottom end with required padding
                 RoundIconButton(
                     R.drawable.ic_next,

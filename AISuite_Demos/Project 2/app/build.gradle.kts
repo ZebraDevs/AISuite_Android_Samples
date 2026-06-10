@@ -129,5 +129,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // Pendo SDK
-    implementation(libs.pendo.io) { isChanging = true }
+    implementation(libs.pendo.io)
+    testImplementation(libs.junit)
 }

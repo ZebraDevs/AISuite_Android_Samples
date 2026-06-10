@@ -63,6 +63,7 @@ import com.zebra.aidatacapturedemo.data.RetailShelfSettings
 import com.zebra.aidatacapturedemo.data.TextOcrSettings
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.model.BarcodeAnalyzer
+import com.zebra.aidatacapturedemo.model.ExpirationDateParser
 import com.zebra.aidatacapturedemo.model.FileUtils
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.clearOcrBarcodeCaptureSessionPrefs
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.databaseFile
@@ -106,6 +107,10 @@ class AIDataCaptureDemoViewModel(
     // Used to set up a link between the Model and UI View.
     private val _uiState = MutableStateFlow(AIDataCaptureDemoUiState())
     val uiState: StateFlow<AIDataCaptureDemoUiState> = _uiState.asStateFlow()
+
+    // Map to track persistence of detected dates: Date String -> Count of frames seen
+    private val datePersistenceMap = mutableMapOf<String, Int>()
+    private val PERSISTENCE_THRESHOLD = 3
 
     private var executor: Executor? = null
 
@@ -216,7 +221,7 @@ class AIDataCaptureDemoViewModel(
                         barcodeAnalyzer?.initialize()
                     }
                 }
-                UsecaseState.OCR.value -> {
+                UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                     ocrAnalyzer = TextOCRAnalyzer(
                         uiState = uiState,
                         viewModel = this@AIDataCaptureDemoViewModel
@@ -254,7 +259,7 @@ class AIDataCaptureDemoViewModel(
                 barcodeAnalyzer?.deinitialize()
                 barcodeAnalyzer = null
             }
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                 ocrAnalyzer?.deinitialize()
                 ocrAnalyzer = null
             }
@@ -347,6 +352,7 @@ class AIDataCaptureDemoViewModel(
                 // Bind an additional Capture Use Case only for Product Recognition UsecaseState
                 camera = if ((uiState.value.usecaseSelected == UsecaseState.Product.value) ||
                     (uiState.value.usecaseSelected == UsecaseState.BarcodeMap.value) ||
+                    (uiState.value.usecaseSelected == UsecaseState.Expiration.value) ||
                     ((uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.value.isCaptureOrLiveEnabled == 0))){
                     // HIGH-RES CAPTURE CASE
                     imageCaptureResolutionSelector = ResolutionSelector.Builder()
@@ -571,7 +577,12 @@ class AIDataCaptureDemoViewModel(
     fun updateSelectedUsecase(usecase: String) {
         _uiState.update { currentState ->
             currentState.copy(
-                usecaseSelected = usecase
+                usecaseSelected = usecase,
+                isExpirationMode = (usecase == UsecaseState.Expiration.value),
+                extractedExpirationDate = null, // Reset expiration data on usecase change
+                detectedExpirationDates = emptyList(),
+                ocrResults = emptyList<ResultData>(),
+                barcodeResults = emptyList<ResultData>()
             )
         }
     }
@@ -1427,7 +1438,7 @@ class AIDataCaptureDemoViewModel(
                     analysisUseCase?.setAnalyzer(executor!!, analyzer!! as ImageAnalysis.Analyzer)
                 }
             }
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
                 ocrAnalyzer?.let {
                     genericEntityTrackerAnalyzer?.addDecoder(it.getDetector()!!)
                     val analyzer = genericEntityTrackerAnalyzer?.setupEntityTrackerAnalyzer(activityLifecycle)
@@ -1890,16 +1901,85 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
-    fun updateOcrResultData(results: List<ResultData>?) {
-        val ocrResults = results ?: listOf()
-        _uiState.update { textResults ->
-            textResults.copy(
-                ocrResults = ocrResults
+    fun setExpirationMode(enabled: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                isExpirationMode = enabled,
+                extractedExpirationDate = null // Reset detection when entering/exiting mode
             )
+        }
+        if (!enabled) {
+            datePersistenceMap.clear()
         }
     }
 
+    fun updateOcrResultData(results: List<ResultData>?) {
+        val allResults = results ?: listOf()
+        val formattedDates = mutableListOf<String>()
 
+        // 1. Pull matches from text blocks directly using the improved parser
+        val individualMatches = com.zebra.aidatacapturedemo.model.ExpirationDateParser.extractAllFormattedFromResults(allResults)
+        formattedDates.addAll(individualMatches)
+
+        // 2. Multi-line block stitching matching
+        val combinedText = allResults.joinToString(" ") { it.text }
+
+        val keywords = com.zebra.aidatacapturedemo.model.ExpirationDateParser.KEYWORDS
+        val datePatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.DATE_PATTERN_STR
+        val keywordPatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.KEYWORD_PATTERN_STR
+        val combinedRegex = Regex("(?i)($keywordPatternStr)[.:\\s]*$datePatternStr", RegexOption.IGNORE_CASE)
+
+        val matches = combinedRegex.findAll(combinedText)
+        for (match in matches) {
+            val cleanDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.formatWithMonthName(match.value)
+            if (cleanDate.isNotEmpty()) {
+                val fullString = "The Expiration Date is: $cleanDate"
+                if (!formattedDates.contains(fullString)) {
+                    formattedDates.add(fullString)
+                }
+            }
+        }
+
+        // Secondary fallback check: Scan for standalone dates in the combined frame
+        val standaloneDateRegex = Regex(datePatternStr, RegexOption.IGNORE_CASE)
+        val standaloneMatches = standaloneDateRegex.findAll(combinedText)
+        for (match in standaloneMatches) {
+            val cleanDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.formatWithMonthName(match.value)
+            if (cleanDate.isNotEmpty()) {
+                val fullString = "The Expiration Date is: $cleanDate"
+                if (!formattedDates.contains(fullString)) {
+                    formattedDates.add(fullString)
+                }
+            }
+        }
+
+        // Stricter filtering for boxes: only show boxes if it looks like a date or keyword
+        var filteredResults = allResults
+        if (uiState.value.isExpirationMode) {
+            filteredResults = allResults.filter { result ->
+                com.zebra.aidatacapturedemo.model.ExpirationDateParser.isDateLike(result.text)
+            }
+        }
+
+        // Persistence filtering: Update counts for seen dates
+        formattedDates.forEach { date ->
+            datePersistenceMap[date] = (datePersistenceMap[date] ?: 0) + 1
+        }
+
+        // Only promote dates that have been seen consistently across multiple frames
+        val persistentDates = datePersistenceMap.filter { it.value >= PERSISTENCE_THRESHOLD }.keys.toList()
+
+        _uiState.update { currentState ->
+            // We use the persistent dates list as the source of truth for the UI
+            val updatedList = (currentState.detectedExpirationDates + persistentDates).distinct()
+
+            currentState.copy(
+                ocrResults = filteredResults,
+                detectedExpirationDates = updatedList,
+                extractedExpirationDate = if (persistentDates.isNotEmpty()) persistentDates.last() else currentState.extractedExpirationDate
+            )
+        }
+    }
 //    fun updateExactMatchString(exactMatchString: String) {
 //        _uiState.update { selectedExactMatchString ->
 //            selectedExactMatchString.copy(
@@ -1999,7 +2079,7 @@ class AIDataCaptureDemoViewModel(
 
             }
 
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
 
             }
         }
@@ -2023,7 +2103,7 @@ class AIDataCaptureDemoViewModel(
 
             }
 
-            UsecaseState.OCR.value -> {
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
 
             }
         }
@@ -2058,8 +2138,8 @@ class AIDataCaptureDemoViewModel(
                 }
             }
 
-            UsecaseState.OCR.value -> {
-
+            UsecaseState.OCR.value, UsecaseState.Expiration.value -> {
+                ocrAnalyzer!!.executeHighRes(highResBitmap)
             }
         }
     }
@@ -2130,5 +2210,15 @@ class AIDataCaptureDemoViewModel(
 
         // Automatically save to the local cache file
         FileUtils.saveBarcodeFilterData(barcodeFilterData = barcodeFilterData)
+    }
+
+    fun clearDetectedExpirationDates() {
+        _uiState.update { currentState ->
+            currentState.copy(
+                detectedExpirationDates = emptyList(),
+                extractedExpirationDate = null
+            )
+        }
+        datePersistenceMap.clear()
     }
 }
