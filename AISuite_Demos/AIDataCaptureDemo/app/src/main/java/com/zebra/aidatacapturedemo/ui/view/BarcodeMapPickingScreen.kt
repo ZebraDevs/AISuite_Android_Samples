@@ -291,6 +291,8 @@ private fun DrawAbstractBarcodeMapLayer(
                 
                 val displayText = if (qty != null && !isValidated) "QTY: $qty" else barcode.text
 
+                val textColor = Color.Black
+
                 drawAbstractPickingUnit(
                     barcode = displayText,
                     label = label,
@@ -316,7 +318,7 @@ private fun DrawScope.drawAbstractPickingUnit(
     density: Float,
     isTarget: Boolean
 ) {
-    val themeColor = if (isTarget) Color(0xFFFFCC00) else Color(0xFF00FF00) // Gold for target, Green for others
+    val themeColor = if (isTarget) Color(0xFF72D2FF) else Color(0xFF00FF00) // Gold for target, Green for others
     val rectSize = androidx.compose.ui.geometry.Size(width, height)
     val topLeft = Offset(left, top)
 
@@ -327,7 +329,7 @@ private fun DrawScope.drawAbstractPickingUnit(
     )
 
     drawRect(
-        color = if (isTarget) Color.Red else themeColor,
+        color = if (isTarget) Color(0xFF0078EE) else themeColor,
         topLeft = topLeft,
         size = rectSize,
         style = Stroke(width = (if (isTarget) 4f else 2f) * density)
@@ -340,7 +342,7 @@ private fun DrawScope.drawAbstractPickingUnit(
         val centerY = top - radius - 2f * density // Positioned above the box
 
         drawCircle(
-            color = if (isTarget) Color.Red else Color(0xFF006D39),
+            color = if (isTarget) Color(0xFF0078EE) else Color(0xFF006D39),
             radius = radius,
             center = Offset(centerX, centerY)
         )
@@ -358,7 +360,7 @@ private fun DrawScope.drawAbstractPickingUnit(
     }
 
     val paint = android.graphics.Paint().apply {
-        this.color = if (isTarget) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+        this.color = if (isTarget) android.graphics.Color.BLACK else android.graphics.Color.BLACK
         this.textSize = (if (isTarget) 14f else 11f) * density
         this.textAlign = android.graphics.Paint.Align.CENTER
         this.isAntiAlias = true
