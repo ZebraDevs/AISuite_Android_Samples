@@ -7,5 +7,6 @@ package com.zebra.ai.barcodefinder.sdkcoordinator.model
 data class FeedbackType(
     var audio: Boolean = false,
     var haptics: Boolean = false,
-    var showUndecodedBarcode: Boolean = false
+    var showUndecodedBarcode: Boolean = false,
+    var showNoActionBarcode: Boolean = false
 )

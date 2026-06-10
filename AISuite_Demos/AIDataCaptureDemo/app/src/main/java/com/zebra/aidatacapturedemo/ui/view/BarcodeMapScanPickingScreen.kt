@@ -17,12 +17,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
-import com.zebra.aidatacapturedemo.data.ProductInfo
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @Composable
-fun BarcodeScanPickingScreen(
+fun BarcodeMapScanPickingScreen(
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavController,
     @Suppress("UNUSED_PARAMETER") innerPadding: PaddingValues
@@ -31,6 +32,9 @@ fun BarcodeScanPickingScreen(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     var manualInput by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
+
+    viewModel.updateAppBarTitle("Product Scan")
 
     // Register BroadcastReceiver for DataWedge
     DisposableEffect(Unit) {
@@ -58,16 +62,12 @@ fun BarcodeScanPickingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF0F2F5))
+            .verticalScroll(scrollState)
+            .padding(innerPadding)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Ready to Scan",
-            style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black),
-            modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)
-        )
-
-        // Invisible or small TextField to capture keyboard wedge input
+        // ... (rest of the text field and button)
         OutlinedTextField(
             value = manualInput,
             onValueChange = { 
@@ -105,10 +105,11 @@ fun BarcodeScanPickingScreen(
         // Feedback Display
         val feedback = uiState.pickingFeedback
         if (feedback != null) {
+            val isError = feedback.contains("Incorrect") || feedback.contains("already picked")
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (feedback.contains("Incorrect")) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
+                    containerColor = if (isError) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -118,24 +119,26 @@ fun BarcodeScanPickingScreen(
                         style = TextStyle(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (feedback.contains("Incorrect")) Color.Red else Color(0xFF2E7D32)
+                            color = if (isError) Color.Red else Color(0xFF2E7D32)
                         )
                     )
                     
                     val product = uiState.lastScannedProduct
-                    if (product != null && !feedback.contains("Incorrect")) {
+                    if (product != null && !isError) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "Item: ${product.name}", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(text = "Product: ${product.name}", color = Color.Black, fontWeight = FontWeight.Bold)
                         
                         uiState.targetTotes.forEach { pair ->
                             val toteId = pair.first
                             val qty = pair.second
+                            val label = uiState.barcodeLabels[toteId]
+                            val displayText = if (label != null) "Tote $label ($toteId)" else "Tote $toteId"
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = "Tote $toteId", color = Color.Black, fontSize = 18.sp)
+                                Text(text = displayText, color = Color.Black, fontSize = 18.sp)
                                 Text(text = "Qty: $qty", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             }
                         }

@@ -88,6 +88,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
+import kotlin.math.abs
 import kotlin.coroutines.resumeWithException
 
 private const val TAG = "AIDataCaptureDemoViewModel"
@@ -1784,9 +1785,11 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun updateBarcodeResultData(results: List<ResultData>) {
+        val labels = calculateBarcodeLabels(results)
         _uiState.update { it ->
             it.copy(
-                barcodeResults = results
+                barcodeResults = results,
+                barcodeLabels = labels
             )
         }
 
@@ -1796,23 +1799,131 @@ class AIDataCaptureDemoViewModel(
         }
     }
 
+    private fun calculateBarcodeLabels(results: List<ResultData>): Map<String, String> {
+        if (results.isEmpty()) return emptyMap()
+
+        // Grouping logic for columns (left-to-right) to identify vertical stacks
+        val sortedByX = results.sortedBy { it.boundingBox.centerX() }
+        val columns = mutableListOf<MutableList<ResultData>>()
+        
+        if (sortedByX.isNotEmpty()) {
+            var currentColumn = mutableListOf<ResultData>()
+            currentColumn.add(sortedByX[0])
+            columns.add(currentColumn)
+
+            for (i in 1 until sortedByX.size) {
+                val prev = sortedByX[i - 1]
+                val curr = sortedByX[i]
+                // Overlap threshold for same column: 60% of width
+                if (abs(curr.boundingBox.centerX() - prev.boundingBox.centerX()) < (prev.boundingBox.width() * 0.6)) {
+                    currentColumn.add(curr)
+                } else {
+                    currentColumn = mutableListOf<ResultData>()
+                    currentColumn.add(curr)
+                    columns.add(currentColumn)
+                }
+            }
+        }
+
+        // Sort each column by Y (top-to-bottom)
+        columns.forEach { it.sortBy { item -> item.boundingBox.centerY() } }
+
+        val labelMap = mutableMapOf<String, String>()
+        var labelCounter = 0
+        
+        // Labeling row-by-row across columns (Top item of each column, then second item, etc.)
+        val maxItemsInColumn = columns.maxOfOrNull { it.size } ?: 0
+        for (rowIdx in 0 until maxItemsInColumn) {
+            for (colIdx in 0 until columns.size) {
+                if (rowIdx < columns[colIdx].size) {
+                    val barcode = columns[colIdx][rowIdx]
+                    labelMap[barcode.text] = getLabelFromIndex(labelCounter++)
+                }
+            }
+        }
+        return labelMap
+    }
+
+    private fun getLabelFromIndex(index: Int): String {
+        var n = index
+        val sb = StringBuilder()
+        do {
+            sb.append(('A' + (n % 26)))
+            n = n / 26 - 1
+        } while (n >= 0)
+        return sb.reverse().toString()
+    }
+
     private fun handlePickingScan(results: List<ResultData>) {
         if (results.isEmpty()) return
+        val barcode = results.first().text
+        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
+            processToteScan(barcode)
+        } else {
+            processScanResult(barcode)
+        }
+    }
 
-        val scannedBarcode = results.first().text
-        val customer = uiState.value.selectedCustomer ?: return
-
-        val productMatch = customer.products.find { it.barcode == scannedBarcode }
-
-        if (productMatch != null) {
+    private fun processScanResult(barcode: String) {
+        // Check if already picked
+        if (uiState.value.pickedProductBarcodes.contains(barcode)) {
             _uiState.update { it.copy(
-                pickingFeedback = "Item Identified Barcode: $scannedBarcode",
-                selectedToteId = scannedBarcode // Highlight it on the map
+                pickingFeedback = "Product already picked: $barcode"
+            ) }
+            return
+        }
+
+        val customers = uiState.value.allCustomers
+        val matches = mutableListOf<Pair<String, Int>>()
+        var productInfo: ProductInfo? = null
+
+        customers.forEach { customer ->
+            customer.products.find { it.barcode == barcode }?.let { product ->
+                matches.add(customer.id to product.quantity)
+                productInfo = product
+            }
+        }
+
+        if (matches.isNotEmpty()) {
+            _uiState.update { it.copy(
+                lastScannedProduct = productInfo,
+                targetTotes = matches,
+                pickingFeedback = "Product Identified Barcode: $barcode",
+                pickedProductBarcodes = it.pickedProductBarcodes + barcode,
+                validatedTotes = emptySet() // Reset for new product
             ) }
         } else {
             _uiState.update { it.copy(
-                pickingFeedback = "Incorrect Item"
+                lastScannedProduct = null,
+                targetTotes = listOf(),
+                pickingFeedback = "Incorrect Product"
             ) }
+        }
+    }
+
+    private fun processToteScan(barcode: String) {
+        val label = uiState.value.pickingBarcodeLabels[barcode]
+        Log.d(TAG, "processToteScan: barcode=$barcode, label=$label")
+        if (label != null) {
+            val isTarget = uiState.value.targetTotes.any { it.first == label }
+            if (isTarget) {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Correct tote: $label",
+                    validatedTotes = it.validatedTotes + label
+                ) }
+            } else {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Incorrect tote: $label"
+                ) }
+            }
+        } else {
+            // Only update if we don't already have a meaningful status, 
+            // to avoid overwriting "Correct tote" with "Unrecognized" if multiple barcodes are in frame
+            if (uiState.value.pickingFeedback?.startsWith("Correct") != true) {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Unrecognized barcode: $barcode"
+                ) }
+            }
         }
     }
 
@@ -1829,29 +1940,10 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun processHardwareScan(barcode: String) {
-        val customers = uiState.value.allCustomers
-        val matches = mutableListOf<Pair<String, Int>>()
-        var productInfo: ProductInfo? = null
-
-        customers.forEach { customer ->
-            customer.products.find { it.barcode == barcode }?.let { product ->
-                matches.add(customer.id to product.quantity)
-                productInfo = product
-            }
-        }
-
-        if (matches.isNotEmpty()) {
-            _uiState.update { it.copy(
-                lastScannedProduct = productInfo,
-                targetTotes = matches,
-                pickingFeedback = "Item Identified Barcode: $barcode"
-            ) }
+        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
+            processToteScan(barcode)
         } else {
-            _uiState.update { it.copy(
-                lastScannedProduct = null,
-                targetTotes = listOf(),
-                pickingFeedback = "Incorrect Item"
-            ) }
+            processScanResult(barcode)
         }
     }
 
@@ -1963,10 +2055,29 @@ class AIDataCaptureDemoViewModel(
     fun saveBarcodeLayout() {
         if (uiState.value.barcodeResults.isNotEmpty()) {
             FileUtils.saveBarcodeResultsToFile(uiState.value.barcodeResults)
+            initializePickingDemo()
             toast("Barcode layout saved successfully")
         } else {
             toast("No barcode results to save")
         }
+    }
+
+    private fun initializePickingDemo() {
+        val toteLabels = uiState.value.barcodeLabels.values.distinct().sorted()
+        val customers = if (toteLabels.isNotEmpty()) {
+            com.zebra.aidatacapturedemo.data.CustomerDataGenerator.generateCustomers(toteLabels)
+        } else {
+            com.zebra.aidatacapturedemo.data.CustomerDataGenerator.generateCustomers()
+        }
+        _uiState.update { it.copy(
+            allCustomers = customers,
+            pickingBarcodeResults = it.barcodeResults,
+            pickingBarcodeLabels = it.barcodeLabels,
+            pickedProductBarcodes = emptySet(),
+            pickingFeedback = null,
+            lastScannedProduct = null,
+            targetTotes = listOf()
+        ) }
     }
 
     fun toast(toastString: String) {
