@@ -225,4 +225,5 @@
     <string name="ocr_filter_regex_title">Regex</string>
     <string name="barcode_filter_title">Barcode Filters</string>
     <string name="expiration_date">Expiration Date</string>
+    <string name="lot_number">Lot Number</string>
 </resources>
