@@ -50,11 +50,13 @@ import com.zebra.aidatacapturedemo.data.BarcodeFilterData
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
 import com.zebra.aidatacapturedemo.data.BarcodeSymbology
 import com.zebra.aidatacapturedemo.data.CommonSettings
+import com.zebra.aidatacapturedemo.data.CustomerInfo
 import com.zebra.aidatacapturedemo.data.FilterType
 import com.zebra.aidatacapturedemo.data.ModuleData
 import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
 import com.zebra.aidatacapturedemo.data.OcrFilterData
 import com.zebra.aidatacapturedemo.data.ProductData
+import com.zebra.aidatacapturedemo.data.ProductInfo
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
 import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.RetailShelfSettings
@@ -86,6 +88,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
+import kotlin.math.abs
 import kotlin.coroutines.resumeWithException
 
 private const val TAG = "AIDataCaptureDemoViewModel"
@@ -166,6 +169,19 @@ class AIDataCaptureDemoViewModel(
                     barcodeAnalyzer?.initialize()
                 }
 
+                UsecaseState.BarcodeMap.value -> {
+                    barcodeAnalyzer = BarcodeAnalyzer(
+                        uiState = uiState,
+                        viewModel = this@AIDataCaptureDemoViewModel
+                    )
+                    barcodeAnalyzer?.initialize()
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isCaptureOrLiveEnabled = 0 // Default to Capture for Barcode Map
+                        )
+                    }
+                }
+
                 UsecaseState.Retail.value -> {
                     retailShelfAnalyzer = RetailShelfAnalyzer(
                         uiState = uiState,
@@ -217,7 +233,7 @@ class AIDataCaptureDemoViewModel(
      */
     fun deinitModel() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 barcodeAnalyzer?.deinitialize()
                 barcodeAnalyzer = null
             }
@@ -331,6 +347,7 @@ class AIDataCaptureDemoViewModel(
 
                 // Bind an additional Capture Use Case only for Product Recognition UsecaseState
                 camera = if ((uiState.value.usecaseSelected == UsecaseState.Product.value) ||
+                    (uiState.value.usecaseSelected == UsecaseState.BarcodeMap.value) ||
                     ((uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.value.isCaptureOrLiveEnabled == 0))){
                     // HIGH-RES CAPTURE CASE
                     imageCaptureResolutionSelector = ResolutionSelector.Builder()
@@ -565,7 +582,7 @@ class AIDataCaptureDemoViewModel(
      */
     fun updateSelectedProcessor(index: Int) {
         val updatedSelectedProcessorIndex = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 val currentProcessorSelectedIndex = _uiState.value.barcodeSettings.commonSettings
                 currentProcessorSelectedIndex.copy(processorSelectedIndex = index)
             }
@@ -597,7 +614,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> _uiState.value.barcodeSettings.commonSettings =
                 updatedSelectedProcessorIndex as CommonSettings
 
             UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
@@ -632,7 +649,7 @@ class AIDataCaptureDemoViewModel(
         }
 
         val updatedInputSize = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 val currentInputSizeSelected = _uiState.value.barcodeSettings.commonSettings
                 currentInputSizeSelected.copy(inputSizeSelected = dimension)
             }
@@ -669,7 +686,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> _uiState.value.barcodeSettings.commonSettings =
                 updatedInputSize as CommonSettings
 
             UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
@@ -688,7 +705,7 @@ class AIDataCaptureDemoViewModel(
 
     fun updateSelectedResolution(index: Int) {
         val updatedResolution = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 val currentResolutionSelectedIndex = _uiState.value.barcodeSettings.commonSettings
                 currentResolutionSelectedIndex.copy(resolutionSelectedIndex = index)
             }
@@ -720,7 +737,7 @@ class AIDataCaptureDemoViewModel(
             }
         }
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> _uiState.value.barcodeSettings.commonSettings =
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> _uiState.value.barcodeSettings.commonSettings =
                 updatedResolution as CommonSettings
 
             UsecaseState.Retail.value -> _uiState.value.retailShelfSettings.commonSettings =
@@ -739,7 +756,7 @@ class AIDataCaptureDemoViewModel(
 
     fun getSelectedResolution(): Int? {
         val currentResolutionSelectedIndex = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings.commonSettings.resolutionSelectedIndex
             }
 
@@ -768,7 +785,7 @@ class AIDataCaptureDemoViewModel(
 
     fun getProcessorSelectedIndex(): Int? {
         val currentProcessorSelectedIndex = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings.commonSettings.processorSelectedIndex
             }
 
@@ -797,7 +814,7 @@ class AIDataCaptureDemoViewModel(
 
     fun getInputSizeSelected(): Int? {
         val currentInputSizeSelected = when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings.commonSettings.inputSizeSelected
             }
 
@@ -1624,7 +1641,7 @@ class AIDataCaptureDemoViewModel(
 
     fun saveSettings() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 FileUtils.saveBarcodeSettings(uiState.value.barcodeSettings)
             }
 
@@ -1652,7 +1669,7 @@ class AIDataCaptureDemoViewModel(
 
     fun restoreDefaultSettings() {
         when (_uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
                 _uiState.value.barcodeSettings = BarcodeSettings()
             }
 
@@ -1768,10 +1785,165 @@ class AIDataCaptureDemoViewModel(
     }
 
     fun updateBarcodeResultData(results: List<ResultData>) {
+        val labels = calculateBarcodeLabels(results)
         _uiState.update { it ->
             it.copy(
-                barcodeResults = results
+                barcodeResults = results,
+                barcodeLabels = labels
             )
+        }
+
+        // Handle Picking Logic if we are in picking flow
+        if (uiState.value.selectedCustomer != null && results.isNotEmpty()) {
+            handlePickingScan(results)
+        }
+    }
+
+    private fun calculateBarcodeLabels(results: List<ResultData>): Map<String, String> {
+        if (results.isEmpty()) return emptyMap()
+
+        // Grouping logic for columns (left-to-right) to identify vertical stacks
+        val sortedByX = results.sortedBy { it.boundingBox.centerX() }
+        val columns = mutableListOf<MutableList<ResultData>>()
+        
+        if (sortedByX.isNotEmpty()) {
+            var currentColumn = mutableListOf<ResultData>()
+            currentColumn.add(sortedByX[0])
+            columns.add(currentColumn)
+
+            for (i in 1 until sortedByX.size) {
+                val prev = sortedByX[i - 1]
+                val curr = sortedByX[i]
+                // Overlap threshold for same column: 60% of width
+                if (abs(curr.boundingBox.centerX() - prev.boundingBox.centerX()) < (prev.boundingBox.width() * 0.6)) {
+                    currentColumn.add(curr)
+                } else {
+                    currentColumn = mutableListOf<ResultData>()
+                    currentColumn.add(curr)
+                    columns.add(currentColumn)
+                }
+            }
+        }
+
+        // Sort each column by Y (top-to-bottom)
+        columns.forEach { it.sortBy { item -> item.boundingBox.centerY() } }
+
+        val labelMap = mutableMapOf<String, String>()
+        var labelCounter = 0
+        
+        // Labeling row-by-row across columns (Top item of each column, then second item, etc.)
+        val maxItemsInColumn = columns.maxOfOrNull { it.size } ?: 0
+        for (rowIdx in 0 until maxItemsInColumn) {
+            for (colIdx in 0 until columns.size) {
+                if (rowIdx < columns[colIdx].size) {
+                    val barcode = columns[colIdx][rowIdx]
+                    labelMap[barcode.text] = getLabelFromIndex(labelCounter++)
+                }
+            }
+        }
+        return labelMap
+    }
+
+    private fun getLabelFromIndex(index: Int): String {
+        var n = index
+        val sb = StringBuilder()
+        do {
+            sb.append(('A' + (n % 26)))
+            n = n / 26 - 1
+        } while (n >= 0)
+        return sb.reverse().toString()
+    }
+
+    private fun handlePickingScan(results: List<ResultData>) {
+        if (results.isEmpty()) return
+        val barcode = results.first().text
+        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
+            processToteScan(barcode)
+        } else {
+            processScanResult(barcode)
+        }
+    }
+
+    private fun processScanResult(barcode: String) {
+        // Check if already picked
+        if (uiState.value.pickedProductBarcodes.contains(barcode)) {
+            _uiState.update { it.copy(
+                pickingFeedback = "Product already picked: $barcode"
+            ) }
+            return
+        }
+
+        val customers = uiState.value.allCustomers
+        val matches = mutableListOf<Pair<String, Int>>()
+        var productInfo: ProductInfo? = null
+
+        customers.forEach { customer ->
+            customer.products.find { it.barcode == barcode }?.let { product ->
+                matches.add(customer.id to product.quantity)
+                productInfo = product
+            }
+        }
+
+        if (matches.isNotEmpty()) {
+            _uiState.update { it.copy(
+                lastScannedProduct = productInfo,
+                targetTotes = matches,
+                pickingFeedback = "Product Identified Barcode: $barcode",
+                pickedProductBarcodes = it.pickedProductBarcodes + barcode,
+                validatedTotes = emptySet() // Reset for new product
+            ) }
+        } else {
+            _uiState.update { it.copy(
+                lastScannedProduct = null,
+                targetTotes = listOf(),
+                pickingFeedback = "Incorrect Product"
+            ) }
+        }
+    }
+
+    private fun processToteScan(barcode: String) {
+        val label = uiState.value.pickingBarcodeLabels[barcode]
+        Log.d(TAG, "processToteScan: barcode=$barcode, label=$label")
+        if (label != null) {
+            val isTarget = uiState.value.targetTotes.any { it.first == label }
+            if (isTarget) {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Correct tote: $label",
+                    validatedTotes = it.validatedTotes + label
+                ) }
+            } else {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Incorrect tote: $label"
+                ) }
+            }
+        } else {
+            // Only update if we don't already have a meaningful status, 
+            // to avoid overwriting "Correct tote" with "Unrecognized" if multiple barcodes are in frame
+            if (uiState.value.pickingFeedback?.startsWith("Correct") != true) {
+                _uiState.update { it.copy(
+                    pickingFeedback = "Unrecognized barcode: $barcode"
+                ) }
+            }
+        }
+    }
+
+    fun updateSelectedCustomer(customer: com.zebra.aidatacapturedemo.data.CustomerInfo?) {
+        _uiState.update { it.copy(selectedCustomer = customer) }
+    }
+
+    fun updatePickingFeedback(feedback: String?) {
+        _uiState.update { it.copy(pickingFeedback = feedback) }
+    }
+
+    fun setAllCustomers(customers: List<CustomerInfo>) {
+        _uiState.update { it.copy(allCustomers = customers) }
+    }
+
+    fun processHardwareScan(barcode: String) {
+        if (uiState.value.activeScreen == Screen.BarcodeMapPicking) {
+            processToteScan(barcode)
+        } else {
+            processScanResult(barcode)
         }
     }
 
@@ -1873,9 +2045,39 @@ class AIDataCaptureDemoViewModel(
             updateSelectedFilterType(filterType = FilterType.NONE)
         } else if (currentScreen == Screen.BarcodeFindFilterHome) {
             updateSelectedFilterType(filterType = FilterType.NONE)
+        } else if (currentScreen == Screen.BarcodeMapPicking) {
+            updateSelectedToteId(null)
         }
         setZoom(1.0f)
         navController.navigateUp()
+    }
+
+    fun saveBarcodeLayout() {
+        if (uiState.value.barcodeResults.isNotEmpty()) {
+            FileUtils.saveBarcodeResultsToFile(uiState.value.barcodeResults)
+            initializePickingDemo()
+            toast("Barcode layout saved successfully")
+        } else {
+            toast("No barcode results to save")
+        }
+    }
+
+    private fun initializePickingDemo() {
+        val toteLabels = uiState.value.barcodeLabels.values.distinct().sorted()
+        val customers = if (toteLabels.isNotEmpty()) {
+            com.zebra.aidatacapturedemo.data.CustomerDataGenerator.generateCustomers(toteLabels)
+        } else {
+            com.zebra.aidatacapturedemo.data.CustomerDataGenerator.generateCustomers()
+        }
+        _uiState.update { it.copy(
+            allCustomers = customers,
+            pickingBarcodeResults = it.barcodeResults,
+            pickingBarcodeLabels = it.barcodeLabels,
+            pickedProductBarcodes = emptySet(),
+            pickingFeedback = null,
+            lastScannedProduct = null,
+            targetTotes = listOf()
+        ) }
     }
 
     fun toast(toastString: String) {
@@ -1892,7 +2094,7 @@ class AIDataCaptureDemoViewModel(
 
     fun stopPreviewAnalysis() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
 
             }
 
@@ -1916,7 +2118,7 @@ class AIDataCaptureDemoViewModel(
 
     fun startPreviewAnalysis() {
         when (uiState.value.usecaseSelected) {
-            UsecaseState.Barcode.value -> {
+            UsecaseState.Barcode.value, UsecaseState.BarcodeMap.value -> {
 
             }
 
@@ -1942,6 +2144,10 @@ class AIDataCaptureDemoViewModel(
         when (uiState.value.usecaseSelected) {
             UsecaseState.Barcode.value -> {
 
+            }
+
+            UsecaseState.BarcodeMap.value -> {
+                barcodeAnalyzer!!.executeHighRes(highResBitmap)
             }
 
             UsecaseState.Retail.value -> {
@@ -2000,6 +2206,15 @@ class AIDataCaptureDemoViewModel(
             )
         }
     }
+
+    fun updateSelectedToteId(id: String?) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                selectedToteId = id
+            )
+        }
+    }
+
     fun clearOcrBarcodeCaptureSession(){
         updateOcrBarcodeCaptureSessionIndex(0)
         updateOcrBarcodeCaptureSessionCount(0)

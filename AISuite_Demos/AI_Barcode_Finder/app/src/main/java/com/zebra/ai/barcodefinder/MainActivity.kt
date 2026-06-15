@@ -21,6 +21,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val versionName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "unknown"
+        }
+        Log.d(TAG, "MainActivity onCreate - AI Barcode Finder v$versionName")
 
         // Configure status bar color to match app title bar
         WindowCompat.setDecorFitsSystemWindows(window, true)

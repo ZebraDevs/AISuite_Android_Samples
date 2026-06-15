@@ -337,29 +337,32 @@ fun AIDataCaptureDemoAppBarTitle(
     viewModel: AIDataCaptureDemoViewModel,
     uiState: AIDataCaptureDemoUiState
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight()
             .background(color = Variables.mainDefault)
-            .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
     ) {
-        Text(
-            text = uiState.appBarTitle,
-            softWrap = true,
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .wrapContentWidth()
-                .wrapContentHeight(),
-            style = TextStyle(
-                fontSize = 18.sp,
-                lineHeight = 28.sp,
-                fontFamily = FontFamily(Font(R.font.ibm_plex_sans_medium)),
-                fontWeight = FontWeight(500),
-                color = mainInverse,
+                .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
+        ) {
+            Text(
+                text = uiState.appBarTitle,
+                softWrap = true,
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .wrapContentHeight(),
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    lineHeight = 28.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans_medium)),
+                    fontWeight = FontWeight(500),
+                    color = mainInverse,
+                )
             )
-        )
+        }
     }
 }
 

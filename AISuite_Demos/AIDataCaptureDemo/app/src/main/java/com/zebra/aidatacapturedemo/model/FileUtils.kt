@@ -26,6 +26,7 @@ import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
 import com.zebra.aidatacapturedemo.data.OcrFilterData
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
+import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.RetailShelfSettings
 import com.zebra.aidatacapturedemo.data.TextOcrSettings
 import com.zebra.aidatacapturedemo.data.UsecaseState
@@ -238,6 +239,20 @@ class FileUtils(cacheDir: String, context : Context) {
                 FileWriter(settingsFiles.getValue(UsecaseState.Product.value)).use { writer ->
                     gson.toJson(settings, writer)
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        fun saveBarcodeResultsToFile(barcodeResults: List<ResultData>) {
+            try {
+                val timestamp = getTimeStamp()
+                val fileName = "barcode_layout_$timestamp.json"
+                val file = File(mContext.getExternalFilesDir(null), fileName)
+                FileWriter(file).use { writer ->
+                    gson.toJson(barcodeResults, writer)
+                }
+                Log.d(TAG, "Barcode results saved to ${file.absolutePath}")
             } catch (e: Exception) {
                 e.printStackTrace()
             }
