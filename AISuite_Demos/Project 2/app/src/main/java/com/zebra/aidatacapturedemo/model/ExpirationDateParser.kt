@@ -9,11 +9,8 @@ import java.util.regex.Pattern
  */
 object ExpirationDateParser {
 
-    val KEYWORDS = listOf(
-        "EXP", "EXPIRY", "EXPIRES", "EXPIRATION DATE",
-        "BEST BEFORE", "BEST BY", "BB", "BBE", "USE BY", "UB", "USEBEFORE",
-        "MA", "MFG", "LOT", "ED"
-    )
+    val KEYWORDS = listOf("EXP")
+    val LOT_KEYWORDS = listOf("LOT")
 
     private val FULL_MONTH_NAMES = listOf(
         "January", "February", "March", "April", "May", "June",
@@ -24,7 +21,10 @@ object ExpirationDateParser {
     const val DATE_PATTERN_STR =
         """(\d{1,2}\s*[./\-\s]\s*\d{2,4}|\d{4}\s*[./\-\s]\s*\d{1,2}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\.?\s*\d{2,4}|\d{4}\s*-\s*\d{2}\s*-\s*\d{2})"""
 
+    const val LOT_PATTERN_STR = """([A-Z0-9]{4,15})"""
+
     val KEYWORD_PATTERN_STR = KEYWORDS.joinToString("|") { Pattern.quote(it) }
+    val LOT_KEYWORD_PATTERN_STR = LOT_KEYWORDS.joinToString("|") { Pattern.quote(it) }
 
     enum class DateStatus {
         GREEN, YELLOW, RED, NONE
@@ -119,9 +119,39 @@ object ExpirationDateParser {
 
     fun isDateLike(text: String): Boolean {
         val textUpper = text.uppercase()
-        val hasKeyword = KEYWORDS.any { textUpper.contains(it) }
-        val hasDatePattern = Regex(DATE_PATTERN_STR, RegexOption.IGNORE_CASE).containsMatchIn(text)
-        return hasKeyword || hasDatePattern
+        // Only consider it a date if it contains one of the expiration keywords
+        return KEYWORDS.any { textUpper.contains(it) }
+    }
+
+    fun isLotLike(text: String): Boolean {
+        val textUpper = text.uppercase()
+        return LOT_KEYWORDS.any { textUpper.contains(it) }
+    }
+
+    fun extractLotNumber(ocrText: String): String {
+        if (ocrText.isBlank()) return ""
+        val regex = Regex("(?i)($LOT_KEYWORD_PATTERN_STR)[.:\\s]*$LOT_PATTERN_STR", RegexOption.IGNORE_CASE)
+        val match = regex.find(ocrText)
+        val value = match?.groups?.get(2)?.value ?: ""
+        if (value.isNotEmpty()) return "LOT: $value"
+        return ""
+    }
+
+    fun extractAllLotNumbersFromResults(results: List<ResultData>): List<String> {
+        if (results.isEmpty()) return emptyList()
+        val foundLots = mutableSetOf<String>()
+        val combinedRegex = Regex("(?i)($LOT_KEYWORD_PATTERN_STR)[.:\\s]*$LOT_PATTERN_STR", RegexOption.IGNORE_CASE)
+
+        for (item in results) {
+            val matches = combinedRegex.findAll(item.text)
+            for (match in matches) {
+                val value = match.groups[2]?.value ?: ""
+                if (value.isNotEmpty()) {
+                    foundLots.add("LOT: $value")
+                }
+            }
+        }
+        return foundLots.toList()
     }
 
     fun getDateStatus(ocrText: String): DateStatus {
@@ -185,29 +215,16 @@ object ExpirationDateParser {
     fun extractAllFromResults(results: List<ResultData>): List<String> {
         if (results.isEmpty()) return emptyList()
         val foundDates = mutableSetOf<String>()
+        // Only look for dates that are preceded by a valid keyword (EXP, BEST BY, etc.)
         val combinedRegex = Regex("(?i)($KEYWORD_PATTERN_STR)[.:\\s]*$DATE_PATTERN_STR", RegexOption.IGNORE_CASE)
-        val standaloneDateRegex = Regex(DATE_PATTERN_STR, RegexOption.IGNORE_CASE)
 
         for (item in results) {
             val matchesWithKeyword = combinedRegex.findAll(item.text)
-            var foundWithKeyword = false
             for (match in matchesWithKeyword) {
-                val rawDate = match.value // Using full match to catch keyword context
+                val rawDate = match.value
                 val cleanDate = formatWithMonthName(rawDate)
                 if (cleanDate.isNotEmpty()) {
                     foundDates.add("The Expiration Date is: $cleanDate")
-                    foundWithKeyword = true
-                }
-            }
-
-            if (!foundWithKeyword) {
-                val matchesStandalone = standaloneDateRegex.findAll(item.text)
-                for (match in matchesStandalone) {
-                    val rawDate = match.value
-                    val cleanDate = formatWithMonthName(rawDate)
-                    if (cleanDate.isNotEmpty()) {
-                        foundDates.add("The Expiration Date is: $cleanDate")
-                    }
                 }
             }
         }

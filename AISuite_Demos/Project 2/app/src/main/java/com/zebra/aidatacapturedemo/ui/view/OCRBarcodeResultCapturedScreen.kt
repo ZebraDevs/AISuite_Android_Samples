@@ -185,8 +185,8 @@ fun OCRBarcodeResultCapturedScreen(
                     )
                 }
 
-                // Expiration Date Stack
-                if (uiState.detectedExpirationDates.isNotEmpty()) {
+                // Expiration & Lot Result (Single Bottle)
+                if (uiState.extractedExpirationDate != null || uiState.extractedLotNumber != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -200,8 +200,30 @@ fun OCRBarcodeResultCapturedScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            uiState.detectedExpirationDates.forEach { dateText ->
-                                val fullText = "The expiration date is $dateText"
+                            // LOT Number
+                            uiState.extractedLotNumber?.let { lotText ->
+                                Column(
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    ButtonWithIconOption(
+                                        ButtonData(
+                                            titleId = R.string.lot_number,
+                                            color = Color.Blue,
+                                            alpha = 1f,
+                                            enabled = true,
+                                            onButtonClick = { },
+                                            titleString = lotText
+                                        ),
+                                        drawableRes = R.drawable.ic_check
+                                    )
+                                }
+                            }
+
+                            // Expiration Date
+                            uiState.extractedExpirationDate?.let { dateText ->
                                 val status = ExpirationDateParser.getDateStatus(dateText)
                                 val buttonColor = when (status) {
                                     ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39)
@@ -223,7 +245,7 @@ fun OCRBarcodeResultCapturedScreen(
                                             alpha = 1f,
                                             enabled = true,
                                             onButtonClick = { },
-                                            titleString = fullText
+                                            titleString = "The Expiration Date is: $dateText"
                                         ),
                                         drawableRes = R.drawable.ic_check
                                     )

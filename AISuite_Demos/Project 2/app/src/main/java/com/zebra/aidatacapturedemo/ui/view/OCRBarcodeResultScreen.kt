@@ -74,6 +74,7 @@ fun OCRBarcodeResultScreen(
     val updateResults = remember { mutableStateOf(false) }
     val updateResultsTrigger = remember { mutableStateOf(0) }
     val sessionExpirationDate = remember { mutableStateOf<String?>(null) }
+    val sessionLotNumber = remember { mutableStateOf<String?>(null) }
 
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
@@ -90,7 +91,9 @@ fun OCRBarcodeResultScreen(
             }
             resultList.clear()
             sessionExpirationDate.value = uiState.extractedExpirationDate
-            if (sessionExpirationDate.value == null || sessionExpirationDate.value == "Not found") {
+            sessionLotNumber.value = uiState.extractedLotNumber
+            if ((sessionExpirationDate.value == null || sessionExpirationDate.value == "Not found") &&
+                (sessionLotNumber.value == null || sessionLotNumber.value == "")) {
                 resultList += ocrList + barcodeList
             }
         } else {
@@ -114,7 +117,9 @@ fun OCRBarcodeResultScreen(
                 }
                 resultList.clear()
                 sessionExpirationDate.value = sessionJson?.extractedExpirationDate
-                if (sessionExpirationDate.value == null || sessionExpirationDate.value == "Not found") {
+                sessionLotNumber.value = sessionJson?.extractedLotNumber
+                if ((sessionExpirationDate.value == null || sessionExpirationDate.value == "Not found") &&
+                    (sessionLotNumber.value == null || sessionLotNumber.value == "")) {
                     resultList += ocrList + barcodeList
                 }
                 Log.d(TAG, "loadSessionResults = ${resultList.size}")
@@ -131,9 +136,12 @@ fun OCRBarcodeResultScreen(
 
         Header(uiState.ocrBarcodeCaptureSessionIndex)
 
-        // Expiration Date Button and Text
-        var showExpMessage by remember { mutableStateOf(false) }
-        if (sessionExpirationDate.value != null && sessionExpirationDate.value != "Not found") {
+        // Expiration Date & Lot Number UI
+        var showDetails by remember { mutableStateOf(false) }
+        val hasExp = sessionExpirationDate.value != null && sessionExpirationDate.value != "Not found"
+        val hasLot = sessionLotNumber.value != null && sessionLotNumber.value != ""
+
+        if (hasExp || hasLot) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -144,35 +152,55 @@ fun OCRBarcodeResultScreen(
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
                         .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     ButtonWithIconOption(
                         ButtonData(
-                            titleId = R.string.expiration_date,
+                            titleId = R.string.results,
                             color = Variables.mainPrimary,
                             alpha = 1f,
                             enabled = true,
-                            onButtonClick = { showExpMessage = !showExpMessage }
+                            onButtonClick = { showDetails = !showDetails }
                         ),
                         drawableRes = R.drawable.ic_check
                     )
                     
-                    if (showExpMessage) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Box(
-                            modifier = Modifier
-                                .background(Variables.mainPrimary, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = sessionExpirationDate.value ?: "",
-                                style = TextStyle(
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    textAlign = TextAlign.Center
+                    if (showDetails) {
+                        if (hasLot) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.Blue, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = sessionLotNumber.value ?: "",
+                                    style = TextStyle(
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        textAlign = TextAlign.Center
+                                    )
                                 )
-                            )
+                            }
+                        }
+
+                        if (hasExp) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Variables.mainPrimary, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = sessionExpirationDate.value ?: "",
+                                    style = TextStyle(
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        textAlign = TextAlign.Center
+                                    )
+                                )
+                            }
                         }
                     }
                 }

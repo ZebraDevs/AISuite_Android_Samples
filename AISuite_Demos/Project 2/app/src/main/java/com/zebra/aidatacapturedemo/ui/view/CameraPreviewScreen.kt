@@ -458,9 +458,8 @@ fun CameraPreviewScreen(
             }
         }
 
-        // Expiration Date Stack (Live)
-        if (uiState.detectedExpirationDates.isNotEmpty()) {
-            val scrollState = rememberScrollState()
+        // Expiration & Lot Result (Single Bottle)
+        if (uiState.extractedExpirationDate != null || uiState.extractedLotNumber != null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -470,13 +469,12 @@ fun CameraPreviewScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.95f)
-                        .fillMaxHeight(0.6f) // Increased height to show more items
+                        .wrapContentHeight()
                         .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                         .padding(bottom = 8.dp)
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // Header with Clear Button
@@ -488,14 +486,14 @@ fun CameraPreviewScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Found Dates (${uiState.detectedExpirationDates.size})",
+                                text = "Detected Info",
                                 style = TextStyle(
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 )
                             )
-                            
+
                             Box(
                                 modifier = Modifier
                                     .background(Color.Red.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
@@ -503,92 +501,93 @@ fun CameraPreviewScreen(
                                     .padding(horizontal = 12.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = "Clear All",
+                                    text = "Clear",
                                     style = TextStyle(color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 )
                             }
                         }
 
-                        Box(
+                        Column(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 8.dp)
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(scrollState)
-                                    .drawWithContent {
-                                        drawContent()
-                                        // Custom Scrollbar - More Visible
-                                        val needScroll = scrollState.maxValue > 0
-                                        if (needScroll) {
-                                            val viewPortHeight = this.size.height
-                                            val contentHeight = viewPortHeight + scrollState.maxValue
-                                            val scrollbarHeight = (viewPortHeight / contentHeight) * viewPortHeight
-                                            val scrollbarOffset = (scrollState.value.toFloat() / contentHeight) * viewPortHeight
-                                            
-                                            drawRect(
-                                                color = Color.White,
-                                                topLeft = Offset(this.size.width - 4.dp.toPx(), scrollbarOffset),
-                                                size = androidx.compose.ui.geometry.Size(4.dp.toPx(), scrollbarHeight)
-                                            )
-                                        }
-                                    },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                uiState.detectedExpirationDates.forEach { dateText ->
-                                    val status = ExpirationDateParser.getDateStatus(dateText)
-                                    val buttonColor = when (status) {
-                                        ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39)
-                                        ExpirationDateParser.DateStatus.YELLOW -> Color(0xFFFFC107)
-                                        ExpirationDateParser.DateStatus.RED -> Color.Red
-                                        else -> Variables.mainPrimary
+                            // LOT Number
+                            uiState.extractedLotNumber?.let { lotText ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    ButtonWithIconOption(
+                                        ButtonData(
+                                            titleId = R.string.lot_number,
+                                            color = Color.Blue,
+                                            alpha = 1f,
+                                            enabled = true,
+                                            onButtonClick = { },
+                                            titleString = lotText
+                                        ),
+                                        drawableRes = R.drawable.ic_check
+                                    )
+                                }
+                            }
+
+                            // Expiration Date
+                            uiState.extractedExpirationDate?.let { dateText ->
+                                val status = ExpirationDateParser.getDateStatus(dateText)
+                                val buttonColor = when (status) {
+                                    ExpirationDateParser.DateStatus.GREEN -> Color(0xFF006D39)
+                                    ExpirationDateParser.DateStatus.YELLOW -> Color(0xFFFFC107)
+                                    ExpirationDateParser.DateStatus.RED -> Color.Red
+                                    else -> Variables.mainPrimary
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    ButtonWithIconOption(
+                                        ButtonData(
+                                            titleId = R.string.expiration_date,
+                                            color = buttonColor,
+                                            alpha = 1f,
+                                            enabled = true,
+                                            onButtonClick = { },
+                                            titleString = dateText
+                                        ),
+                                        drawableRes = R.drawable.ic_check
+                                    )
+
+                                    val months = ExpirationDateParser.getMonthsUntilExpiration(dateText)
+                                    val message = when (status) {
+                                        ExpirationDateParser.DateStatus.GREEN -> if (months > 0) "This medicine will be expired in $months months" else null
+                                        ExpirationDateParser.DateStatus.YELLOW -> "This medicine will be expired in 1 month"
+                                        ExpirationDateParser.DateStatus.RED -> "This medicine is already expired"
+                                        else -> null
                                     }
 
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                                            .padding(12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        ButtonWithIconOption(
-                                            ButtonData(
-                                                titleId = R.string.expiration_date,
-                                                color = buttonColor,
-                                                alpha = 1f,
-                                                enabled = true,
-                                                onButtonClick = { },
-                                                titleString = dateText
-                                            ),
-                                            drawableRes = R.drawable.ic_check
-                                        )
-
-                                        val months = ExpirationDateParser.getMonthsUntilExpiration(dateText)
-                                        val message = when (status) {
-                                            ExpirationDateParser.DateStatus.GREEN -> if (months > 0) "This medicine will be expired in $months months" else null
-                                            ExpirationDateParser.DateStatus.YELLOW -> "This medicine will be expired in 1 month"
-                                            ExpirationDateParser.DateStatus.RED -> "This medicine is already expired"
-                                            else -> null
-                                        }
-
-                                        if (message != null) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = message,
-                                                style = TextStyle(
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White
-                                                )
+                                    if (message != null) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = message,
+                                            style = TextStyle(
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
                                             )
-                                        }
+                                        )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
                 }

@@ -110,6 +110,7 @@ class AIDataCaptureDemoViewModel(
 
     // Map to track persistence of detected dates: Date String -> Count of frames seen
     private val datePersistenceMap = mutableMapOf<String, Int>()
+    private val lotPersistenceMap = mutableMapOf<String, Int>()
     private val PERSISTENCE_THRESHOLD = 3
 
     private var executor: Executor? = null
@@ -1905,37 +1906,56 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 isExpirationMode = enabled,
-                extractedExpirationDate = null // Reset detection when entering/exiting mode
+                extractedExpirationDate = null,
+                extractedLotNumber = null
             )
         }
         if (!enabled) {
             datePersistenceMap.clear()
+            lotPersistenceMap.clear()
         }
     }
 
     fun updateOcrResultData(results: List<ResultData>?) {
         val allResults = results ?: listOf()
         val formattedDates = mutableListOf<String>()
+        val formattedLots = mutableListOf<String>()
 
         // 1. Pull matches from text blocks directly using the improved parser
         val individualMatches = com.zebra.aidatacapturedemo.model.ExpirationDateParser.extractAllFormattedFromResults(allResults)
         formattedDates.addAll(individualMatches)
 
+        val individualLots = com.zebra.aidatacapturedemo.model.ExpirationDateParser.extractAllLotNumbersFromResults(allResults)
+        formattedLots.addAll(individualLots)
+
         // 2. Multi-line block stitching matching
         val combinedText = allResults.joinToString(" ") { it.text }
 
-        val keywords = com.zebra.aidatacapturedemo.model.ExpirationDateParser.KEYWORDS
         val datePatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.DATE_PATTERN_STR
         val keywordPatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.KEYWORD_PATTERN_STR
-        val combinedRegex = Regex("(?i)($keywordPatternStr)[.:\\s]*$datePatternStr", RegexOption.IGNORE_CASE)
+        val combinedDateRegex = Regex("(?i)($keywordPatternStr)[.:\\s]*$datePatternStr", RegexOption.IGNORE_CASE)
 
-        val matches = combinedRegex.findAll(combinedText)
-        for (match in matches) {
+        val dateMatches = combinedDateRegex.findAll(combinedText)
+        for (match in dateMatches) {
             val cleanDate = com.zebra.aidatacapturedemo.model.ExpirationDateParser.formatWithMonthName(match.value)
             if (cleanDate.isNotEmpty()) {
                 val fullString = "The Expiration Date is: $cleanDate"
                 if (!formattedDates.contains(fullString)) {
                     formattedDates.add(fullString)
+                }
+            }
+        }
+
+        val lotKeywordPatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.LOT_KEYWORD_PATTERN_STR
+        val lotPatternStr = com.zebra.aidatacapturedemo.model.ExpirationDateParser.LOT_PATTERN_STR
+        val combinedLotRegex = Regex("(?i)($lotKeywordPatternStr)[.:\\s]*$lotPatternStr", RegexOption.IGNORE_CASE)
+        val lotMatches = combinedLotRegex.findAll(combinedText)
+        for (match in lotMatches) {
+            val value = match.groups[2]?.value ?: ""
+            if (value.isNotEmpty()) {
+                val fullString = "LOT: $value"
+                if (!formattedLots.contains(fullString)) {
+                    formattedLots.add(fullString)
                 }
             }
         }
@@ -1957,26 +1977,33 @@ class AIDataCaptureDemoViewModel(
         var filteredResults = allResults
         if (uiState.value.isExpirationMode) {
             filteredResults = allResults.filter { result ->
-                com.zebra.aidatacapturedemo.model.ExpirationDateParser.isDateLike(result.text)
+                com.zebra.aidatacapturedemo.model.ExpirationDateParser.isDateLike(result.text) ||
+                        com.zebra.aidatacapturedemo.model.ExpirationDateParser.isLotLike(result.text)
             }
         }
 
-        // Persistence filtering: Update counts for seen dates
+        // Persistence filtering: Update counts for seen dates/lots
         formattedDates.forEach { date ->
             datePersistenceMap[date] = (datePersistenceMap[date] ?: 0) + 1
         }
+        formattedLots.forEach { lot ->
+            lotPersistenceMap[lot] = (lotPersistenceMap[lot] ?: 0) + 1
+        }
 
-        // Only promote dates that have been seen consistently across multiple frames
+        // Only promote dates/lots that have been seen consistently across multiple frames
         val persistentDates = datePersistenceMap.filter { it.value >= PERSISTENCE_THRESHOLD }.keys.toList()
+        val persistentLots = lotPersistenceMap.filter { it.value >= PERSISTENCE_THRESHOLD }.keys.toList()
 
         _uiState.update { currentState ->
-            // We use the persistent dates list as the source of truth for the UI
-            val updatedList = (currentState.detectedExpirationDates + persistentDates).distinct()
+            val newestDate = persistentDates.lastOrNull()
+            val newestLot = persistentLots.lastOrNull()
 
             currentState.copy(
                 ocrResults = filteredResults,
-                detectedExpirationDates = updatedList,
-                extractedExpirationDate = if (persistentDates.isNotEmpty()) persistentDates.last() else currentState.extractedExpirationDate
+                detectedExpirationDates = newestDate?.let { listOf(it) } ?: currentState.detectedExpirationDates,
+                extractedExpirationDate = newestDate ?: currentState.extractedExpirationDate,
+                detectedLotNumbers = newestLot?.let { listOf(it) } ?: currentState.detectedLotNumbers,
+                extractedLotNumber = newestLot ?: currentState.extractedLotNumber
             )
         }
     }
@@ -2216,9 +2243,12 @@ class AIDataCaptureDemoViewModel(
         _uiState.update { currentState ->
             currentState.copy(
                 detectedExpirationDates = emptyList(),
-                extractedExpirationDate = null
+                extractedExpirationDate = null,
+                detectedLotNumbers = emptyList(),
+                extractedLotNumber = null
             )
         }
         datePersistenceMap.clear()
+        lotPersistenceMap.clear()
     }
 }
