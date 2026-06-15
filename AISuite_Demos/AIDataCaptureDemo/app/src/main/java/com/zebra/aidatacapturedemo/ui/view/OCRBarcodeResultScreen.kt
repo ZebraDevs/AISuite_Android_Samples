@@ -85,7 +85,8 @@ fun OCRBarcodeResultScreen(
             }
             val barcodeList = uiState.barcodeResults.isNullOrEmpty().let {
                 uiState.barcodeResults.filter { it.text.isNotEmpty() }.map {
-                    ResultRowData(it.text, it.boundingBox, isBarcode = true)
+                    val displayId = if (it.text.length > 5) it.text.takeLast(5) else it.text
+                    ResultRowData(displayId, it.boundingBox, isBarcode = true)
                 }
             }
             resultList.clear()
@@ -263,7 +264,8 @@ private fun loadSessionResults(context: Context, uiState: AIDataCaptureDemoUiSta
     }
     val barcodeList = if (!sessionJson?.barcodeResults.isNullOrEmpty()) {
         sessionJson.barcodeResults.filter { it.text.isNotEmpty() }.map {
-            ResultRowData(it.text, it.boundingBox, isBarcode = true)
+            val displayId = if (it.text.length > 5) it.text.takeLast(5) else it.text
+            ResultRowData(displayId, it.boundingBox, isBarcode = true)
         }
     } else {
         emptyList()

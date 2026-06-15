@@ -59,6 +59,9 @@ class FinderBarcodeProcessor(
             actionableBarcodeRepository.getActionableBarcodeFromTrackList(entity.value)
         }
 
+        val showNoAction = settingsRepository.settings.value.feedbackType.showNoActionBarcode
+        if (!showNoAction && actionableBarcode.actionType == ActionType.TYPE_NO_ACTION) return null
+
         return BarcodeOverlayItem(
             bounds = RectF(entity.boundingBox),
             actionableBarcode = actionableBarcode,

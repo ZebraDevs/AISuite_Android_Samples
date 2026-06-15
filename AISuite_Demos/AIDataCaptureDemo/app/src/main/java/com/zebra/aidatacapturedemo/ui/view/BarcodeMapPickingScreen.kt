@@ -3,6 +3,9 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
 import android.view.WindowManager
 import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
@@ -32,46 +35,102 @@ import kotlin.math.min
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.zebra.aidatacapturedemo.data.ResultData
 import kotlin.math.abs
+import android.annotation.SuppressLint
 
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.view.PreviewView
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.util.Size
+
+@SuppressLint("UnusedContentLambdaTargetStateParameter")
 @Composable
 fun BarcodeMapPickingScreen(
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavController,
     @Suppress("UNUSED_PARAMETER") context: Context,
     @Suppress("UNUSED_PARAMETER") activityInnerPadding: PaddingValues,
-    @Suppress("UNUSED_PARAMETER") activityLifecycle: Lifecycle
+    innerPadding: PaddingValues,
+    activityLifecycle: Lifecycle
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val localContext = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle("Item Picking")
+    viewModel.updateAppBarTitle("Picking Map")
 
-    // Logic to "decide which tote": 
-    // In this demo, if a barcode is detected, we match it to a tote.
-    LaunchedEffect(uiState.barcodeResults) {
-        if (uiState.barcodeResults.isNotEmpty()) {
-            val detectedText = uiState.barcodeResults.first().text
-            // In a real app, we'd lookup which tote 'detectedText' belongs to.
-            // For this demo, let's just use the first detected one as the target
-            viewModel.updateSelectedToteId(detectedText)
+    // Initialize Camera for Live Scanning on Map
+    LaunchedEffect(Unit) {
+        // We use a standard resolution for picking
+        viewModel.updateCameraReady(false)
+    }
+
+    // Register BroadcastReceiver for DataWedge
+    DisposableEffect(Unit) {
+        val filter = IntentFilter("com.zebra.aidatacapturedemo.SCAN")
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val scanData = intent?.getStringExtra("com.symbol.datawedge.data_string")
+                if (scanData != null) {
+                    viewModel.processHardwareScan(scanData)
+                }
+            }
+        }
+        localContext.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        onDispose {
+            localContext.unregisterReceiver(receiver)
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // 1. Full screen Abstract Map (The "Digital Twin")
+    // Removed automatic selectedToteId update to prevent overwriting "Show on Map" target
+    /*
+    LaunchedEffect(uiState.barcodeResults) {
+        if (uiState.barcodeResults.isNotEmpty()) {
+            val detectedText = uiState.barcodeResults.first().text
+            viewModel.updateSelectedToteId(detectedText)
+        }
+    }
+    */
+
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .padding(innerPadding)
+    ) {
+        // 1. Background Camera Preview (Low alpha to ensure it's active but hidden)
+        AndroidView(
+            factory = { ctx ->
+                PreviewView(ctx).apply {
+                    this.scaleType = PreviewView.ScaleType.FILL_CENTER
+                    viewModel.setupCameraController(
+                        previewView = this,
+                        analysisUseCaseCameraResolution = Size(1280, 720),
+                        lifecycleOwner = lifecycleOwner,
+                        activityLifecycle = activityLifecycle
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize().alpha(0.1f)
+        )
+
+        // 2. Full screen Abstract Map (The "Digital Twin")
         AbstractMapLayer(uiState)
 
-        // 2. Guidance Overlay
+        // 3. Guidance Overlay
         val feedback = uiState.pickingFeedback
-        if (feedback != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 100.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 100.dp), // Increased padding to avoid being blocked by top bar
+            contentAlignment = Alignment.TopCenter
+        ) {
+            if (feedback != null) {
+                val isWarning = feedback.contains("incorrect", ignoreCase = true) || 
+                                feedback.contains("already picked", ignoreCase = true) ||
+                                feedback.contains("Unrecognized", ignoreCase = true)
+                
                 Text(
                     text = feedback,
                     style = TextStyle(
@@ -81,29 +140,22 @@ fun BarcodeMapPickingScreen(
                     ),
                     modifier = Modifier
                         .background(
-                            if (feedback.contains("incorrect")) Color.Red else Color(0xFF006D39),
+                            if (isWarning) Color.Red else Color(0xFF006D39),
                             RoundedCornerShape(8.dp)
                         )
-                        .padding(16.dp)
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                 )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 100.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
+            } else {
                 Text(
-                    text = "Scan Item Barcode",
+                    text = "Scan Tote Barcode",
                     style = TextStyle(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     ),
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
-                        .padding(16.dp)
+                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                 )
             }
         }
@@ -112,8 +164,18 @@ fun BarcodeMapPickingScreen(
 
 @Composable
 private fun AbstractMapLayer(uiState: AIDataCaptureDemoUiState) {
-    val capturedBitmap = uiState.captureBitmap ?: return
-    
+    val barcodeResults = uiState.pickingBarcodeResults
+    if (barcodeResults.isEmpty()) return
+
+    // Calculate the bounding box of all detected barcodes to center the content
+    val minX = barcodeResults.minOf { it.boundingBox.left }.toFloat()
+    val maxX = barcodeResults.maxOf { it.boundingBox.right }.toFloat()
+    val minY = barcodeResults.minOf { it.boundingBox.top }.toFloat()
+    val maxY = barcodeResults.maxOf { it.boundingBox.bottom }.toFloat()
+
+    val contentWidth = maxX - minX
+    val contentHeight = maxY - minY
+
     val displayMetrics = LocalContext.current.resources.displayMetrics
     val displayMetricsDensity = displayMetrics.density
     val windowManager = getSystemService(LocalContext.current, WindowManager::class.java)
@@ -121,13 +183,19 @@ private fun AbstractMapLayer(uiState: AIDataCaptureDemoUiState) {
     val displayTotalWidthInPx = windowMetrics.bounds.width()
     val displayTotalHeightInPx = windowMetrics.bounds.height()
 
-    // Simplified scaling logic for the abstract map
+    // Use 80% of the screen to keep them "far from the side"
+    val paddingFactor = 0.8f
+    val availableWidth = displayTotalWidthInPx * paddingFactor
+    val availableHeight = displayTotalHeightInPx * paddingFactor
+
     val scaler = min(
-        displayTotalWidthInPx.toFloat() / capturedBitmap.width.toFloat(),
-        displayTotalHeightInPx.toFloat() / capturedBitmap.height.toFloat()
-    )
-    val gapX = (displayTotalWidthInPx - (scaler * capturedBitmap.width.toFloat())) / 2f
-    val gapY = (displayTotalHeightInPx - (scaler * capturedBitmap.height.toFloat())) / 2f
+        availableWidth / contentWidth,
+        availableHeight / contentHeight
+    ).coerceAtMost(displayMetricsDensity * 2.0f) // Cap scaler so single barcodes don't explode
+
+    // Calculate offsets to center the content bounding box on screen
+    val gapX = (displayTotalWidthInPx - (scaler * contentWidth)) / 2f - (scaler * minX)
+    val gapY = (displayTotalHeightInPx - (scaler * contentHeight)) / 2f - (scaler * minY)
 
     Box(
         modifier = Modifier
@@ -152,29 +220,46 @@ private fun DrawAbstractBarcodeMapLayer(
     gapY: Float,
     displayMetricsDensity: Float
 ) {
-    val barcodeResults = uiState.barcodeResults
+    val barcodeResults = uiState.pickingBarcodeResults
     if (barcodeResults.isEmpty()) return
 
-    // Grouping logic for rows (Reusing logic from Result screen)
-    val sortedByY = barcodeResults.sortedBy { it.boundingBox.centerY() }
-    val rows = mutableListOf<MutableList<ResultData>>()
-    
-    if (sortedByY.isNotEmpty()) {
-        var currentRow = mutableListOf<ResultData>()
-        currentRow.add(sortedByY[0])
-        rows.add(currentRow)
+    // Grouping logic for columns first (to identify vertical stacks)
+    val sortedByX = barcodeResults.sortedBy { it.boundingBox.centerX() }
+    val columns = mutableListOf<MutableList<ResultData>>()
 
-        for (i in 1 until sortedByY.size) {
-            val prev = sortedByY[i - 1]
-            val curr = sortedByY[i]
-            if (abs(curr.boundingBox.centerY() - prev.boundingBox.centerY()) < (prev.boundingBox.height() * 0.6)) {
-                currentRow.add(curr)
+    if (sortedByX.isNotEmpty()) {
+        var currentColumn = mutableListOf<ResultData>()
+        currentColumn.add(sortedByX[0])
+        columns.add(currentColumn)
+
+        for (i in 1 until sortedByX.size) {
+            val prev = sortedByX[i - 1]
+            val curr = sortedByX[i]
+            // Overlap threshold for same column: 60% of width
+            if (abs(curr.boundingBox.centerX() - prev.boundingBox.centerX()) < (prev.boundingBox.width() * 0.6)) {
+                currentColumn.add(curr)
             } else {
-                currentRow = mutableListOf<ResultData>()
-                currentRow.add(curr)
-                rows.add(currentRow)
+                currentColumn = mutableListOf<ResultData>()
+                currentColumn.add(curr)
+                columns.add(currentColumn)
             }
         }
+    }
+
+    // Sort each column by Y (top-to-bottom)
+    columns.forEach { it.sortBy { item -> item.boundingBox.centerY() } }
+
+    // Synthesize rows from columns for consistent alignment and labeling
+    val rows = mutableListOf<List<ResultData>>()
+    val maxItemsInColumn = columns.maxOfOrNull { it.size } ?: 0
+    for (rowIdx in 0 until maxItemsInColumn) {
+        val row = mutableListOf<ResultData>()
+        for (colIdx in 0 until columns.size) {
+            if (rowIdx < columns[colIdx].size) {
+                row.add(columns[colIdx][rowIdx])
+            }
+        }
+        rows.add(row)
     }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -183,28 +268,32 @@ private fun DrawAbstractBarcodeMapLayer(
             val avgHeight = sortedRow.map { it.boundingBox.height() }.average().toFloat()
             val avgCenterY = sortedRow.map { it.boundingBox.centerY() }.average().toFloat()
 
-            var currentLeftX = -1f
-
             sortedRow.forEach { barcode ->
                 val bBoxWidth = barcode.boundingBox.width().toFloat()
-                var left = barcode.boundingBox.left.toFloat()
+                val centerX = barcode.boundingBox.centerX().toFloat()
+
+                val scaledWidth = (scaler * bBoxWidth) * 2.0f
+                val scaledHeight = (scaler * avgHeight) * 3.5f
+                val scaledLeft = (scaler * centerX) + gapX - (scaledWidth / 2)
+                val scaledTop = (scaler * avgCenterY) + gapY - (scaledHeight / 2)
+
+                // Use the pre-calculated labels from the ViewModel
+                val label = uiState.pickingBarcodeLabels[barcode.text] ?: ""
                 
-                if (currentLeftX != -1f) {
-                    if (abs(left - currentLeftX) < bBoxWidth * 0.4) {
-                        left = currentLeftX
-                    }
-                }
+                // Find quantity if this tote is one of the targets for the current product
+                val qty = uiState.targetTotes.find { it.first == label }?.second
+                
+                // Check if this specific tote box has already been validated by a scan
+                val isValidated = uiState.validatedTotes.contains(label)
 
-                val scaledLeft = (scaler * left) + gapX
-                val scaledTop = (scaler * (avgCenterY - avgHeight/2)) + gapY
-                val scaledWidth = (scaler * bBoxWidth)
-                val scaledHeight = (scaler * avgHeight)
-
-                // Highlight if it's the selected tote
-                val isTarget = uiState.selectedToteId == barcode.text
+                // Highlight if this box's label matches the selected tote OR it's a target AND not validated yet
+                val isTarget = (uiState.selectedToteId == label || qty != null) && !isValidated
+                
+                val displayText = if (qty != null && !isValidated) "QTY: $qty" else barcode.text
 
                 drawAbstractPickingUnit(
-                    id = barcode.text,
+                    barcode = displayText,
+                    label = label,
                     left = scaledLeft,
                     top = scaledTop,
                     width = scaledWidth,
@@ -212,15 +301,14 @@ private fun DrawAbstractBarcodeMapLayer(
                     density = displayMetricsDensity,
                     isTarget = isTarget
                 )
-                
-                currentLeftX = left + bBoxWidth
             }
         }
     }
 }
 
 private fun DrawScope.drawAbstractPickingUnit(
-    id: String,
+    barcode: String,
+    label: String,
     left: Float,
     top: Float,
     width: Float,
@@ -245,9 +333,33 @@ private fun DrawScope.drawAbstractPickingUnit(
         style = Stroke(width = (if (isTarget) 4f else 2f) * density)
     )
 
+    // Draw label badge above the box
+    if (label.isNotEmpty()) {
+        val radius = 12f * density
+        val centerX = left + width / 2
+        val centerY = top - radius - 2f * density // Positioned above the box
+
+        drawCircle(
+            color = if (isTarget) Color.Red else Color(0xFF006D39),
+            radius = radius,
+            center = Offset(centerX, centerY)
+        )
+
+        val labelPaint = android.graphics.Paint().apply {
+            this.color = android.graphics.Color.WHITE
+            this.textSize = 10f * density
+            this.textAlign = android.graphics.Paint.Align.CENTER
+            this.isAntiAlias = true
+            this.isFakeBoldText = true
+        }
+
+        val labelY = centerY - (labelPaint.fontMetrics.ascent + labelPaint.fontMetrics.descent) / 2
+        drawContext.canvas.nativeCanvas.drawText(label, centerX, labelY, labelPaint)
+    }
+
     val paint = android.graphics.Paint().apply {
         this.color = if (isTarget) android.graphics.Color.WHITE else android.graphics.Color.BLACK
-        this.textSize = (if (isTarget) 12f else 9f) * density
+        this.textSize = (if (isTarget) 14f else 11f) * density
         this.textAlign = android.graphics.Paint.Align.CENTER
         this.isAntiAlias = true
         this.isFakeBoldText = true
@@ -256,8 +368,8 @@ private fun DrawScope.drawAbstractPickingUnit(
     val textX = left + width / 2
     val textY = top + height / 2 - (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2
 
-    if (width > 25 * density) {
-        val displayId = if (id.length > 7) id.take(5) + ".." else id
+    if (width > 20 * density) {
+        val displayId = if (barcode.startsWith("QTY:")) barcode else if (barcode.length > 5) barcode.takeLast(5) else barcode
         drawContext.canvas.nativeCanvas.drawText(displayId, textX, textY, paint)
     }
 }
