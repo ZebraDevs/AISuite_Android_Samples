@@ -1,0 +1,70 @@
+<div id="summary">
+        Model input size is the resolution your image is resized to before AI
+        analysis.
+        <strong
+        >Smaller sizes are faster and use less memory, while larger sizes can help
+            detect smaller or more distant barcodes &mdash;but also uses more
+            processing power and memory.</strong
+        >
+        Choose the input size to balance speed and accuracy for your needs.
+        <strong>Note:</strong> Model Input Size can be customized in increments of 32
+        using the SDK. The options below represent some generic sizes.
+</div>
+<div id="description">
+        Model input size is the resolution your image is resized to before AI
+        analysis.
+        <strong
+        >Smaller sizes are faster, while larger sizes improve accuracy.</strong
+        >
+        Choose the input size to balance speed and accuracy for your needs.
+        <strong>Note:</strong> Model Input Size can be customized in increments of 32
+        using the SDK. The options below represent some generic sizes.
+</div>
+<div id="title">Model Input Size Options</div>
+<div id="details">
+    <p><strong>Small &ndash; 640 x 640</strong></p>
+    <ul>
+        <li><strong>Fastest</strong> processing</li>
+        <li>Best for large, clear, or close-up barcodes</li>
+        <li>May miss small, damaged, or distant barcodes</li>
+    </ul>
+    <p><strong>Medium &ndash; 1280 x 1280</strong></p>
+    <ul>
+        <li>Balanced speed and accuracy</li>
+        <li>Handles most barcode types and sizes in standard conditions</li>
+    </ul>
+    <p><strong>Large &ndash; 1600 x 1600</strong></p>
+    <ul>
+        <li><strong>Higher accuracy</strong></li>
+        <li>Best for small, damaged, or distant barcodes, &nbsp;</li>
+        <li><strong>Slower Processing</strong>, and <strong>highest memory/battery consumption</strong></li>
+        <li><strong>Not recommended for CPU/GPU (inference type)</strong></li>
+    </ul>
+</div>
+<div id="recommendation">
+    <p>
+        <strong>Recommendation:<br /></strong>
+    </p>
+    <ul>
+        <li><strong>Start with 640x640</strong> for close/large barcode.</li>
+        <li>Increase to the next size if you encounter issues reading barcodes.</li>
+        <li>
+            Use
+            <strong
+            >larger model input sizes only for the most demanding and challenging
+                use cases</strong
+            >, and only if your device has sufficient processing power and memory.
+        </li>
+    </ul>
+</div>
+<div id="tip">
+    <p>
+        <strong>Tip:</strong> Larger model input sizes improve accuracy but come at a
+        significant cost to speed, memory, and battery life. If the app becomes slow
+        or unstable, reduce the input size.
+        <strong
+        >Experiment to find the smallest size that works reliably for your use
+            case.</strong
+        >
+    </p>
+</div>

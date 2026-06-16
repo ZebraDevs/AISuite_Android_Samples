@@ -233,8 +233,9 @@ private fun DrawBarcodeResultOnCanvas(
                         scaledBBoxLeftInPx,
                         scaledBBoxTopInPx + (barcodeRectangleHeight) / 2
                     )
+                    val displayId = if (barcodeData.text.length > 5) barcodeData.text.takeLast(5) else barcodeData.text
                     drawContext.canvas.nativeCanvas.drawText(
-                        barcodeData.text,
+                        displayId,
                         barcodeTextOffset.x,
                         barcodeTextOffset.y,
                         paint

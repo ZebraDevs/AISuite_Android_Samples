@@ -675,7 +675,8 @@ private fun LoadingScreen(
                 isStartDisabledChanged(true)
             }
         }
-        UsecaseState.Barcode.value -> {
+        UsecaseState.Barcode.value,
+        UsecaseState.BarcodeMap.value -> {
             if (uiState.isBarcodeModelDemoReady) {
                 isLoading.value = false
                 isStartDisabledChanged(false)
