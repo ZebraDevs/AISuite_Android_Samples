@@ -25,6 +25,7 @@ productAndShelfRecognizer = "3.4.3"
 documentfile = "1.1.0"
 pendo = "3.12.4.9337"
 junit = "4.13.2"
+appcompat = "1.7.0"
 
 
 
@@ -63,6 +64,7 @@ androidx-documentfile = { group = "androidx.documentfile", name = "documentfile"
 runtime-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistpermissions" }
 pendo-io = { group = "sdk.pendo.io", name = "pendoIO", version.ref = "pendo" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 
 [plugins]

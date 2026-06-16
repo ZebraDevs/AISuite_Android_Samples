@@ -21,7 +21,7 @@ enum class UsecaseState(val value: String) {
     Retail("Product & Shelf Recognizer"),
     OCRBarcodeFind("OCR & Barcode Find"),
     Product("Product & Shelf Enrollment"),
-    Expiration("Expiration Date Parser")
+    Expiration("Medication Info Scanner")
 }
 
 data class BarcodeSymbology(

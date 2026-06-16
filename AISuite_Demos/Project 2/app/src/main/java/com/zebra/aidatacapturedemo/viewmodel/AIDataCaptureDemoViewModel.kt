@@ -111,7 +111,7 @@ class AIDataCaptureDemoViewModel(
     // Map to track persistence of detected dates: Date String -> Count of frames seen
     private val datePersistenceMap = mutableMapOf<String, Int>()
     private val lotPersistenceMap = mutableMapOf<String, Int>()
-    private val PERSISTENCE_THRESHOLD = 3
+    private val PERSISTENCE_THRESHOLD = 1
 
     private var executor: Executor? = null
 
