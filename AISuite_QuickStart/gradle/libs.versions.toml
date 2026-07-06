@@ -1,5 +1,5 @@
 [versions]
-appVersion = "4.5.5"
+appVersion = "4.6.5"
 agp = "8.11.0"
 cameraCore = "1.4.2"
 cameraCamera2 = "1.4.2"
@@ -14,12 +14,16 @@ kotlinxCoroutinesCore = "1.10.2"
 material = "1.12.0"
 activity = "1.9.3"
 constraintlayout = "2.2.1"
-zebraAIVisionSdk = "3.3.0"
-barcodeLocalizer = "5.0.2"
-textOcrRecognizer = "2.8.1"
-productAndShelfRecognizer = "3.4.3"
-wareHouseLocalizer = "1.0.4.beta1"
+zebraAIVisionSdk = "4.0.6"
+barcodeDecoder = "5.0.3"
+textOcrRecognizer = "2.9.0"
+productAndShelfRecognizer = "3.4.4"
+palletAndBoxLocalizer = "1.0.5.beta"
 kotlin = "2.2.0"
+mlkitTextRecognition = "16.0.1"
+tensorflowLite = "2.17.0"
+tensorflowLiteSupport = "0.4.4"
+onnxruntime = "1.26.0"
 
 [libraries]
 androidx-camera-extensions = { module = "androidx.camera:camera-extensions", version.ref = "cameraExtensions" }
@@ -38,11 +42,15 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-barcode-localizer = { group = "com.zebra.ai.models", name = "barcode-localizer", version.ref = "barcodeLocalizer" }
-text-ocr-recognizer = { group = "com.zebra.ai.models", name = "text-ocr-recognizer", version.ref = "textOcrRecognizer" }
-product-and-shelf-recognizer = { group = "com.zebra.ai.models", name = "product-and-shelf-recognizer", version.ref = "productAndShelfRecognizer" }
-warehouse-localizer = { group = "com.zebra.ai.models", name = "warehouse-localizer", version.ref = "wareHouseLocalizer" }
-zebra-ai-vision-sdk = { group = "com.zebra.ai.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
+barcode-decoder = { group = "com.zebra.ai.models.vision", name = "barcode-decoder", version.ref = "barcodeDecoder" }
+text-ocr-recognizer = { group = "com.zebra.ai.models.vision", name = "text-ocr-recognizer", version.ref = "textOcrRecognizer" }
+product-and-shelf-recognizer = { group = "com.zebra.ai.models.vision", name = "product-and-shelf-recognizer", version.ref = "productAndShelfRecognizer" }
+pallet-and-box-localizer = { group = "com.zebra.ai.models.vision", name = "pallet-and-box-localizer", version.ref = "palletAndBoxLocalizer" }
+zebra-ai-vision-sdk = { group = "com.zebra.ai.sdk.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+tensorflow-lite = { group = "org.tensorflow", name = "tensorflow-lite", version.ref = "tensorflowLite" }
+tensorflow-lite-support = { group = "org.tensorflow", name = "tensorflow-lite-support", version.ref = "tensorflowLiteSupport" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

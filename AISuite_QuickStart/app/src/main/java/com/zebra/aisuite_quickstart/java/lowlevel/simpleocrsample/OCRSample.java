@@ -92,6 +92,7 @@ public class OCRSample {
             textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
             textOCRSettings.detectionInferencerOptions.defaultDims.height = 640;
             textOCRSettings.detectionInferencerOptions.defaultDims.width = 640;
+            textOCRSettings.unclipRatio = 0.6f;
 
             long m_Start = System.currentTimeMillis();
             TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {

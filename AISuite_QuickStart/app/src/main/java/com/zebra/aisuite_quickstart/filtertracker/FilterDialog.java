@@ -45,10 +45,25 @@ public class FilterDialog extends Dialog {
     private SharedPreferences sharedPreferences;
     private static final List<FilterItem> filterItems = new ArrayList<>();
 
+    // The items and prefs name to use — set via constructor, defaults to trackerArray + PREFS_NAME
+    private final String[] itemsArray;
+    private final String   prefsName;
 
+    /** Default constructor for Tracker mode — uses trackerArray and PREFS_NAME. */
     public FilterDialog(Context context) {
+        this(context, null, null);
+    }
+
+    /**
+     * Injectable constructor for other modes.
+     * Pass the model/item identifier strings and the SharedPreferences file name to use.
+     * If items is null the dialog falls back to trackerArray.
+     */
+    public FilterDialog(Context context, String[] items, String prefsNameOverride) {
         super(context, R.style.MyAlertDialogTheme);
-        this.mContext = context;
+        this.mContext  = context;
+        this.itemsArray  = (items != null) ? items : trackerArray;
+        this.prefsName = (prefsNameOverride != null) ? prefsNameOverride : CommonUtils.PREFS_NAME;
     }
 
     public void setCallback(FilterCallback callback) {
@@ -70,21 +85,29 @@ public class FilterDialog extends Dialog {
         mCancelBtn = view.findViewById(R.id.cancel_btn);
         setCanceledOnTouchOutside(false);
         String className = mContext.getClass().getName();
-        if (className.equals("com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity")) {
-            Log.d("ActivityCheck", "Instance is from Java CameraXLivePreviewActivity");
-            sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME, MODE_PRIVATE);
-        } else if (className.equals("com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity")) {
-            Log.d("ActivityCheck", "Instance is from kotlin CameraXLivePreviewActivity");
-            sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME_KOTLIN, MODE_PRIVATE);
+        if (prefsName.equals(CommonUtils.PREFS_NAME)) {
+            if (className.equals("com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity")) {
+                Log.d("ActivityCheck", "Instance is from Java CameraXLivePreviewActivity");
+                sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME, MODE_PRIVATE);
+            } else if (className.equals("com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity")) {
+                Log.d("ActivityCheck", "Instance is from kotlin CameraXLivePreviewActivity");
+                sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME_KOTLIN, MODE_PRIVATE);
+            }
+        } else {
+            sharedPreferences = mContext.getSharedPreferences(prefsName, MODE_PRIVATE);
         }
         filterItems.clear();
-        for(String item : trackerArray){
+        for (String item : itemsArray) {
             FilterItem filterItem = new FilterItem(item);
             filterItems.add(filterItem);
         }
 
         for(FilterItem option: filterItems){
-            boolean isChecked =sharedPreferences.getBoolean(option.getTitle(), TextUtils.equals(option.getTitle(), BARCODE_TRACKER));
+            // For trackerArray, default Barcode to checked; for custom items, default all checked
+            boolean defaultChecked = itemsArray == trackerArray
+                    ? TextUtils.equals(option.getTitle(), BARCODE_TRACKER)
+                    : true;
+            boolean isChecked = sharedPreferences.getBoolean(option.getTitle(), defaultChecked);
             option.setChecked(isChecked);
         }
         mFilterListView = view.findViewById(R.id.filter_list);

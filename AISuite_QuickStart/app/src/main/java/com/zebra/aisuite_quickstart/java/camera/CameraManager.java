@@ -125,7 +125,7 @@ public class CameraManager {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(rotation)
                 .build();
-        if (uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.BARCODE_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.TEXT_OCR_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.PRODUCT_RECOGNITION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.ENTITY_ANALYZER) || uiHandler.getSelectedModel().equalsIgnoreCase(CommonUtils.WAREHOUSE_LOCALIZER)) {
+        if (uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.BARCODE_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.TEXT_OCR_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.PRODUCT_RECOGNITION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.ENTITY_ANALYZER) || uiHandler.getSelectedModel().equalsIgnoreCase(CommonUtils.PALLET_AND_BOX_LOCALIZER)) {
             // Build ImageCapture with ResolutionSelector
             ResolutionSelector imageResolutionSelector = new ResolutionSelector.Builder()
                     .setAspectRatioStrategy(

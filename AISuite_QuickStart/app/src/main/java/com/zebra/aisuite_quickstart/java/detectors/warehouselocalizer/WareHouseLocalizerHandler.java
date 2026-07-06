@@ -22,7 +22,7 @@ public class WareHouseLocalizerHandler {
     private WareHouseAnalyzer wareHouseAnalyzer;
     private final WareHouseAnalyzer.DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private final String mavenModelName = "warehouse-localizer";
+    private final String mavenModelName = "pallet-and-box-localizer";
     private final ModelLoadingCallback loadingCallback;
 
     // Model input sizes
@@ -51,12 +51,12 @@ public class WareHouseLocalizerHandler {
         try {
             // Initialize live preview localizer with smaller input size
             Localizer.Settings liveLocalizerSettings = createLocalizerSettings(LIVE_PREVIEW_SIZE);
-            createWareHouseLocalizerWithFallback(liveLocalizerSettings);
+            createWareHouseLocalizer(liveLocalizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Model Loading: WareHouse localizer returned with exception " + ex.getMessage());
+            Log.e(TAG, "Model Loading: Pallet and Box Localizer returned with exception " + ex.getMessage());
         }
     }
 
@@ -66,12 +66,12 @@ public class WareHouseLocalizerHandler {
     public void initializeCaptureLocalizer() {
         try {
             Localizer.Settings captureLocalizerSettings = createLocalizerSettings(CAPTURE_SIZE);
-            createCaptureLocalizerWithFallback(captureLocalizerSettings);
+            createCaptureLocalizer(captureLocalizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture localizer initialization failed: " + ex.getMessage());
+            Log.e(TAG, "Capture Pallet and Box Localizer initialization failed: " + ex.getMessage());
         }
     }
 
@@ -92,42 +92,42 @@ public class WareHouseLocalizerHandler {
         return localizerSettings;
     }
 
-    private void createWareHouseLocalizerWithFallback(Localizer.Settings localizerSettings) {
+    private void createWareHouseLocalizer(Localizer.Settings localizerSettings) {
         long m_Start = System.currentTimeMillis();
         Localizer.getLocalizer(localizerSettings, executor).thenAccept(localizerInstance -> {
             wareHouseLocalizer = localizerInstance;
-            if(captureLocalizer!=null) {
+            if (captureLocalizer != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "WareHouseLocalizer() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + localizerSettings.inferencerOptions.defaultDims.width);
+            Log.d(TAG, "Pallet and Box Localizer() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + localizerSettings.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: localizer creation failed - " + e.getMessage());
+            Log.e(TAG, "Fatal error: Pallet and Box Localizer creation failed - " + e.getMessage());
             return null;
         });
     }
 
-    private void createCaptureLocalizerWithFallback(Localizer.Settings localizerSettings) {
+    private void createCaptureLocalizer(Localizer.Settings localizerSettings) {
         long m_Start = System.currentTimeMillis();
         Localizer.getLocalizer(localizerSettings, captureExecutor).thenAccept(localizerInstance -> {
             captureLocalizer = localizerInstance;
-            if(wareHouseLocalizer!=null) {
+            if (wareHouseLocalizer != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Capture WareHouseLocalizer created in " + (System.currentTimeMillis() - m_Start) + " ms");
+            Log.d(TAG, "Capture Pallet and Box Localizer created in " + (System.currentTimeMillis() - m_Start) + " ms");
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture localizer creation failed: " + e.getMessage());
+            Log.e(TAG, "Capture Pallet and Box Localizer creation failed: " + e.getMessage());
             return null;
         });
     }
@@ -140,12 +140,12 @@ public class WareHouseLocalizerHandler {
         captureExecutor.shutdownNow();
         if (wareHouseLocalizer != null) {
             wareHouseLocalizer.dispose();
-            Log.d(TAG, "Live preview warehouse localizer disposed");
+            Log.d(TAG, "Live preview Pallet and Box Localizer disposed");
             wareHouseLocalizer = null;
         }
         if (captureLocalizer != null) {
             captureLocalizer.dispose();
-            Log.d(TAG, "Capture warehouse localizer disposed");
+            Log.d(TAG, "Capture Pallet and Box Localizer disposed");
             captureLocalizer = null;
         }
     }
@@ -158,7 +158,7 @@ public class WareHouseLocalizerHandler {
         return captureLocalizer;
     }
 
-    public void attachAnalysisAfterModelLoading(){
+    public void attachAnalysisAfterModelLoading() {
         wareHouseAnalyzer = new WareHouseAnalyzer(callback, wareHouseLocalizer);
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), wareHouseAnalyzer);
     }

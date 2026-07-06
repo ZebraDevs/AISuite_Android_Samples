@@ -19,9 +19,10 @@ import androidx.core.content.edit
 import androidx.core.view.isVisible
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
+import com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.CustomDetectorSample
 import com.zebra.aisuite_quickstart.kotlin.camera.CameraManager
 import com.zebra.aisuite_quickstart.utils.CommonUtils
-import com.zebra.aisuite_quickstart.utils.CommonUtils.WAREHOUSE_LOCALIZER
+import com.zebra.aisuite_quickstart.utils.CommonUtils.PALLET_AND_BOX_LOCALIZER
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -46,6 +47,7 @@ class UIHandler(
         private const val PRODUCT_RECOGNITION = "Product Recognition"
         private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
         private const val ENTITY_VIEW_FINDER = "Entity Viewfinder"
+        const val CUSTOM_DETECTOR = "Custom Detector"
     }
 
     var selectedModel: String = BARCODE_DETECTION
@@ -66,24 +68,37 @@ class UIHandler(
 
     fun setUpTrackerFilter() {
         activity.binding.trackerFilter.setOnClickListener {
-            val dialog = FilterDialog(activity)
-            dialog.setCallback { filters ->
-                sharedPreferences?.edit {
-
-                    for (option in filters) {
-                        putBoolean(option.title, option.isChecked)
+            if (selectedModel == CUSTOM_DETECTOR) {
+                // Smart re-registration: models stay loaded, only the analyzer is rebuilt
+                val customPrefs = activity.getSharedPreferences(
+                    CommonUtils.PREFS_NAME_CUSTOM_DETECTOR, android.content.Context.MODE_PRIVATE)
+                val dialog = FilterDialog(activity, CustomDetectorSample.MODEL_IDS, CommonUtils.PREFS_NAME_CUSTOM_DETECTOR)
+                dialog.setCallback { filters ->
+                    customPrefs.edit {
+                        for (option in filters) putBoolean(option.title, option.isChecked)
                     }
+                    val selectedIds = filters.filter { it.isChecked }.map { it.title }
+                    activity.reRegisterCustomDetectors(selectedIds)
                 }
-                activity.isModelLoaded = false
-                activity.clearGraphicOverlay()
-                activity.stopAnalyzing()
-                cameraManager.unbindAll()
-                activity.disposeModels()
-                cameraManager.bindPreviewAndAnalysis(activity.getPreviewSurfaceProvider())
-                activity.bindAnalysisUseCase()
-
+                dialog.show()
+            } else {
+                val dialog = FilterDialog(activity)
+                dialog.setCallback { filters ->
+                    sharedPreferences?.edit {
+                        for (option in filters) {
+                            putBoolean(option.title, option.isChecked)
+                        }
+                    }
+                    activity.isModelLoaded = false
+                    activity.clearGraphicOverlay()
+                    activity.stopAnalyzing()
+                    cameraManager.unbindAll()
+                    activity.disposeModels()
+                    cameraManager.bindPreviewAndAnalysis(activity.getPreviewSurfaceProvider())
+                    activity.bindAnalysisUseCase()
+                }
+                dialog.show()
             }
-            dialog.show()
         }
     }
 
@@ -95,7 +110,8 @@ class UIHandler(
             PRODUCT_RECOGNITION,
             ENTITY_ANALYZER,
             ENTITY_VIEW_FINDER,
-            WAREHOUSE_LOCALIZER,
+            PALLET_AND_BOX_LOCALIZER,
+            CUSTOM_DETECTOR,
             // LEGACY_BARCODE_DETECTION, // Uncomment to use barcode legacy option
             // LEGACY_OCR_DETECTION // Uncomment to use OCR legacy option
             //LEGACY_PRODUCT_RECOGNITION // Uncomment to use Product recognition legacy option
@@ -117,7 +133,8 @@ class UIHandler(
                 isEntityViewFinder = selectedModel == ENTITY_VIEW_FINDER
 
                 Log.e(TAG, "Selected option is $selectedModel")
-                activity.binding.trackerFilter.isVisible = TextUtils.equals(selectedModel, ENTITY_ANALYZER)
+                activity.binding.trackerFilter.isVisible =
+                    TextUtils.equals(selectedModel, ENTITY_ANALYZER) || TextUtils.equals(selectedModel, CUSTOM_DETECTOR)
                 // Lock orientation when Entity Viewfinder is selected
                 if (isEntityViewFinder) {
                     activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
@@ -133,7 +150,7 @@ class UIHandler(
                     selectedModel.equals(TEXT_OCR_DETECTION, ignoreCase = true) ||
                     selectedModel.equals(PRODUCT_RECOGNITION, ignoreCase = true) ||
                     selectedModel.equals(ENTITY_ANALYZER, ignoreCase = true) ||
-                    selectedModel.equals(WAREHOUSE_LOCALIZER, ignoreCase = true)
+                    selectedModel.equals(PALLET_AND_BOX_LOCALIZER, ignoreCase = true)
                 ) {
                     initializeCaptureFeature()
                     activity.binding.captureLayout.visibility = View.VISIBLE
@@ -164,7 +181,7 @@ class UIHandler(
                 selectedModel.equals(TEXT_OCR_DETECTION, ignoreCase = true) ||
                 selectedModel.equals(PRODUCT_RECOGNITION, ignoreCase = true) ||
                 selectedModel.equals(ENTITY_ANALYZER, ignoreCase = true) ||
-                selectedModel.equals(WAREHOUSE_LOCALIZER, ignoreCase = true)
+                selectedModel.equals(PALLET_AND_BOX_LOCALIZER, ignoreCase = true)
             ) {
                 if (activity.isModelLoaded) {
                     activity.binding.captureLayout.visibility = View.GONE
@@ -182,7 +199,7 @@ class UIHandler(
                                 initializeCaptureRecognitionAndCapture()
                             selectedModel.equals(ENTITY_ANALYZER, ignoreCase = true) ->
                                 initializeCaptureTracker()
-                            selectedModel.equals(WAREHOUSE_LOCALIZER, ignoreCase = true) ->
+                            selectedModel.equals(PALLET_AND_BOX_LOCALIZER, ignoreCase = true) ->
                                 initializeCaptureWareHouseLocalizer()
                         }
                     }
@@ -241,7 +258,7 @@ class UIHandler(
                             activity.processCaptureRecognition(imageProxy)
                         selectedModel.equals(ENTITY_ANALYZER, ignoreCase = true) ->
                             activity.processCaptureTracker(imageProxy)
-                        selectedModel.equals(WAREHOUSE_LOCALIZER, ignoreCase = true) ->
+                        selectedModel.equals(PALLET_AND_BOX_LOCALIZER, ignoreCase = true) ->
                             activity.processCaptureWareHouseLocalizer(imageProxy)
                     }
                     Log.d(TAG, "bitmap captured")
@@ -267,7 +284,8 @@ class UIHandler(
             activity.binding.capturedImageView.visibility = View.GONE
             activity.binding.capturedImageView.setImageBitmap(null)
             activity.binding.backToLiveButton.visibility = View.GONE
-            activity.binding.trackerFilter.isVisible = TextUtils.equals(selectedModel, ENTITY_ANALYZER)
+            activity.binding.trackerFilter.isVisible =
+                TextUtils.equals(selectedModel, ENTITY_ANALYZER) || TextUtils.equals(selectedModel, CUSTOM_DETECTOR)
             activity.binding.previewView.visibility = View.VISIBLE
             activity.binding.previewView.setBackgroundColor(android.R.color.black)
             activity.binding.graphicOverlay.visibility = View.VISIBLE
@@ -290,7 +308,7 @@ class UIHandler(
             }
             selectedModel.equals(ENTITY_ANALYZER, ignoreCase = true) ->
                 activity.setTrackerAnalysis()
-            selectedModel.equals(WAREHOUSE_LOCALIZER, ignoreCase = true) ->
+            selectedModel.equals(PALLET_AND_BOX_LOCALIZER, ignoreCase = true) ->
                 activity.setWareHouseAnalysis()
         }
     }

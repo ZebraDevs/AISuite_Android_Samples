@@ -20,11 +20,11 @@ import java.util.concurrent.Executors;
  * of barcodes using a BarcodeDecoder and EntityTrackerAnalyzer. This class is designed
  * to work within an Android context and facilitates asynchronous operations for barcode
  * detection in a view-referenced coordinate system.
- *
+ * <p>
  * This class initializes and configures a barcode decoder, processes image analysis through
  * an executor service, and provides callback mechanisms to handle detection results and
  * notify when the tracker is ready for use.
- *
+ * <p>
  * Usage:
  * - Instantiate the EntityBarcodeTracker with the necessary context, callback, and image analysis configurations.
  * - Call initializeBarcodeDecoder() to set up the barcode decoder and begin processing images.
@@ -32,18 +32,18 @@ import java.util.concurrent.Executors;
  * - Implement the DetectionCallback interface to handle detection results and track readiness.
  * - Call stop() to dispose of the BarcodeDecoder and release resources when finished.
  * - Call stopAnalyzing() to terminate the executor service and stop ongoing analysis tasks.
- *
+ * <p>
  * Dependencies:
  * - Android Context: Required for resource management and executing tasks on the main thread.
  * - ExecutorService: Used for asynchronous task execution.
  * - ImageAnalysis: Provides the framework for analyzing image data.
  * - BarcodeDecoder: Handles the decoding of barcode symbologies.
  * - EntityTrackerAnalyzer: Analyzes images to track and decode barcodes.
- *
+ * <p>
  * Exception Handling:
  * - Handles AIVisionSDKLicenseException during decoder initialization.
  * - Logs any other exceptions encountered during the setup process.
- *
+ * <p>
  * Note: Ensure that the appropriate permissions and dependencies are configured
  * in the AndroidManifest and build files to utilize camera and image processing capabilities.
  */
@@ -57,7 +57,8 @@ public class EntityBarcodeTracker {
         void handleEntitiesForEntityView(EntityTrackerAnalyzer.Result result);
 
         // Method to notify when the tracker is ready for use.
-        default void onEntityBarcodeTrackerReady() {}
+        default void onEntityBarcodeTrackerReady() {
+        }
     }
 
     private static final String TAG = "EntityBarcodeTracker";
@@ -67,7 +68,7 @@ public class EntityBarcodeTracker {
     private EntityTrackerAnalyzer entityTrackerAnalyzer;
     private final DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private final String mavenModelName = "barcode-localizer";
+    private final String mavenModelName = "barcode-decoder";
     private final ModelLoadingCallback loadingCallback;
 
     /**
@@ -80,11 +81,11 @@ public class EntityBarcodeTracker {
     /**
      * Constructs a new EntityBarcodeTracker with the specified context, callback, and image analysis configuration.
      *
-     * @param context The Android context for resource management.
-     * @param callback The callback for handling detection results and tracker readiness.
+     * @param context       The Android context for resource management.
+     * @param callback      The callback for handling detection results and tracker readiness.
      * @param imageAnalysis The image analysis configuration for processing image data.
      */
-    public EntityBarcodeTracker(Context context, DetectionCallback callback, ImageAnalysis imageAnalysis,ModelLoadingCallback loadingCallback) {
+    public EntityBarcodeTracker(Context context, DetectionCallback callback, ImageAnalysis imageAnalysis, ModelLoadingCallback loadingCallback) {
         this.context = context;
         this.callback = callback;
         this.executor = Executors.newSingleThreadExecutor();
@@ -107,16 +108,24 @@ public class EntityBarcodeTracker {
             rpo[2] = InferencerOptions.GPU;
 
             decoderSettings.Symbology.CODE39.enable(true);
+            decoderSettings.Symbology.CODE93.enable(true);
             decoderSettings.Symbology.CODE128.enable(true);
+            decoderSettings.Symbology.CODABAR.enable(true);
+            decoderSettings.Symbology.EAN8.enable(true);
+            decoderSettings.Symbology.EAN13.enable(true);
+            decoderSettings.Symbology.UPCE0.enable(true);
+            decoderSettings.Symbology.I2OF5.enable(true);
 
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640;
+            decoderSettings.enableAIBarcodeDecode = true;
 
-            // Call the helper function to create the decoder with fallback logic
-            createBarcodeDecoderForEntityTrackerWithFallback(decoderSettings);
+            // Call the helper function to create the decoder
+            createBarcodeDecoderForEntityTracker(decoderSettings);
 
         } catch (Exception ex) {
+
             // Notify failed loading
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -125,7 +134,7 @@ public class EntityBarcodeTracker {
         }
     }
 
-    private void createBarcodeDecoderForEntityTrackerWithFallback(BarcodeDecoder.Settings decoderSettings) {
+    private void createBarcodeDecoderForEntityTracker(BarcodeDecoder.Settings decoderSettings) {
         long m_Start = System.currentTimeMillis();
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
             barcodeDecoder = decoderInstance;
@@ -141,7 +150,6 @@ public class EntityBarcodeTracker {
             );
             imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
             Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
-
             // Notify that the tracker is ready
             if (callback != null) {
                 callback.onEntityBarcodeTrackerReady();
@@ -152,6 +160,7 @@ public class EntityBarcodeTracker {
                 loadingCallback.onLoadingComplete(false);
             }
             Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+
             return null;
         });
     }

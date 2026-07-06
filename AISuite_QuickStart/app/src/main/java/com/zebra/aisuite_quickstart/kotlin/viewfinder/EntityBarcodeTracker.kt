@@ -69,7 +69,7 @@ class EntityBarcodeTracker(
     private var barcodeDecoder: BarcodeDecoder? = null
     private val executor = Executors.newSingleThreadExecutor()
     private var entityTrackerAnalyzer: EntityTrackerAnalyzer? = null
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
 
     init {
         initializeBarcodeDecoder()
@@ -90,25 +90,32 @@ class EntityBarcodeTracker(
             )
 
             Symbology.CODE39.enable(true)
+            Symbology.CODE93.enable(true)
             Symbology.CODE128.enable(true)
+            Symbology.CODABAR.enable(true)
+            Symbology.EAN8.enable(true)
+            Symbology.EAN13.enable(true)
+            Symbology.UPCE0.enable(true)
+            Symbology.I2OF5.enable(true)
 
             detectorSetting.inferencerOptions.apply {
                 runtimeProcessorOrder = rpo
                 defaultDims.height = 640
                 defaultDims.width = 640
             }
+            enableAIBarcodeDecode = true
         }
 
-        // Launch a coroutine to handle the async initialization with fallback
+        // Launch a coroutine to handle the async initialization
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            createBarcodeDecoderForEntityTrackerWithFallback(
+            createBarcodeDecoderForEntityTracker(
                 decoderSettings,
                 System.currentTimeMillis()
             )
         }
     }
 
-    private suspend fun createBarcodeDecoderForEntityTrackerWithFallback(
+    private suspend fun createBarcodeDecoderForEntityTracker(
         decoderSettings: BarcodeDecoder.Settings,
         startTime: Long
     ) {
@@ -141,9 +148,8 @@ class EntityBarcodeTracker(
             callback.onEntityBarcodeTrackerReady()
 
         } catch (e: Exception) {
-            // Notify failed loading
-            loadingCallback?.invoke(false)
-            Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
+                loadingCallback?.invoke(false)
+                Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
         }
     }
 

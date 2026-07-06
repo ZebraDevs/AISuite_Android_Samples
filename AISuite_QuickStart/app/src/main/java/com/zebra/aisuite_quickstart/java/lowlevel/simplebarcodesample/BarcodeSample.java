@@ -54,7 +54,7 @@ public class BarcodeSample {
     private BarcodeSampleAnalyzer barcodeAnalyzer;
     private final BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private String mavenModelName = "barcode-localizer";
+    private String mavenModelName = "barcode-decoder";
     private final ModelLoadingCallback loadingCallback;
 
     /**

@@ -90,6 +90,7 @@ class OCRHandler(
                 height = inputSize
                 width = inputSize
             }
+            unclipRatio = 0.6f
         }
     }
 
@@ -100,7 +101,7 @@ class OCRHandler(
         try {
             val liveOCRSettings = createOCRSettings(LIVE_PREVIEW_SIZE)
             CoroutineScope(executor.asCoroutineDispatcher()).launch {
-                createTextOCRWithFallback(liveOCRSettings)
+                createTextOCR(liveOCRSettings)
             }
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
@@ -115,7 +116,7 @@ class OCRHandler(
         try {
             val captureOCRSettings = createOCRSettings(CAPTURE_SIZE)
             CoroutineScope(captureExecutor.asCoroutineDispatcher()).launch {
-                createCaptureOCRWithFallback(captureOCRSettings)
+                createCaptureOCR(captureOCRSettings)
             }
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -124,10 +125,10 @@ class OCRHandler(
     }
 
     /**
-     * Creates the live preview TextOCR instance with fallback error handling.
+     * Creates the live preview TextOCR instance.
      * Only notifies loading complete and attaches analyzer when both models are loaded.
      */
-    private suspend fun createTextOCRWithFallback(textOCRSettings: TextOCR.Settings) {
+    private suspend fun createTextOCR(textOCRSettings: TextOCR.Settings) {
         val startTime = System.currentTimeMillis()
         try {
             val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
@@ -150,10 +151,10 @@ class OCRHandler(
     }
 
     /**
-     * Creates the capture TextOCR instance with fallback error handling.
+     * Creates the capture TextOCR instance.
      * Only notifies loading complete and attaches analyzer when both models are loaded.
      */
-    private suspend fun createCaptureOCRWithFallback(textOCRSettings: TextOCR.Settings) {
+    private suspend fun createCaptureOCR(textOCRSettings: TextOCR.Settings) {
         val startTime = System.currentTimeMillis()
         try {
             val ocrInstance = TextOCR.getTextOCR(textOCRSettings, captureExecutor).await()

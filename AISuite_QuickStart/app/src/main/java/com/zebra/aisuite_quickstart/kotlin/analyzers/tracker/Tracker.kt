@@ -34,7 +34,10 @@ class Tracker(
 
     interface DetectionCallback {
         fun handleEntities(result: EntityTrackerAnalyzer.Result)
-        fun handleCaptureFrameEntities(barcodeEntities: List<out Entity>?, ocrEntities: List<out Entity>?, moduleEntities: List<out Entity>?
+        fun handleCaptureFrameEntities(
+            barcodeEntities: List<out Entity>?,
+            ocrEntities: List<out Entity>?,
+            moduleEntities: List<out Entity>?
         )
     }
 
@@ -57,12 +60,13 @@ class Tracker(
     private var executor: ExecutorService = Executors.newFixedThreadPool(3)
     private val captureExecutor: ExecutorService = Executors.newFixedThreadPool(3)
     var entityTrackerAnalyzer: EntityTrackerAnalyzer? = null
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
     private val mavenOCRModelName = "text-ocr-recognizer"
     private val mavenProductModelName = "product-and-shelf-recognizer"
 
     private val analyzerList: MutableList<Detector<out MutableList<out Entity?>?>?> = ArrayList()
-    private val captureAnalyzerList: MutableList<Detector<out MutableList<out Entity?>?>?> = ArrayList()
+    private val captureAnalyzerList: MutableList<Detector<out MutableList<out Entity?>?>?> =
+        ArrayList()
 
     private var modelsLoaded = false
     var captureModelsLoaded = false
@@ -91,25 +95,6 @@ class Tracker(
     private fun getProcessorOrder(): Array<Int> =
         arrayOf(InferencerOptions.DSP, InferencerOptions.CPU, InferencerOptions.GPU)
 
-    private fun configureInferencerOptions(settings: Any) {
-        val rpo = getProcessorOrder()
-        when (settings) {
-            is BarcodeDecoder.Settings -> {
-                settings.Symbology.CODE39.enable(true)
-                settings.Symbology.CODE128.enable(true)
-                settings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
-                settings.detectorSetting.inferencerOptions.defaultDims.height = 640
-                settings.detectorSetting.inferencerOptions.defaultDims.width = 640
-            }
-            is TextOCR.Settings -> {
-                settings.detectionInferencerOptions.runtimeProcessorOrder = rpo
-                settings.recognitionInferencerOptions.runtimeProcessorOrder = rpo
-                settings.detectionInferencerOptions.defaultDims.height = 640
-                settings.detectionInferencerOptions.defaultDims.width = 640
-            }
-        }
-    }
-
     /**
      * Creates barcode decoder settings with specified input size.
      */
@@ -117,10 +102,17 @@ class Tracker(
         return BarcodeDecoder.Settings(mavenModelName).apply {
             val rpo = getProcessorOrder()
             Symbology.CODE39.enable(true)
+            Symbology.CODE93.enable(true)
             Symbology.CODE128.enable(true)
+            Symbology.CODABAR.enable(true)
+            Symbology.EAN8.enable(true)
+            Symbology.EAN13.enable(true)
+            Symbology.UPCE0.enable(true)
+            Symbology.I2OF5.enable(true)
             detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
             detectorSetting.inferencerOptions.defaultDims.height = inputSize
             detectorSetting.inferencerOptions.defaultDims.width = inputSize
+            enableAIBarcodeDecode = true
         }
     }
 
@@ -134,6 +126,7 @@ class Tracker(
             recognitionInferencerOptions.runtimeProcessorOrder = rpo
             detectionInferencerOptions.defaultDims.height = inputSize
             detectionInferencerOptions.defaultDims.width = inputSize
+            unclipRatio = 0.6f
         }
     }
 
@@ -168,19 +161,22 @@ class Tracker(
     fun initializeBarcodeDecoder() {
         try {
             val liveDecoderSettings = createBarcodeDecoderSettings(LIVE_PREVIEW_SIZE)
-            createBarcodeDecoderWithFallback(liveDecoderSettings)
+            createBarcodeDecoder(liveDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Model Loading: Barcode decoder returned with exception ${ex.message}")
         }
     }
 
-    private fun createBarcodeDecoderWithFallback(settings: BarcodeDecoder.Settings) {
+    private fun createBarcodeDecoder(settings: BarcodeDecoder.Settings) {
         val startTime = System.currentTimeMillis()
         BarcodeDecoder.getBarcodeDecoder(settings, executor).thenAccept { decoder ->
             barcodeDecoder = decoder
             createAnalyzer(listOfNotNull(barcodeDecoder))
-            Log.d(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms")
+            Log.d(
+                TAG,
+                "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms"
+            )
         }.exceptionally { throwable ->
             loadingCallback?.invoke(false)
             handleException(throwable)
@@ -191,19 +187,22 @@ class Tracker(
     private fun initializeTextOCR() {
         try {
             val liveOCRSettings = createTextOCRSettings(LIVE_PREVIEW_SIZE)
-            createTextOCRWithFallback(liveOCRSettings)
+            createTextOCR(liveOCRSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Fatal error: load failed - ${e.message}")
         }
     }
 
-    private fun createTextOCRWithFallback(settings: TextOCR.Settings) {
+    private fun createTextOCR(settings: TextOCR.Settings) {
         val startTime = System.currentTimeMillis()
         TextOCR.getTextOCR(settings, executor).thenAccept { ocr ->
             textOCR = ocr
             createAnalyzer(listOfNotNull(textOCR))
-            Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms")
+            Log.d(
+                TAG,
+                "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms"
+            )
         }.exceptionally { throwable ->
             loadingCallback?.invoke(false)
             handleException(throwable)
@@ -215,25 +214,31 @@ class Tracker(
         try {
             Log.i(TAG, "Initializing ModuleRecognizer for Product Recognition")
             val liveRecognizerSettings = createModuleRecognizerSettings(LIVE_PREVIEW_SIZE)
-            createModuleRecognizerWithFallback(liveRecognizerSettings)
+            createModuleRecognizer(liveRecognizerSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Fatal error during initialization setup: ${e.message}")
         }
     }
 
-    private fun createModuleRecognizerWithFallback(settings: ModuleRecognizer.Settings) {
+    private fun createModuleRecognizer(settings: ModuleRecognizer.Settings) {
         val startTime = System.currentTimeMillis()
         ModuleRecognizer.getModuleRecognizer(settings, executor)
             .thenAccept { recognizerInstance ->
                 Log.i(TAG, "ModuleRecognizer instance created successfully for Product Recognition")
                 moduleRecognizer = recognizerInstance
                 createAnalyzer(listOfNotNull(moduleRecognizer))
-                Log.d(TAG, "Product Recognition creation time: ${System.currentTimeMillis() - startTime}ms")
+                Log.d(
+                    TAG,
+                    "Product Recognition creation time: ${System.currentTimeMillis() - startTime}ms"
+                )
             }
             .exceptionally { throwable ->
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Failed to create ModuleRecognizer for Product Recognition: ${throwable.message}")
+                Log.e(
+                    TAG,
+                    "Failed to create ModuleRecognizer for Product Recognition: ${throwable.message}"
+                )
                 null
             }
     }
@@ -248,19 +253,22 @@ class Tracker(
     fun initializeCaptureBarcodeDecoder() {
         try {
             val captureDecoderSettings = createBarcodeDecoderSettings(CAPTURE_SIZE)
-            createCaptureBarcodeDecoderWithFallback(captureDecoderSettings)
+            createCaptureBarcodeDecoder(captureDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Capture barcode decoder initialization failed: ${ex.message}")
         }
     }
 
-    private fun createCaptureBarcodeDecoderWithFallback(settings: BarcodeDecoder.Settings) {
+    private fun createCaptureBarcodeDecoder(settings: BarcodeDecoder.Settings) {
         val startTime = System.currentTimeMillis()
         BarcodeDecoder.getBarcodeDecoder(settings, captureExecutor).thenAccept { decoderInstance ->
             captureBarcodeDecoder = decoderInstance
             createCaptureAnalyzer(listOfNotNull(captureBarcodeDecoder))
-            Log.d(TAG, "Capture BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms")
+            Log.d(
+                TAG,
+                "Capture BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms"
+            )
         }.exceptionally { e ->
             loadingCallback?.invoke(false)
             Log.e(TAG, "Capture barcode decoder creation failed: ${e.message}")
@@ -274,19 +282,22 @@ class Tracker(
     fun initializeCaptureOcr() {
         try {
             val captureOcrSettings = createTextOCRSettings(CAPTURE_SIZE)
-            createCaptureTextOCRWithFallback(captureOcrSettings)
+            createCaptureTextOCR(captureOcrSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Capture OCR scanner initialization failed: ${ex.message}")
         }
     }
 
-    private fun createCaptureTextOCRWithFallback(settings: TextOCR.Settings) {
+    private fun createCaptureTextOCR(settings: TextOCR.Settings) {
         val startTime = System.currentTimeMillis()
         TextOCR.getTextOCR(settings, captureExecutor).thenAccept { ocrInstance ->
             captureOcr = ocrInstance
             createCaptureAnalyzer(listOfNotNull(captureOcr))
-            Log.d(TAG, "Capture TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms")
+            Log.d(
+                TAG,
+                "Capture TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms"
+            )
         }.exceptionally { e ->
             loadingCallback?.invoke(false)
             Log.e(TAG, "Capture OCR scanner creation failed: ${e.message}")
@@ -300,24 +311,28 @@ class Tracker(
     fun initializeCaptureModuleRecognizer() {
         try {
             val captureModuleSettings = createModuleRecognizerSettings(CAPTURE_SIZE)
-            createCaptureModuleRecognizerWithFallback(captureModuleSettings)
+            createCaptureModuleRecognizer(captureModuleSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Capture module recognizer initialization failed: ${ex.message}")
         }
     }
 
-    private fun createCaptureModuleRecognizerWithFallback(settings: ModuleRecognizer.Settings) {
+    private fun createCaptureModuleRecognizer(settings: ModuleRecognizer.Settings) {
         val startTime = System.currentTimeMillis()
-        ModuleRecognizer.getModuleRecognizer(settings, captureExecutor).thenAccept { moduleInstance ->
-            captureModuleRecognizer = moduleInstance
-            createCaptureAnalyzer(listOfNotNull(captureModuleRecognizer))
-            Log.d(TAG, "Capture ModuleRecognizer Creation Time: ${System.currentTimeMillis() - startTime}ms")
-        }.exceptionally { e ->
-            loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture module recognizer creation failed: ${e.message}")
-            null
-        }
+        ModuleRecognizer.getModuleRecognizer(settings, captureExecutor)
+            .thenAccept { moduleInstance ->
+                captureModuleRecognizer = moduleInstance
+                createCaptureAnalyzer(listOfNotNull(captureModuleRecognizer))
+                Log.d(
+                    TAG,
+                    "Capture ModuleRecognizer Creation Time: ${System.currentTimeMillis() - startTime}ms"
+                )
+            }.exceptionally { e ->
+                loadingCallback?.invoke(false)
+                Log.e(TAG, "Capture module recognizer creation failed: ${e.message}")
+                null
+            }
     }
 
 
@@ -391,17 +406,29 @@ class Tracker(
             var moduleResult: List<out Entity>? = null
 
             for (item in selectedFilterItems) {
-                if (item.equals(FilterDialog.BARCODE_TRACKER, ignoreCase = true) && captureBarcodeDecoder != null) {
+                if (item.equals(
+                        FilterDialog.BARCODE_TRACKER,
+                        ignoreCase = true
+                    ) && captureBarcodeDecoder != null
+                ) {
                     futures.add(
                         captureBarcodeDecoder!!.process(imageData)
                             .thenAccept { result -> barcodeResult = result }
                     )
-                } else if (item.equals(FilterDialog.OCR_TRACKER, ignoreCase = true) && captureOcr != null) {
+                } else if (item.equals(
+                        FilterDialog.OCR_TRACKER,
+                        ignoreCase = true
+                    ) && captureOcr != null
+                ) {
                     futures.add(
                         captureOcr!!.process(imageData)
                             .thenAccept { result -> ocrResult = result }
                     )
-                } else if (item.equals(FilterDialog.PRODUCT_AND_SHELF, ignoreCase = true) && captureModuleRecognizer != null) {
+                } else if (item.equals(
+                        FilterDialog.PRODUCT_AND_SHELF,
+                        ignoreCase = true
+                    ) && captureModuleRecognizer != null
+                ) {
                     futures.add(
                         captureModuleRecognizer!!.process(imageData)
                             .thenAccept { result -> moduleResult = result }

@@ -7,7 +7,6 @@ import android.util.Log;
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
 
-import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.EntityType;
 import com.zebra.ai.vision.detector.InferencerOptions;
@@ -37,7 +36,7 @@ public class ProductRecognitionHandler {
     private ModuleRecognizer moduleRecognizer; // For live preview
     private ModuleRecognizer captureRecognizer; // For capture mode
     private final String mavenModelName = "product-and-shelf-recognizer";
-    private final String barcodeMavenModelName = "barcode-localizer";
+    private final String barcodeMavenModelName = "barcode-decoder";
     private final ModelLoadingCallback loadingCallback;
     private final ProductRecognitionAnalyzer.DetectionCallback callback;
 
@@ -80,8 +79,8 @@ public class ProductRecognitionHandler {
             // Create settings for live preview
             ModuleRecognizer.Settings liveRecognizerSettings = createRecognizerSettings(LIVE_PREVIEW_SIZE, toPath, indexFilename, labelsFilename);
 
-            // Call the helper function to create the recognizer with fallback logic
-            createModuleRecognizerWithFallback(liveRecognizerSettings);
+            // Call the helper function to create the recognizer
+            createModuleRecognizer(liveRecognizerSettings);
 
         } catch (Exception e) {
             // Notify failed loading
@@ -100,7 +99,7 @@ public class ProductRecognitionHandler {
 
             // Create settings for capture
             ModuleRecognizer.Settings captureRecognizerSettings = createRecognizerSettings(CAPTURE_SIZE, toPath, indexFilename, labelsFilename);
-            createCaptureRecognizerWithFallback(captureRecognizerSettings);
+            createCaptureRecognizer(captureRecognizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -137,12 +136,12 @@ public class ProductRecognitionHandler {
         return settings;
     }
 
-    private void createModuleRecognizerWithFallback(ModuleRecognizer.Settings settings) {
+    private void createModuleRecognizer(ModuleRecognizer.Settings settings) {
         long startTime = System.currentTimeMillis();
         ModuleRecognizer.getModuleRecognizer(settings, executor)
                 .thenAccept(recognizerInstance -> {
                     moduleRecognizer = recognizerInstance;
-                    if(captureRecognizer!=null) {
+                    if (captureRecognizer != null) {
                         if (loadingCallback != null) {
                             loadingCallback.onLoadingComplete(true);
                         }
@@ -152,7 +151,6 @@ public class ProductRecognitionHandler {
                     Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms and input size: " + settings.inferencerOptions.defaultDims.width);
                 })
                 .exceptionally(throwable -> {
-                    // Notify failed loading
                     if (loadingCallback != null) {
                         loadingCallback.onLoadingComplete(false);
                     }
@@ -161,23 +159,22 @@ public class ProductRecognitionHandler {
                 });
     }
 
-    private void createCaptureRecognizerWithFallback(ModuleRecognizer.Settings decoderSettings) {
+    private void createCaptureRecognizer(ModuleRecognizer.Settings settings) {
         long m_Start = System.currentTimeMillis();
-        ModuleRecognizer.getModuleRecognizer(decoderSettings, captureExecutor).thenAccept(decoderInstance -> {
+        ModuleRecognizer.getModuleRecognizer(settings, captureExecutor).thenAccept(decoderInstance -> {
             captureRecognizer = decoderInstance;
-            if(moduleRecognizer!=null) {
+            if (moduleRecognizer != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
                 attachAnalysisAfterModelLoading();
             }
             Log.d(TAG, "Capture ModuleRecognizer created in " + (System.currentTimeMillis() - m_Start) + " ms");
-        }).exceptionally(e -> {
-            // Notify failed loading
+        }).exceptionally(throwable -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture recognizer creation failed: " + e.getMessage());
+            Log.e(TAG, "Capture recognizer creation failed: " + throwable.getMessage());
             return null;
         });
     }
@@ -234,7 +231,7 @@ public class ProductRecognitionHandler {
         }
     }
 
-    public void attachAnalysisAfterModelLoading(){
+    public void attachAnalysisAfterModelLoading() {
         analyzer = new ProductRecognitionAnalyzer(callback, moduleRecognizer);
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer);
     }

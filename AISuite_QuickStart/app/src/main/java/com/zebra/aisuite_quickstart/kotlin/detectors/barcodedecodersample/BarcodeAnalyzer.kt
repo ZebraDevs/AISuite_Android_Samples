@@ -172,6 +172,7 @@ class BarcodeAnalyzer(
     fun startAnalyzing() {
         Log.d(TAG, "startAnalyzing() called.")
         isStopped = false
+        isAnalyzing = true
         job = Job()
         scope = CoroutineScope(Dispatchers.IO + job)
     }

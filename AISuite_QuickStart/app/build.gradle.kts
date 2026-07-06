@@ -9,10 +9,12 @@ android {
     androidResources {
         noCompress.add("tar")
         noCompress.add("tar.crypt")
+        noCompress.add("tflite")
+        noCompress.add("onnx")
     }
     defaultConfig {
         applicationId = "com.zebra.aisuite_quickstart"
-        minSdk = 30
+        minSdk = 33
         targetSdk = 35
         versionCode = 1
         val appVersion: String = libs.versions.appVersion.get()
@@ -33,6 +35,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -40,6 +43,7 @@ android {
         }
         debug {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -56,6 +60,12 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+    }
+    packaging {
+        jniLibs {
+            // ONNX Runtime ships libc++_shared.so; keep the first one found.
+            pickFirsts += "**/libc++_shared.so"
+        }
     }
 }
 
@@ -82,7 +92,7 @@ dependencies {
     implementation(libs.zebra.ai.vision.sdk) { artifact { type = "aar" } }
 
     //Below dependency is to get Barcode Localizer model for AI Suite SDK
-    implementation(libs.barcode.localizer) { artifact { type = "aar" } }
+    implementation(libs.barcode.decoder) { artifact { type = "aar" } }
 
     //Below dependency is to get OCR model for AI Suite SDK
     implementation(libs.text.ocr.recognizer) { artifact { type = "aar" } }
@@ -91,5 +101,13 @@ dependencies {
     implementation(libs.product.and.shelf.recognizer) { artifact { type = "aar" } }
 
     //Below dependency is to get warehouse localizer beta model for AI Suite SDK
-    implementation(libs.warehouse.localizer) { artifact { type = "aar" } }
+    implementation(libs.pallet.and.box.localizer) { artifact { type = "aar" } }
+
+    // Custom Detector dependencies
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.support) {
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+    }
+    implementation(libs.onnxruntime.android)
 }

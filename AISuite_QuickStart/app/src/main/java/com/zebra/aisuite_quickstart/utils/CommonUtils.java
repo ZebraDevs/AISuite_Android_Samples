@@ -15,7 +15,8 @@ import androidx.camera.core.ImageProxy;
 public class CommonUtils {
     public static final String PREFS_NAME ="FilterPreferences";
     public static final String PREFS_NAME_KOTLIN ="FilterPreferencesKotlin";
-    public static final String WAREHOUSE_LOCALIZER = "Warehouse Localizer(beta)";
+    public static final String PREFS_NAME_CUSTOM_DETECTOR = "CustomDetectorPreferences";
+    public static final String PALLET_AND_BOX_LOCALIZER = "Pallet and Box Localizer(Beta)";
     /**
      * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
      *

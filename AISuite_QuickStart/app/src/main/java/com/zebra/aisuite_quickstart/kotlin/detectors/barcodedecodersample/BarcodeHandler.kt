@@ -54,13 +54,14 @@ class BarcodeHandler(
     private val executor = Executors.newSingleThreadExecutor()
     private val captureExecutor = Executors.newSingleThreadExecutor()
     var barcodeAnalyzer: BarcodeAnalyzer? = null
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
 
     // Model input sizes
     companion object {
         private const val LIVE_PREVIEW_SIZE = 640
         private const val CAPTURE_SIZE = 1280  // Higher resolution for capture
     }
+
     init {
         initializeBarcodeDecoder()
         initializeCaptureDecoder()
@@ -73,7 +74,7 @@ class BarcodeHandler(
     fun initializeBarcodeDecoder() {
         val liveDecoderSettings = createDecoderSettings(LIVE_PREVIEW_SIZE)
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            createBarcodeDecoderWithFallback(liveDecoderSettings, System.currentTimeMillis())
+            createBarcodeDecoder(liveDecoderSettings, System.currentTimeMillis())
         }
     }
 
@@ -83,7 +84,7 @@ class BarcodeHandler(
     fun initializeCaptureDecoder() {
         val captureDecoderSettings = createDecoderSettings(CAPTURE_SIZE)
         CoroutineScope(captureExecutor.asCoroutineDispatcher()).launch {
-            createCaptureDecoderWithFallback(captureDecoderSettings, System.currentTimeMillis())
+            createCaptureDecoder(captureDecoderSettings, System.currentTimeMillis())
         }
     }
 
@@ -93,7 +94,13 @@ class BarcodeHandler(
     private fun createDecoderSettings(inputSize: Int): BarcodeDecoder.Settings {
         return BarcodeDecoder.Settings(mavenModelName).apply {
             Symbology.CODE39.enable(true)
+            Symbology.CODE93.enable(true)
             Symbology.CODE128.enable(true)
+            Symbology.CODABAR.enable(true)
+            Symbology.EAN8.enable(true)
+            Symbology.EAN13.enable(true)
+            Symbology.UPCE0.enable(true)
+            Symbology.I2OF5.enable(true)
             val rpo = arrayOf(
                 InferencerOptions.DSP,
                 InferencerOptions.CPU,
@@ -104,22 +111,30 @@ class BarcodeHandler(
                 defaultDims.height = inputSize
                 defaultDims.width = inputSize
             }
+            enableAIBarcodeDecode = true
         }
     }
 
     /**
      * Creates the live preview decoder. Fires loadingCallback only when both decoders are ready.
      */
-    private suspend fun createBarcodeDecoderWithFallback(decoderSettings: BarcodeDecoder.Settings, startTime: Long) {
+    private suspend fun createBarcodeDecoder(
+        decoderSettings: BarcodeDecoder.Settings,
+        startTime: Long
+    ) {
         try {
-            val decoderInstance = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
+            val decoderInstance =
+                BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
             barcodeDecoder = decoderInstance
             // Only notify and attach analyzer when both decoders are ready
             if (captureDecoder != null) {
                 loadingCallback?.invoke(true)
                 attachAnalysisAfterModelLoading()
             }
-            Log.d(tag, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms, input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}")
+            Log.d(
+                tag,
+                "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms, input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}"
+            )
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             Log.e(tag, "Fatal error: decoder creation failed - ${e.message}")
@@ -129,16 +144,23 @@ class BarcodeHandler(
     /**
      * Creates the capture decoder. Fires loadingCallback only when both decoders are ready.
      */
-    private suspend fun createCaptureDecoderWithFallback(decoderSettings: BarcodeDecoder.Settings, startTime: Long) {
+    private suspend fun createCaptureDecoder(
+        decoderSettings: BarcodeDecoder.Settings,
+        startTime: Long
+    ) {
         try {
-            val decoderInstance = BarcodeDecoder.getBarcodeDecoder(decoderSettings, captureExecutor).await()
+            val decoderInstance =
+                BarcodeDecoder.getBarcodeDecoder(decoderSettings, captureExecutor).await()
             captureDecoder = decoderInstance
             // Only notify and attach analyzer when both decoders are ready
             if (barcodeDecoder != null) {
                 loadingCallback?.invoke(true)
                 attachAnalysisAfterModelLoading()
             }
-            Log.d(tag, "Capture BarcodeDecoder created in ${System.currentTimeMillis() - startTime} ms")
+            Log.d(
+                tag,
+                "Capture BarcodeDecoder created in ${System.currentTimeMillis() - startTime} ms"
+            )
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             Log.e(tag, "Capture decoder creation failed: ${e.message}")

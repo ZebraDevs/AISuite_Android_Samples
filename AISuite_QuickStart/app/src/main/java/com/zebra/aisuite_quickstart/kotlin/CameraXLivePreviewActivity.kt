@@ -58,7 +58,9 @@ import com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample.OCRSample
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityBarcodeTracker
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 import com.zebra.aisuite_quickstart.utils.CommonUtils
-import com.zebra.aisuite_quickstart.utils.CommonUtils.WAREHOUSE_LOCALIZER
+import com.zebra.aisuite_quickstart.utils.CommonUtils.PALLET_AND_BOX_LOCALIZER
+import com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.CustomDetectorSample
+import com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.ocr.OcrTextEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
@@ -69,7 +71,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback,
     Tracker.DetectionCallback,
     EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback,
-    OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback, WareHouseAnalyzer.DetectionCallback {
+    OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback,
+    WareHouseAnalyzer.DetectionCallback, CustomDetectorSample.DetectionCallback {
 
     lateinit var binding: ActivityCameraXlivePreviewBinding
     private val tag = "CameraXLivePreviewActivityKotlin"
@@ -81,17 +84,18 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     private lateinit var uiHandler: UIHandler
     private var imageWidth: Int = 0
     private var imageHeight: Int = 0
-    private val executors: ExecutorService = Executors.newFixedThreadPool(3)
+    private lateinit var executors: ExecutorService
 
-    private var barcodeHandler: BarcodeHandler? = null
-    private var ocrHandler: OCRHandler? = null
-    private var ocrSample: OCRSample? = null
-    private var productRecognitionHandler: ProductRecognitionHandler? = null
-    private var productRecognitionSample: ProductRecognitionSample? = null
-    private var wareHouseLocalizerHandler: WareHouseLocalizerHandler? = null
-    private var tracker: Tracker? = null
-    private var barcodeLegacySample: BarcodeSample? = null
-    private var entityBarcodeTracker: EntityBarcodeTracker? = null
+    @Volatile private var barcodeHandler: BarcodeHandler? = null
+    @Volatile private var ocrHandler: OCRHandler? = null
+    @Volatile private var ocrSample: OCRSample? = null
+    @Volatile private var productRecognitionHandler: ProductRecognitionHandler? = null
+    @Volatile private var productRecognitionSample: ProductRecognitionSample? = null
+    @Volatile private var wareHouseLocalizerHandler: WareHouseLocalizerHandler? = null
+    @Volatile private var tracker: Tracker? = null
+    @Volatile private var barcodeLegacySample: BarcodeSample? = null
+    @Volatile private var entityBarcodeTracker: EntityBarcodeTracker? = null
+    @Volatile private var customDetectorSample: CustomDetectorSample? = null
     private var selectedModel = BARCODE_DETECTION
     private val stateSelectedModel = "selected_model"
     private var previousSelectedModel = ""
@@ -131,7 +135,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         }
 
         sharedPreferences = getSharedPreferences(CommonUtils.PREFS_NAME_KOTLIN, MODE_PRIVATE)
-
+        executors = Executors.newSingleThreadExecutor()
         initializeComponents()
 
         // Restore UI state if needed
@@ -307,22 +311,18 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 BARCODE_DETECTION -> {
                     Log.i(tag, "Using Barcode Decoder")
                     executors.execute {
-                        barcodeHandler = BarcodeHandler(
-                            this,
-                            this@CameraXLivePreviewActivity,
-                            analysisUseCase!!
-                        ) { success -> handleModelLoadResult(loadGeneration, success) }
+                        val bh = BarcodeHandler(this, this, analysisUseCase!!) { success -> handleModelLoadResult(loadGeneration, success) }
+                        if (loadGeneration != modelLoadGeneration.get()) { bh.stop(); return@execute }
+                        barcodeHandler = bh
                     }
                 }
 
                 TEXT_OCR_DETECTION -> {
                     Log.i(tag, "Using Text OCR")
                     executors.execute {
-                        ocrHandler = OCRHandler(
-                            this,
-                            this@CameraXLivePreviewActivity,
-                            analysisUseCase!!
-                        ) { success -> handleModelLoadResult(loadGeneration, success) }
+                        val oh = OCRHandler(this, this, analysisUseCase!!) { success -> handleModelLoadResult(loadGeneration, success) }
+                        if (loadGeneration != modelLoadGeneration.get()) { oh.stop(); return@execute }
+                        ocrHandler = oh
                     }
                 }
 
@@ -330,11 +330,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     Log.i(tag, "Using Entity View Analyzer")
                     executors.execute {
                         analysisUseCase?.let {
-                            entityBarcodeTracker = EntityBarcodeTracker(
-                                this,
-                                this,
-                                it
-                            ) { success -> showModelLoadingProgress(false) }
+                            val ebt = EntityBarcodeTracker(this, this, it) { _ -> showModelLoadingProgress(false) }
+                            if (loadGeneration != modelLoadGeneration.get()) { ebt.stop(); return@execute }
+                            entityBarcodeTracker = ebt
                         }
                     }
                 }
@@ -343,12 +341,9 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     Log.i(tag, "Using Entity Analyzer")
                     executors.execute {
                         analysisUseCase?.let {
-                            tracker = Tracker(
-                                this,
-                                this,
-                                it,
-                                selectedFilterItems
-                            ) { success -> handleModelLoadResult(loadGeneration, success) }
+                            val t = Tracker(this, this, it, selectedFilterItems) { success -> handleModelLoadResult(loadGeneration, success) }
+                            if (loadGeneration != modelLoadGeneration.get()) { t.stop(); return@execute }
+                            tracker = t
                         }
                     }
                 }
@@ -356,56 +351,64 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                 PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Using Product Recognition")
                     executors.execute {
-                        productRecognitionHandler = ProductRecognitionHandler(
-                            this,
-                            this,
-                            analysisUseCase!!
-                        ) { success -> handleModelLoadResult(loadGeneration, success) }
+                        val prh = ProductRecognitionHandler(this, this, analysisUseCase!!) { success -> handleModelLoadResult(loadGeneration, success) }
+                        if (loadGeneration != modelLoadGeneration.get()) { prh.stop(); return@execute }
+                        productRecognitionHandler = prh
                     }
                 }
 
                 LEGACY_BARCODE_DETECTION -> {
                     Log.i(tag, "Using Legacy Barcode Decoder")
                     executors.execute {
-                        barcodeLegacySample = BarcodeSample(
-                            this,
-                            this@CameraXLivePreviewActivity,
-                            analysisUseCase!!
-                        ) { success -> showModelLoadingProgress(false) }
+                        val bs = BarcodeSample(this, this, analysisUseCase!!) { _ -> showModelLoadingProgress(false) }
+                        if (loadGeneration != modelLoadGeneration.get()) { bs.stop(); return@execute }
+                        barcodeLegacySample = bs
                     }
                 }
 
                 LEGACY_OCR_DETECTION -> {
                     Log.i(tag, "Using Legacy Text OCR")
                     executors.execute {
-                        ocrSample = OCRSample(
-                            this,
-                            this@CameraXLivePreviewActivity,
-                            analysisUseCase!!
-                        ) { success -> showModelLoadingProgress(false) }
+                        val os = OCRSample(this, this, analysisUseCase!!) { _ -> showModelLoadingProgress(false) }
+                        if (loadGeneration != modelLoadGeneration.get()) { os.stop(); return@execute }
+                        ocrSample = os
                     }
                 }
 
                 LEGACY_PRODUCT_RECOGNITION -> {
                     Log.i(tag, "Using Product Recognition")
                     executors.execute {
-                        productRecognitionSample = ProductRecognitionSample(
-                            this,
-                            this@CameraXLivePreviewActivity,
-                            analysisUseCase!!
-                        ) { success -> showModelLoadingProgress(false) }
+                        val prs = ProductRecognitionSample(this, this, analysisUseCase!!) { _ -> showModelLoadingProgress(false) }
+                        if (loadGeneration != modelLoadGeneration.get()) { prs.stop(); return@execute }
+                        productRecognitionSample = prs
                     }
                 }
 
-                WAREHOUSE_LOCALIZER -> {
-                    Log.i(tag, "Using WareHouse Localizer")
+                PALLET_AND_BOX_LOCALIZER -> {
+                    Log.i(tag, "Using Pallet and Box Localizer")
                     executors.execute {
-                        wareHouseLocalizerHandler =
-                            WareHouseLocalizerHandler(
-                                this,
-                                this@CameraXLivePreviewActivity,
-                                analysisUseCase!!
-                            ){ success -> handleModelLoadResult(loadGeneration, success) }
+                        val wh = WareHouseLocalizerHandler(this, this, analysisUseCase!!) { success -> handleModelLoadResult(loadGeneration, success) }
+                        if (loadGeneration != modelLoadGeneration.get()) { wh.stop(); return@execute }
+                        wareHouseLocalizerHandler = wh
+                    }
+                }
+
+                CUSTOM_DETECTOR -> {
+                    Log.i(tag, "Using Custom Detector")
+                    val customPrefs = getSharedPreferences(CommonUtils.PREFS_NAME_CUSTOM_DETECTOR, MODE_PRIVATE)
+                    val activeIds = CustomDetectorSample.MODEL_IDS
+                        .filter { customPrefs.getBoolean(it, true) }
+                    executors.execute {
+                        val cds = CustomDetectorSample(
+                            this, this, analysisUseCase!!, activeIds,
+                            object : CustomDetectorSample.ModelLoadingCallback {
+                                override fun onLoadingComplete(success: Boolean) {
+                                    handleModelLoadResult(loadGeneration, success)
+                                }
+                            }
+                        )
+                        if (loadGeneration != modelLoadGeneration.get()) { cds.stop(); return@execute }
+                        customDetectorSample = cds
                     }
                 }
 
@@ -414,7 +417,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     throw IllegalStateException("Invalid model name")
                 }
             }
-        } catch (e: Exception) {
+        }  catch (e: Exception) {
             showModelLoadingProgress(false)
             handleModelLoadResult(loadGeneration, false)
             Log.e(tag, "Cannot create model for: $selectedModel", e)
@@ -426,6 +429,11 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         super.onResume()
         Log.v(tag, "OnResume called")
         isActivityVisible = true
+        // Recreate executor if it is shutdown
+        if (executors.isShutdown) {
+            executors = Executors.newSingleThreadExecutor()
+            Log.d(tag, "ExecutorService recreated")
+        }
         clearGraphicOverlay()
         restoreLiveUiState()
 
@@ -454,6 +462,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
     }
 
     fun stopAnalyzing() {
+        analysisUseCase?.clearAnalyzer()
         try {
             when (previousSelectedModel) {
                 BARCODE_DETECTION -> {
@@ -496,9 +505,14 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     productRecognitionSample?.getProductRecognitionAnalyzer()?.stopAnalyzing()
                 }
 
-                WAREHOUSE_LOCALIZER -> {
-                    Log.i(tag, "Stopping the warehouse analyzer")
+                PALLET_AND_BOX_LOCALIZER -> {
+                    Log.i(tag, "Stopping the Pallet and Box Localizer")
                     wareHouseLocalizerHandler?.wareHouseAnalyzer?.stop()
+                }
+
+                CUSTOM_DETECTOR -> {
+                    Log.i(tag, "Stopping the Custom Detector")
+                    customDetectorSample?.stopAnalyzing()
                 }
 
                 else -> Log.e(tag, "Invalid stop analyzer option")
@@ -603,6 +617,42 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         detectionHandler.handleImageCaptureWareHouseResult(entities)
     }
 
+    override fun handleCustomDetectionEntities(
+        barcodeEntities: List<com.zebra.ai.vision.entity.BarcodeEntity>,
+        ocrEntities: List<OcrTextEntity>,
+        yoloEntities: List<com.zebra.ai.vision.entity.DetectionEntity>,
+        mobileNetEntities: List<com.zebra.ai.vision.entity.DetectionEntity>
+    ) {
+        detectionHandler.handleCustomDetectionResult(barcodeEntities, ocrEntities, yoloEntities, mobileNetEntities)
+    }
+
+    fun reRegisterCustomDetectors(selectedIds: List<String>) {
+        clearGraphicOverlay()
+        showModelLoadingProgress(true)
+
+        val old = customDetectorSample
+        customDetectorSample = null
+
+        val loadGeneration = modelLoadGeneration.incrementAndGet()
+
+        executors.execute {
+            if (old != null) {
+                analysisUseCase?.clearAnalyzer()
+                old.stop()
+            }
+            val cds = CustomDetectorSample(
+                this, this, analysisUseCase!!,  selectedIds,
+                object : CustomDetectorSample.ModelLoadingCallback {
+                    override fun onLoadingComplete(success: Boolean) {
+                        handleModelLoadResult(loadGeneration, success)
+                    }
+                }
+            )
+            if (loadGeneration != modelLoadGeneration.get()) { cds.stop(); return@execute }
+            customDetectorSample = cds
+        }
+    }
+
     fun disposeModels() {
         try {
             when (previousSelectedModel) {
@@ -647,9 +697,15 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     productRecognitionSample?.stop()
                 }
 
-                WAREHOUSE_LOCALIZER -> {
-                    Log.i(tag, "Disposing the warehouse localizer")
+                PALLET_AND_BOX_LOCALIZER -> {
+                    Log.i(tag, "Disposing the Pallet and Box Localizer")
                     wareHouseLocalizerHandler?.stop()
+                }
+
+                CUSTOM_DETECTOR -> {
+                    Log.i(tag, "Disposing the Custom Detector")
+                    customDetectorSample?.stop()
+                    customDetectorSample = null
                 }
 
                 else -> Log.e(tag, "Invalid selected option")
@@ -669,7 +725,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         private const val LEGACY_BARCODE_DETECTION = "Legacy Barcode"
         private const val LEGACY_OCR_DETECTION = "Legacy OCR"
         private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
-
+        private const val CUSTOM_DETECTOR = UIHandler.CUSTOM_DETECTOR
     }
 
     fun getPreviewSurfaceProvider(): Preview.SurfaceProvider {
@@ -700,6 +756,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         displayListener?.let {
             displayManager?.unregisterDisplayListener(it)
         }
+        if (::executors.isInitialized && !executors.isShutdown) executors.shutdownNow()
         super.onDestroy()
     }
 
@@ -897,11 +954,12 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                         selectedModel.equals(TEXT_OCR_DETECTION, true) ||
                         selectedModel.equals(PRODUCT_RECOGNITION, true) ||
                         selectedModel.equals(ENTITY_ANALYZER, true) ||
-                        selectedModel.equals(WAREHOUSE_LOCALIZER, true)
+                        selectedModel.equals(PALLET_AND_BOX_LOCALIZER, true)
 
             binding.captureLayout.visibility = if (supportsCapture) View.VISIBLE else View.GONE
             binding.trackerFilter.visibility =
-                if (selectedModel.equals(ENTITY_ANALYZER, true)) View.VISIBLE else View.GONE
+                if (selectedModel.equals(ENTITY_ANALYZER, true) ||
+                    selectedModel.equals(CUSTOM_DETECTOR, true)) View.VISIBLE else View.GONE
         }
     }
 

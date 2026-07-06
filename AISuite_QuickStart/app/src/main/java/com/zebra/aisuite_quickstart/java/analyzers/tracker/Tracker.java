@@ -124,7 +124,7 @@ public class Tracker {
     private EntityTrackerAnalyzer entityTrackerAnalyzer;
     private final DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private final String mavenModelName = "barcode-localizer";
+    private final String mavenModelName = "barcode-decoder";
     private final String mavenOCRModelName = "text-ocr-recognizer";
     private final String mavenProductModelName = "product-and-shelf-recognizer";
     private ModuleRecognizer moduleRecognizer;
@@ -200,8 +200,8 @@ public class Tracker {
         try {
             // Initialize live preview decoder with smaller input size
             BarcodeDecoder.Settings liveDecoderSettings = createBarcodeDecoderSettings(LIVE_PREVIEW_SIZE);
-            // Call the helper function to create the decoder with fallback logic
-            createBarcodeDecoderWithFallback(liveDecoderSettings);
+            // Call the helper function to create the decoder
+            createBarcodeDecoder(liveDecoderSettings);
 
         } catch (AIVisionSDKException ex) {
             // Notify failed loading
@@ -212,7 +212,7 @@ public class Tracker {
         }
     }
 
-    private void createBarcodeDecoderWithFallback(BarcodeDecoder.Settings decoderSettings) {
+    private void createBarcodeDecoder(BarcodeDecoder.Settings decoderSettings) {
         long m_Start = System.currentTimeMillis();
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
             barcodeDecoder = decoderInstance;
@@ -245,8 +245,8 @@ public class Tracker {
         try {
             // Initialize live preview OCR with smaller input size
             TextOCR.Settings liveOCRSettings = createTextOCRSettings(LIVE_PREVIEW_SIZE);
-            // Call the helper function to create the TextOCR instance with fallback logic
-            createTextOCRWithFallback(liveOCRSettings);
+            // Call the helper function to create the TextOCR instance
+            createTextOCR(liveOCRSettings);
 
         } catch (Exception e) {
             // Notify failed loading
@@ -257,7 +257,7 @@ public class Tracker {
         }
     }
 
-    private void createTextOCRWithFallback(TextOCR.Settings textOCRSettings) {
+    private void createTextOCR(TextOCR.Settings textOCRSettings) {
         long m_Start = System.currentTimeMillis();
         TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
             textOCR = OCRInstance;
@@ -284,8 +284,9 @@ public class Tracker {
     private void initializeModuleRecognizer() {
         try {
             // Create settings for live preview
-            ModuleRecognizer.Settings liveRecognizerSettings = createModuleRecognizerSettings(LIVE_PREVIEW_SIZE);            // Call the helper function to create the recognizer with fallback logic
-            createModuleRecognizerWithFallback(liveRecognizerSettings);
+            ModuleRecognizer.Settings liveRecognizerSettings = createModuleRecognizerSettings(LIVE_PREVIEW_SIZE);
+            // Call the helper function to create the recognizer
+            createModuleRecognizer(liveRecognizerSettings);
 
         } catch (Exception e) {
             // Notify failed loading
@@ -296,7 +297,7 @@ public class Tracker {
         }
     }
 
-    private void createModuleRecognizerWithFallback(ModuleRecognizer.Settings settings) {
+    private void createModuleRecognizer(ModuleRecognizer.Settings settings) {
         long startTime = System.currentTimeMillis();
         ModuleRecognizer.getModuleRecognizer(settings, executor).thenAccept(recognizerInstance -> {
             long creationTime = System.currentTimeMillis() - startTime;
@@ -306,7 +307,6 @@ public class Tracker {
             // Use EntityTrackerAnalyzer with moduleRecognizer as a Detector
             createAnalyzer(List.of(moduleRecognizer));
         }).exceptionally(throwable -> {
-            // Notify failed loading
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
@@ -326,11 +326,19 @@ public class Tracker {
         rpo[2] = InferencerOptions.GPU;
 
         decoderSettings.Symbology.CODE39.enable(true);
+        decoderSettings.Symbology.CODE93.enable(true);
         decoderSettings.Symbology.CODE128.enable(true);
+        decoderSettings.Symbology.CODABAR.enable(true);
+        decoderSettings.Symbology.EAN8.enable(true);
+        decoderSettings.Symbology.EAN13.enable(true);
+        decoderSettings.Symbology.UPCE0.enable(true);
+        decoderSettings.Symbology.I2OF5.enable(true);
 
         decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
         decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = inputSize;
         decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
+        decoderSettings.enableAIBarcodeDecode = true;
+
 
         return decoderSettings;
     }
@@ -347,7 +355,7 @@ public class Tracker {
         textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
         textOCRSettings.detectionInferencerOptions.defaultDims.height = inputSize;
         textOCRSettings.detectionInferencerOptions.defaultDims.width = inputSize;
-
+        textOCRSettings.unclipRatio = 0.6f;
 
         return textOCRSettings;
     }
@@ -372,7 +380,6 @@ public class Tracker {
 
         // Enable product recognition with the same model and recognition data
         settings.enableProductRecognitionWithIndex(mavenProductModelName, toPath + indexFilename, toPath + labelsFilename);
-
         return settings;
     }
 
@@ -383,7 +390,7 @@ public class Tracker {
     public void initializeCaptureBarcodeDecoder() {
         try {
             BarcodeDecoder.Settings captureDecoderSettings = createBarcodeDecoderSettings(CAPTURE_SIZE);
-            createCaptureBarcodeDecoderWithFallback(captureDecoderSettings);
+            createCaptureBarcodeDecoder(captureDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -392,7 +399,7 @@ public class Tracker {
         }
     }
 
-    private void createCaptureBarcodeDecoderWithFallback(BarcodeDecoder.Settings decoderSettings) {
+    private void createCaptureBarcodeDecoder(BarcodeDecoder.Settings decoderSettings) {
         long startTime = System.currentTimeMillis();
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, captureExecutor).thenAccept(decoderInstance -> {
             captureBarcodeDecoder = decoderInstance;
@@ -413,7 +420,7 @@ public class Tracker {
     public void initializeCaptureOcr() {
         try {
             TextOCR.Settings captureOcrSettings = createTextOCRSettings(CAPTURE_SIZE);
-            createCaptureTextOCRWithFallback(captureOcrSettings);
+            createCaptureTextOCR(captureOcrSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -422,9 +429,9 @@ public class Tracker {
         }
     }
 
-    private void createCaptureTextOCRWithFallback(TextOCR.Settings ocrSettings) {
+    private void createCaptureTextOCR(TextOCR.Settings textOCRSettings) {
         long startTime = System.currentTimeMillis();
-        TextOCR.getTextOCR(ocrSettings, captureExecutor).thenAccept(ocrInstance -> {
+        TextOCR.getTextOCR(textOCRSettings, captureExecutor).thenAccept(ocrInstance -> {
             captureOcr = ocrInstance;
             createCaptureAnalyzer(List.of(captureOcr));
             Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - startTime) + " milli sec");
@@ -443,7 +450,7 @@ public class Tracker {
     public void initializeCaptureModuleRecognizer() {
         try {
             ModuleRecognizer.Settings captureModuleSettings = createModuleRecognizerSettings(CAPTURE_SIZE);
-            createCaptureModuleRecognizerWithFallback(captureModuleSettings);
+            createCaptureModuleRecognizer(captureModuleSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -452,7 +459,7 @@ public class Tracker {
         }
     }
 
-    private void createCaptureModuleRecognizerWithFallback(ModuleRecognizer.Settings moduleSettings) {
+    private void createCaptureModuleRecognizer(ModuleRecognizer.Settings moduleSettings) {
         long startTime = System.currentTimeMillis();
         ModuleRecognizer.getModuleRecognizer(moduleSettings, captureExecutor).thenAccept(moduleInstance -> {
             captureModuleRecognizer = moduleInstance;
@@ -552,7 +559,7 @@ public class Tracker {
                                                             analyzers) {
         captureAnalyzerList.add(analyzers.get(0));
         if (selectedFilterItems.size() == captureAnalyzerList.size()) {
-            if(modelsLoaded) {
+            if (modelsLoaded) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
@@ -637,10 +644,9 @@ public class Tracker {
         return entityTrackerAnalyzer;
     }
 
-    public void attachAnalysisAfterModelLoading(){
+    public void attachAnalysisAfterModelLoading() {
         entityTrackerAnalyzer = new EntityTrackerAnalyzer(analyzerList, ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL, executor, this::handleEntities);
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
     }
-
 
 }

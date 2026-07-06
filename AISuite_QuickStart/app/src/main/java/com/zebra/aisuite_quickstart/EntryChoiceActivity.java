@@ -64,14 +64,6 @@ public class EntryChoiceActivity extends AppCompatActivity {
         binding = ActivityEntryChoiceBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // Initializing the AI Vision SDK
-        try {
-            boolean isInitDone = AIVisionSDK.getInstance(this.getApplicationContext()).init();
-            Log.i(TAG, "AI Vision SDK Init ret = " + isInitDone);
-        } catch (UnsupportedOperationException ex) {
-            Log.e(TAG, "AI Vision SDK Initialization failed");
-        }
-
         binding.javaEntryPoint.setOnClickListener(v -> {
             Intent mainIntent = new Intent(this, CameraXLivePreviewActivity.class);
             startActivity(mainIntent);
@@ -93,13 +85,13 @@ public class EntryChoiceActivity extends AppCompatActivity {
         try {
             boolean isInitDone = AIVisionSDK.getInstance(this.getApplicationContext()).init();
             Log.i(TAG, "AI Vision SDK Init = " + isInitDone);
-            Log.i(TAG, "AI Vision SDK version = " + AIVisionSDK.getInstance(this.getApplicationContext()).getSDKVersion());
+            // Get the SDK version
+            String sdkVersion = AIVisionSDK.getInstance(this.getApplicationContext()).getSDKVersion();
+            binding.sdkVersionText.setText("SDK version: "+sdkVersion);
         } catch (UnsupportedOperationException ex) {
             runOnUiThread(() -> showErrorDialog(ex.getMessage()));
         }
-        // Get the SDK version
-        String sdkVersion = AIVisionSDK.getInstance(this).getSDKVersion();
-        binding.sdkVersionText.setText("SDK version: "+sdkVersion);
+
     }
 
     /**

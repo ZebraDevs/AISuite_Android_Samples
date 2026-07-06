@@ -9,7 +9,6 @@ import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.TextOCR;
-import com.zebra.aisuite_quickstart.java.detectors.productrecognition.ProductRecognitionAnalyzer;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,7 +51,7 @@ public class OCRHandler {
         try {
             // Initialize live preview OCR with smaller input size
             TextOCR.Settings liveOCRSettings = createOCRSettings(LIVE_PREVIEW_SIZE);
-            createTextOCRWithFallback(liveOCRSettings);
+            createTextOCR(liveOCRSettings);
         } catch (Exception e) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -67,7 +66,7 @@ public class OCRHandler {
     public void initializeCaptureOCR() {
         try {
             TextOCR.Settings captureOCRSettings = createOCRSettings(CAPTURE_SIZE);
-            createCaptureOCRWithFallback(captureOCRSettings);
+            createCaptureOCR(captureOCRSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -91,16 +90,16 @@ public class OCRHandler {
         textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
         textOCRSettings.detectionInferencerOptions.defaultDims.height = inputSize;
         textOCRSettings.detectionInferencerOptions.defaultDims.width = inputSize;
-
+        textOCRSettings.unclipRatio = 0.6f;
 
         return textOCRSettings;
     }
 
-    private void createTextOCRWithFallback(TextOCR.Settings textOCRSettings) {
+    private void createTextOCR(TextOCR.Settings textOCRSettings) {
         long m_Start = System.currentTimeMillis();
         TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
             textOCR = OCRInstance;
-            if(captureOCR!=null) {
+            if (captureOCR != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
@@ -109,7 +108,6 @@ public class OCRHandler {
 
             Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
-
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
@@ -118,11 +116,11 @@ public class OCRHandler {
         });
     }
 
-    private void createCaptureOCRWithFallback(TextOCR.Settings textOCRSettings) {
+    private void createCaptureOCR(TextOCR.Settings textOCRSettings) {
         long m_Start = System.currentTimeMillis();
         TextOCR.getTextOCR(textOCRSettings, captureExecutor).thenAccept(OCRInstance -> {
             captureOCR = OCRInstance;
-            if(textOCR!=null) {
+            if (textOCR != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
@@ -165,7 +163,7 @@ public class OCRHandler {
         return captureOCR;
     }
 
-    public void attachAnalysisAfterModelLoading(){
+    public void attachAnalysisAfterModelLoading() {
         ocrAnalyzer = new TextOCRAnalyzer(callback, textOCR);
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer);
     }

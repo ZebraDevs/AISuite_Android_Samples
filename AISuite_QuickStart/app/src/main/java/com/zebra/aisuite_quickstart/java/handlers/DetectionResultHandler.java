@@ -424,19 +424,6 @@ public class DetectionResultHandler {
                     productLabels.add(topSku);
                 }
 
-                // Add the product recognition overlay
-                activity.getBinding().graphicOverlay.add(
-                        new ProductRecognitionGraphic(
-                                activity.getBinding().graphicOverlay,
-                                labelShelfRects,
-                                labelPegRects,
-                                shelfRects,
-                                productRects,
-                                productLabels,
-                                null,
-                                null
-                        )
-                );
             }
             if (!barcodeRects.isEmpty())
                 activity.getBinding().graphicOverlay.add(new TrackerGraphic(activity.getBinding().graphicOverlay, barcodeRects, barcodeStrings));
@@ -650,8 +637,7 @@ public class DetectionResultHandler {
         for (ShelfEntity shelf : shelves) {
             Rect shelfBBox = shelf.getBoundingBox();
             if (shelfBBox != null) {
-                Rect shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelfBBox);
-                canvas.drawRect(shelfRect, shelfPaint);
+                canvas.drawRect(shelfBBox, shelfPaint);
             }
 
             List<LabelEntity> shelfLabels = shelf.getLabels();
@@ -659,8 +645,7 @@ public class DetectionResultHandler {
                 for (LabelEntity label : shelfLabels) {
                     Rect labelBBox = label.getBoundingBox();
                     if (labelBBox != null) {
-                        Rect labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(labelBBox);
-                        canvas.drawRect(labelRect, labelShelfPaint);
+                        canvas.drawRect(labelBBox, labelShelfPaint);
                     }
 
                     List<BarcodeEntity> barcodes = label.getBarcodes();
@@ -668,8 +653,7 @@ public class DetectionResultHandler {
                         for (BarcodeEntity barcode : barcodes) {
                             Rect barcodeBBox = barcode.getBoundingBox();
                             if (barcodeBBox != null) {
-                                Rect barcodeRect = boundingBoxMapper.mapBoundingBoxToOverlay(barcodeBBox);
-                                canvas.drawRect(barcodeRect, barcodePaint);
+                                canvas.drawRect(barcodeBBox, barcodePaint);
                             }
                         }
                     }
@@ -682,8 +666,8 @@ public class DetectionResultHandler {
         for (ProductEntity product : products) {
             Rect productBBox = product.getBoundingBox();
             if (productBBox != null) {
-                Rect productRect = boundingBoxMapper.mapBoundingBoxToOverlay(productBBox);
-                canvas.drawRect(productRect, productPaint);
+                canvas.drawRect(productBBox, productPaint);
+
             }
         }
 
@@ -1277,6 +1261,98 @@ public class DetectionResultHandler {
             capturedShelfViewRects.clear();
             capturedProductViewRects.clear();
             capturedLabelViewRects.clear();
+        });
+    }
+
+    /**
+     * Handles results from the Custom Detector mode.
+     * Clears the overlay and draws color-coded bounding boxes for each active model.
+     */
+    public void handleCustomDetectionResult(
+            List<com.zebra.ai.vision.entity.BarcodeEntity> barcodeEntities,
+            List<com.zebra.aisuite_quickstart.java.analyzers.customdetector.ocr.OcrTextEntity> ocrEntities,
+            List<com.zebra.ai.vision.entity.DetectionEntity> yoloEntities,
+            List<com.zebra.ai.vision.entity.DetectionEntity> mobileNetEntities) {
+        Log.d(TAG, "handleCustomDetectionResult — barcodes=" + barcodeEntities.size()
+                + " ocr=" + ocrEntities.size()
+                + " yolo=" + yoloEntities.size()
+                + " mobileNet=" + mobileNetEntities.size());
+
+        // Map all bounding boxes from image-pixel space to overlay/screen space before
+        // passing to CustomDetectionGraphic, matching the same transform applied in the
+        // standalone barcode path (rotation + uniform scale + center-crop offset).
+        List<android.graphics.Rect> barcodeRects  = new java.util.ArrayList<>();
+        List<String>                barcodeLabels = new java.util.ArrayList<>();
+        for (com.zebra.ai.vision.entity.BarcodeEntity e : barcodeEntities) {
+            android.graphics.Rect raw = e.getBoundingBox();
+            if (raw != null) {
+                android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
+                Log.v(TAG, "  [bbox] barcode raw=" + raw.toShortString()
+                        + " → mapped=" + mapped.toShortString()
+                        + " value=\"" + e.getValue() + "\"");
+                barcodeRects.add(mapped);
+                barcodeLabels.add(e.getValue() != null ? e.getValue() : "");
+            } else {
+                Log.w(TAG, "  [bbox] barcode entity has null boundingBox — value=\"" + e.getValue() + "\"");
+            }
+        }
+
+        List<android.graphics.Rect> ocrRects  = new java.util.ArrayList<>();
+        List<String>                ocrLabels = new java.util.ArrayList<>();
+        for (com.zebra.aisuite_quickstart.java.analyzers.customdetector.ocr.OcrTextEntity e : ocrEntities) {
+            android.graphics.Rect raw = e.getBoundingBox();
+            if (raw != null) {
+                android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
+                Log.v(TAG, "  [bbox] ocr raw=" + raw.toShortString()
+                        + " → mapped=" + mapped.toShortString()
+                        + " text=\"" + e.getText() + "\"");
+                ocrRects.add(mapped);
+                ocrLabels.add(e.getText() != null ? e.getText() : "");
+            } else {
+                Log.w(TAG, "  [bbox] ocr entity has null boundingBox — text=\"" + e.getText() + "\"");
+            }
+        }
+
+        List<android.graphics.Rect> yoloRects = new java.util.ArrayList<>();
+        for (com.zebra.ai.vision.entity.DetectionEntity e : yoloEntities) {
+            android.graphics.Rect raw = e.getBoundingBox();
+            if (raw != null) {
+                android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
+                Log.v(TAG, "  [bbox] yolo raw=" + raw.toShortString() + " → mapped=" + mapped.toShortString());
+                yoloRects.add(mapped);
+            } else {
+                Log.w(TAG, "  [bbox] yolo entity has null boundingBox");
+            }
+        }
+
+        List<android.graphics.Rect> mobileNetRects = new java.util.ArrayList<>();
+        for (com.zebra.ai.vision.entity.DetectionEntity e : mobileNetEntities) {
+            android.graphics.Rect raw = e.getBoundingBox();
+            if (raw != null) {
+                android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
+                Log.v(TAG, "  [bbox] mobileNet raw=" + raw.toShortString() + " → mapped=" + mapped.toShortString());
+                mobileNetRects.add(mapped);
+            } else {
+                Log.w(TAG, "  [bbox] mobileNet entity has null boundingBox");
+            }
+        }
+
+        Log.d(TAG, "  [bbox] mapped counts — barcodes=" + barcodeRects.size()
+                + " ocr=" + ocrRects.size()
+                + " yolo=" + yoloRects.size()
+                + " mobileNet=" + mobileNetRects.size());
+
+        activity.runOnUiThread(() -> {
+            activity.getBinding().graphicOverlay.clear();
+            activity.getBinding().graphicOverlay.add(
+                    new com.zebra.aisuite_quickstart.java.analyzers.customdetector.CustomDetectionGraphic(
+                            activity.getBinding().graphicOverlay,
+                            barcodeRects, barcodeLabels,
+                            ocrRects, ocrLabels,
+                            yoloRects,
+                            mobileNetRects
+                    )
+            );
         });
     }
 }

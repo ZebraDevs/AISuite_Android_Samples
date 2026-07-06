@@ -4,20 +4,17 @@ import android.content.Context
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
-import com.zebra.ai.vision.detector.AIVisionSDK
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.Localizer
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
 import java.util.concurrent.Executors
-import java.util.function.Consumer
-import java.util.function.Function
 
-class WareHouseLocalizerHandler (
+class WareHouseLocalizerHandler(
     private val context: Context,
     private val callback: CameraXLivePreviewActivity,
     private val imageAnalysis: ImageAnalysis,
     private val loadingCallback: ((Boolean) -> Unit)? = null
-)  {
+) {
     companion object {
         private const val TAG = "WareHouseLocalizerHandler"
         private const val LIVE_PREVIEW_SIZE = 640
@@ -29,7 +26,7 @@ class WareHouseLocalizerHandler (
     private val executor = Executors.newSingleThreadExecutor()
     private val captureExecutor = Executors.newSingleThreadExecutor()
     var wareHouseAnalyzer: WareHouseAnalyzer? = null
-    private val mavenModelName = "warehouse-localizer"
+    private val mavenModelName = "pallet-and-box-localizer"
 
     init {
         initializeWareHouseLocalizer()
@@ -61,10 +58,13 @@ class WareHouseLocalizerHandler (
     private fun initializeWareHouseLocalizer() {
         try {
             val liveLocalizerSettings = createLocalizerSettings(LIVE_PREVIEW_SIZE)
-            createWareHouseLocalizerWithFallback(liveLocalizerSettings)
+            createWareHouseLocalizer(liveLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Model Loading: WareHouse localizer returned with exception ${ex.message}")
+            Log.e(
+                TAG,
+                "Model Loading: Pallet and Box Localizer returned with exception ${ex.message}"
+            )
         }
     }
 
@@ -74,7 +74,7 @@ class WareHouseLocalizerHandler (
     fun initializeCaptureLocalizer() {
         try {
             val captureLocalizerSettings = createLocalizerSettings(CAPTURE_SIZE)
-            createCaptureLocalizerWithFallback(captureLocalizerSettings)
+            createCaptureLocalizer(captureLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
             Log.e(TAG, "Capture localizer initialization failed: ${ex.message}")
@@ -82,10 +82,10 @@ class WareHouseLocalizerHandler (
     }
 
     /**
-     * Creates the live preview WareHouse Localizer instance with fallback error handling.
+     * Creates the live preview WareHouse Localizer instance.
      * Only notifies loading complete and attaches analyzer when both models are loaded.
      */
-    private fun createWareHouseLocalizerWithFallback(localizerSettings: Localizer.Settings) {
+    private fun createWareHouseLocalizer(localizerSettings: Localizer.Settings) {
         val startTime = System.currentTimeMillis()
         Localizer.getLocalizer(localizerSettings, executor)
             .thenAccept { localizerInstance ->
@@ -98,22 +98,22 @@ class WareHouseLocalizerHandler (
 
                 Log.d(
                     TAG,
-                    "WareHouseLocalizer() obj creation time = ${System.currentTimeMillis() - startTime} ms" +
+                    "Pallet and Box Localizer() obj creation time = ${System.currentTimeMillis() - startTime} ms" +
                             " and input size: ${localizerSettings.inferencerOptions.defaultDims.width}"
                 )
             }
             .exceptionally { e ->
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Fatal error: localizer creation failed - ${e.message}")
+                Log.e(TAG, "Fatal error: Pallet and Box Localizer creation failed - ${e.message}")
                 null
             }
     }
 
     /**
-     * Creates the capture WareHouse Localizer instance with fallback error handling.
+     * Creates the capture WareHouse Localizer instance.
      * Only notifies loading complete and attaches analyzer when both models are loaded.
      */
-    private fun createCaptureLocalizerWithFallback(localizerSettings: Localizer.Settings) {
+    private fun createCaptureLocalizer(localizerSettings: Localizer.Settings) {
         val startTime = System.currentTimeMillis()
         Localizer.getLocalizer(localizerSettings, captureExecutor)
             .thenAccept { localizerInstance ->
@@ -124,11 +124,14 @@ class WareHouseLocalizerHandler (
                     attachAnalysisAfterModelLoading()
                 }
 
-                Log.d(TAG, "Capture WareHouseLocalizer created in ${System.currentTimeMillis() - startTime} ms")
+                Log.d(
+                    TAG,
+                    "Capture Pallet and Box Localizer created in ${System.currentTimeMillis() - startTime} ms"
+                )
             }
             .exceptionally { e ->
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Capture localizer creation failed: ${e.message}")
+                Log.e(TAG, "Capture Pallet and Box Localizer creation failed: ${e.message}")
                 null
             }
     }
@@ -150,12 +153,12 @@ class WareHouseLocalizerHandler (
         captureExecutor.shutdownNow()
         wareHouseLocalizer?.let {
             it.dispose()
-            Log.d(TAG, "Live preview warehouse localizer disposed")
+            Log.d(TAG, "Live preview Pallet and Box Localizer disposed")
             wareHouseLocalizer = null
         }
         captureLocalizer?.let {
             it.dispose()
-            Log.d(TAG, "Capture warehouse localizer disposed")
+            Log.d(TAG, "Capture Pallet and Box Localizer disposed")
             captureLocalizer = null
         }
     }

@@ -37,7 +37,8 @@ class ProductRecognitionHandler(
     private var moduleRecognizer: ModuleRecognizer? = null // For live preview
     var captureRecognizer: ModuleRecognizer? = null // For capture mode
     private val mavenModelName = "product-and-shelf-recognizer"
-    private val barcodeMavenModelName = "barcode-localizer"
+    private val barcodeMavenModelName = "barcode-decoder"
+
     // --- Asset Setup ---
     val indexFilename = "product.index"
     val labelsFilename = "product.txt"
@@ -104,8 +105,11 @@ class ProductRecognitionHandler(
                     LIVE_PREVIEW_SIZE, toPath, indexFilename, labelsFilename
                 )
 
-                // --- Launch Initializer with Fallback ---
-                createModuleRecognizerWithFallback(liveRecognizerSettings, System.currentTimeMillis())
+                // --- Launch Initializer ---
+                createModuleRecognizer(
+                    liveRecognizerSettings,
+                    System.currentTimeMillis()
+                )
 
             } catch (e: Exception) {
                 loadingCallback?.invoke(false)
@@ -127,7 +131,10 @@ class ProductRecognitionHandler(
                     CAPTURE_SIZE, toPath, indexFilename, labelsFilename
                 )
 
-                createCaptureRecognizerWithFallback(captureRecognizerSettings, System.currentTimeMillis())
+                createCaptureRecognizer(
+                    captureRecognizerSettings,
+                    System.currentTimeMillis()
+                )
             } catch (ex: Exception) {
                 loadingCallback?.invoke(false)
                 Log.e(tag, "Capture recognizer initialization failed: ${ex.message}")
@@ -136,15 +143,16 @@ class ProductRecognitionHandler(
     }
 
     /**
-     * Creates the live preview ModuleRecognizer instance with fallback error handling.
+     * Creates the live preview ModuleRecognizer instance.
      * Only notifies loading complete and attaches analyzer when both models are loaded.
      */
-    private suspend fun createModuleRecognizerWithFallback(
+    private suspend fun createModuleRecognizer(
         settings: ModuleRecognizer.Settings,
         startTime: Long
     ) {
         try {
-            val recognizerInstance = ModuleRecognizer.getModuleRecognizer(settings, executor).await()
+            val recognizerInstance =
+                ModuleRecognizer.getModuleRecognizer(settings, executor).await()
             moduleRecognizer = recognizerInstance
 
             if (captureRecognizer != null) {
@@ -164,15 +172,16 @@ class ProductRecognitionHandler(
     }
 
     /**
-     * Creates the capture ModuleRecognizer instance with fallback error handling.
+     * Creates the capture ModuleRecognizer instance.
      * Only notifies loading complete and attaches analyzer when both models are loaded.
      */
-    private suspend fun createCaptureRecognizerWithFallback(
+    private suspend fun createCaptureRecognizer(
         settings: ModuleRecognizer.Settings,
         startTime: Long
     ) {
         try {
-            val recognizerInstance = ModuleRecognizer.getModuleRecognizer(settings, captureExecutor).await()
+            val recognizerInstance =
+                ModuleRecognizer.getModuleRecognizer(settings, captureExecutor).await()
             captureRecognizer = recognizerInstance
 
             if (moduleRecognizer != null) {
@@ -180,7 +189,10 @@ class ProductRecognitionHandler(
                 attachAnalysisAfterModelLoading()
             }
 
-            Log.d(tag, "Capture ModuleRecognizer created in ${System.currentTimeMillis() - startTime} ms")
+            Log.d(
+                tag,
+                "Capture ModuleRecognizer created in ${System.currentTimeMillis() - startTime} ms"
+            )
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             Log.e(tag, "Capture recognizer creation failed: ${e.message}")

@@ -9,7 +9,6 @@ import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
-import com.zebra.aisuite_quickstart.java.detectors.textocrsample.TextOCRAnalyzer;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,7 +23,7 @@ public class BarcodeHandler {
     private BarcodeAnalyzer barcodeAnalyzer;
     private final BarcodeAnalyzer.DetectionCallback callback;
     private final ImageAnalysis imageAnalysis;
-    private final String mavenModelName = "barcode-localizer";
+    private final String mavenModelName = "barcode-decoder";
     private final ModelLoadingCallback loadingCallback;
 
     // Model input sizes
@@ -52,7 +51,7 @@ public class BarcodeHandler {
         try {
             // Initialize live preview decoder with smaller input size
             BarcodeDecoder.Settings liveDecoderSettings = createDecoderSettings(LIVE_PREVIEW_SIZE);
-            createBarcodeDecoderWithFallback(liveDecoderSettings);
+            createBarcodeDecoder(liveDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -67,7 +66,7 @@ public class BarcodeHandler {
     public void initializeCaptureDecoder() {
         try {
             BarcodeDecoder.Settings captureDecoderSettings = createDecoderSettings(CAPTURE_SIZE);
-            createCaptureDecoderWithFallback(captureDecoderSettings);
+            createCaptureDecoder(captureDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -87,20 +86,27 @@ public class BarcodeHandler {
         rpo[2] = InferencerOptions.GPU;
 
         decoderSettings.Symbology.CODE39.enable(true);
+        decoderSettings.Symbology.CODE93.enable(true);
         decoderSettings.Symbology.CODE128.enable(true);
+        decoderSettings.Symbology.CODABAR.enable(true);
+        decoderSettings.Symbology.EAN8.enable(true);
+        decoderSettings.Symbology.EAN13.enable(true);
+        decoderSettings.Symbology.UPCE0.enable(true);
+        decoderSettings.Symbology.I2OF5.enable(true);
 
         decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
         decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = inputSize;
         decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
+        decoderSettings.enableAIBarcodeDecode = true;
 
         return decoderSettings;
     }
 
-    private void createBarcodeDecoderWithFallback(BarcodeDecoder.Settings decoderSettings) {
+    private void createBarcodeDecoder(BarcodeDecoder.Settings decoderSettings) {
         long m_Start = System.currentTimeMillis();
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
             barcodeDecoder = decoderInstance;
-            if(captureDecoder!=null) {
+            if (captureDecoder != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
@@ -116,17 +122,17 @@ public class BarcodeHandler {
         });
     }
 
-    private void createCaptureDecoderWithFallback(BarcodeDecoder.Settings decoderSettings) {
+    private void createCaptureDecoder(BarcodeDecoder.Settings decoderSettings) {
         long m_Start = System.currentTimeMillis();
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, captureExecutor).thenAccept(decoderInstance -> {
             captureDecoder = decoderInstance;
-            if(barcodeDecoder!=null) {
+            if (barcodeDecoder != null) {
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Capture BarcodeDecoder created in " + (System.currentTimeMillis() - m_Start) + " ms");
+            Log.d(TAG, "Capture BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
@@ -162,7 +168,7 @@ public class BarcodeHandler {
         return captureDecoder;
     }
 
-    public void attachAnalysisAfterModelLoading(){
+    public void attachAnalysisAfterModelLoading() {
         barcodeAnalyzer = new BarcodeAnalyzer(callback, barcodeDecoder);
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), barcodeAnalyzer);
     }

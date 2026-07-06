@@ -80,6 +80,7 @@ class OCRSample(
                 height = 640
                 width = 640
             }
+            unclipRatio = 0.6f
         }
 
         val startTime = System.currentTimeMillis()

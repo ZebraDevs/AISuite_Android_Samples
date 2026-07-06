@@ -58,7 +58,7 @@ class BarcodeSample(
 
     private var barcodeAnalyzer: BarcodeSampleAnalyzer? = null
     private val executor = Executors.newSingleThreadExecutor()
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
 
     init {
         initializeBarcodeDecoder()

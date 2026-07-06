@@ -381,19 +381,18 @@ class DetectionResultHandler(
                 if (entity is BarcodeEntity) {
                     val rect = entity.boundingBox
                     rect?.let {
-                            val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
-                            barcodeRects.add(overlayRect)
-                            val hashCode = entity.hashCode().toString().takeLast(4)
-                            if (entity.value.trim().isNotEmpty()) {
-                                barcodeStrings.add("$hashCode:${entity.value}")
-                            }
-                            else{
-                                barcodeStrings.add("")
-                            }
-                            Log.d(
-                                TAG,
-                                "Tracker UUID: $hashCode Detected entity - Value: ${entity.value}"
-                            )
+                        val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                        barcodeRects.add(overlayRect)
+                        val hashCode = entity.hashCode().toString().takeLast(4)
+                        if (entity.value.trim().isNotEmpty()) {
+                            barcodeStrings.add("$hashCode:${entity.value}")
+                        } else {
+                            barcodeStrings.add("")
+                        }
+                        Log.d(
+                            TAG,
+                            "Tracker UUID: $hashCode Detected entity - Value: ${entity.value}"
+                        )
 
                     }
                 }
@@ -425,43 +424,45 @@ class DetectionResultHandler(
 
             }
 
-            moduleEntities?.forEach { entity ->
-                when (entity) {
-                    is com.zebra.ai.vision.entity.ShelfEntity -> shelves.add(entity)
-                    is LabelEntity -> labels.add(entity)
-                    is com.zebra.ai.vision.entity.ProductEntity -> products.add(entity)
+            moduleEntities?.let {
+                it.forEach { entity ->
+                    when (entity) {
+                        is com.zebra.ai.vision.entity.ShelfEntity -> shelves.add(entity)
+                        is LabelEntity -> labels.add(entity)
+                        is com.zebra.ai.vision.entity.ProductEntity -> products.add(entity)
+                    }
                 }
-            }
 
-            // Draw shelves and their labels
-            for (shelf in shelves) {
-                val shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.boundingBox)
-                shelfRects.add(shelfRect)
-            }
-            // Draw all labels (if you want to show all, not just those attached to shelves)
-            for (label in labels) {
-                if (label.classId == LabelEntity.ClassId.PEG_LABEL) {
-                    val labelRect: Rect =
-                        boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
-                    labelPegRects.add(labelRect)
+                // Draw shelves and their labels
+                for (shelf in shelves) {
+                    val shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.boundingBox)
+                    shelfRects.add(shelfRect)
                 }
-                if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
-                    val labelRect: Rect =
-                        boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
-                    labelShelfRects.add(labelRect)
+                // Draw all labels (if you want to show all, not just those attached to shelves)
+                for (label in labels) {
+                    if (label.classId == LabelEntity.ClassId.PEG_LABEL) {
+                        val labelRect: Rect =
+                            boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
+                        labelPegRects.add(labelRect)
+                    }
+                    if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
+                        val labelRect: Rect =
+                            boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
+                        labelShelfRects.add(labelRect)
+                    }
                 }
-            }
-            // Draw all products
-            for (product in products) {
-                val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
-                productRects.add(prodRect)
-                val topSku = if (product.accuracy >= SIMILARITY_THRESHOLD) {
-                    product.topKSKUs?.firstOrNull()?.let { skuInfo ->
-                        "${skuInfo.productSKU}"
-                    } ?: ""
-                } else ""
-                productLabels.add(topSku)
-                Log.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
+                // Draw all products
+                for (product in products) {
+                    val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
+                    productRects.add(prodRect)
+                    val topSku = if (product.accuracy >= SIMILARITY_THRESHOLD) {
+                        product.topKSKUs?.firstOrNull()?.let { skuInfo ->
+                            "${skuInfo.productSKU}"
+                        } ?: ""
+                    } else ""
+                    productLabels.add(topSku)
+                    Log.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
+                }
             }
 
             // Add graphics for barcodes
@@ -749,28 +750,23 @@ class DetectionResultHandler(
 
         // Draw shelves first
         for (shelf in shelves) {
-            val shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.boundingBox)
-            canvas.drawRect(shelfRect, shelfPaint)
+            canvas.drawRect(shelf.boundingBox, shelfPaint)
         }
 
         // Draw all labels (if you want to show all, not just those attached to shelves)
         for (label in labels) {
             if (label.classId == LabelEntity.ClassId.PEG_LABEL) {
-                val labelRect: Rect = boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
-                canvas.drawRect(labelRect, labelPegPaint)
+                canvas.drawRect(label.boundingBox, labelPegPaint)
             }
             if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
-                val labelRect: Rect =
-                    boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
-                canvas.drawRect(labelRect, labelShelfPaint)
+                canvas.drawRect(label.boundingBox, labelShelfPaint)
             }
             val barcodes = label.getBarcodes()
             if (barcodes != null) {
                 for (barcode in barcodes) {
                     val barcodeBBox = barcode.getBoundingBox()
                     if (barcodeBBox != null) {
-                        val barcodeRect = boundingBoxMapper.mapBoundingBoxToOverlay(barcodeBBox)
-                        canvas.drawRect(barcodeRect, barcodePaint)
+                        canvas.drawRect(barcodeBBox, barcodePaint)
                     }
                 }
             }
@@ -778,8 +774,7 @@ class DetectionResultHandler(
 
         // Draw products and SKU text
         for (product in products) {
-                val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
-                canvas.drawRect(prodRect, productPaint)
+            canvas.drawRect(product.boundingBox, productPaint)
         }
 
         activity.runOnUiThread {
@@ -1410,5 +1405,90 @@ class DetectionResultHandler(
             capturedProductViewRects.clear()
             capturedLabelViewRects.clear()
         })
+    }
+
+    /**
+     * Handles results from the Custom Detector mode.
+     * Clears the overlay and draws color-coded bounding boxes for each active model.
+     */
+    fun handleCustomDetectionResult(
+        barcodeEntities   : List<com.zebra.ai.vision.entity.BarcodeEntity>,
+        ocrEntities       : List<com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.ocr.OcrTextEntity>,
+        yoloEntities      : List<com.zebra.ai.vision.entity.DetectionEntity>,
+        mobileNetEntities : List<com.zebra.ai.vision.entity.DetectionEntity>
+    ) {
+        Log.d(TAG, "handleCustomDetectionResult — barcodes=${barcodeEntities.size}" +
+                " ocr=${ocrEntities.size} yolo=${yoloEntities.size} mobileNet=${mobileNetEntities.size}")
+
+        // Map all bounding boxes from image-pixel space to overlay/screen space before
+        // passing to CustomDetectionGraphic, matching the same transform applied in the
+        // standalone barcode path (rotation + uniform scale + center-crop offset).
+        val barcodeRects  = mutableListOf<android.graphics.Rect>()
+        val barcodeLabels = mutableListOf<String>()
+        for (e in barcodeEntities) {
+            val raw = e.boundingBox
+            if (raw != null) {
+                val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
+                Log.v(TAG, "  [bbox] barcode raw=${raw.toShortString()} → mapped=${mapped.toShortString()} value=\"${e.value}\"")
+                barcodeRects.add(mapped)
+                barcodeLabels.add(e.value ?: "")
+            } else {
+                Log.w(TAG, "  [bbox] barcode entity has null boundingBox — value=\"${e.value}\"")
+            }
+        }
+
+        val ocrRects  = mutableListOf<android.graphics.Rect>()
+        val ocrLabels = mutableListOf<String>()
+        for (e in ocrEntities) {
+            val raw = e.boundingBox
+            if (raw != null) {
+                val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
+                Log.v(TAG, "  [bbox] ocr raw=${raw.toShortString()} → mapped=${mapped.toShortString()} text=\"${e.text}\"")
+                ocrRects.add(mapped)
+                ocrLabels.add(e.text)
+            } else {
+                Log.w(TAG, "  [bbox] ocr entity has null boundingBox — text=\"${e.text}\"")
+            }
+        }
+
+        val yoloRects = mutableListOf<android.graphics.Rect>()
+        for (e in yoloEntities) {
+            val raw = e.boundingBox
+            if (raw != null) {
+                val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
+                Log.v(TAG, "  [bbox] yolo raw=${raw.toShortString()} → mapped=${mapped.toShortString()}")
+                yoloRects.add(mapped)
+            } else {
+                Log.w(TAG, "  [bbox] yolo entity has null boundingBox")
+            }
+        }
+
+        val mobileNetRects = mutableListOf<android.graphics.Rect>()
+        for (e in mobileNetEntities) {
+            val raw = e.boundingBox
+            if (raw != null) {
+                val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
+                Log.v(TAG, "  [bbox] mobileNet raw=${raw.toShortString()} → mapped=${mapped.toShortString()}")
+                mobileNetRects.add(mapped)
+            } else {
+                Log.w(TAG, "  [bbox] mobileNet entity has null boundingBox")
+            }
+        }
+
+        Log.d(TAG, "  [bbox] mapped counts — barcodes=${barcodeRects.size}" +
+                " ocr=${ocrRects.size} yolo=${yoloRects.size} mobileNet=${mobileNetRects.size}")
+
+        activity.runOnUiThread {
+            activity.binding.graphicOverlay.clear()
+            activity.binding.graphicOverlay.add(
+                com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.CustomDetectionGraphic(
+                    activity.binding.graphicOverlay,
+                    barcodeRects, barcodeLabels,
+                    ocrRects, ocrLabels,
+                    yoloRects,
+                    mobileNetRects
+                )
+            )
+        }
     }
 }

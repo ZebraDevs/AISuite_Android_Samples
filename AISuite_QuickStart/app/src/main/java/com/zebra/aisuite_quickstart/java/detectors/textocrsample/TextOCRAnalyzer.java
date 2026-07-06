@@ -155,6 +155,7 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
     public void startAnalyzing() {
         Log.d(TAG, "startAnalyzing() called. ");
         isStopped = false;
+        isAnalyzing=true;
         executorService = Executors.newSingleThreadExecutor();
     }
 }

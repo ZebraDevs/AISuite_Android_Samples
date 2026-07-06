@@ -4,7 +4,7 @@ package com.zebra.aisuite_quickstart.java.handlers;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
-import static com.zebra.aisuite_quickstart.utils.CommonUtils.WAREHOUSE_LOCALIZER;
+import static com.zebra.aisuite_quickstart.utils.CommonUtils.PALLET_AND_BOX_LOCALIZER;
 
 import android.annotation.SuppressLint;
 import android.content.SharedPreferences;
@@ -25,6 +25,7 @@ import androidx.camera.core.ImageProxy;
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog;
 import com.zebra.aisuite_quickstart.filtertracker.FilterItem;
 import com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity;
+import com.zebra.aisuite_quickstart.java.analyzers.customdetector.CustomDetectorSample;
 import com.zebra.aisuite_quickstart.java.camera.CameraManager;
 import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
@@ -53,6 +54,7 @@ public class UIHandler {
     public static final String PRODUCT_RECOGNITION = "Product Recognition";
     private static final String LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
+    public static final String CUSTOM_DETECTOR = "Custom Detector";
 
     private String selectedModel = BARCODE_DETECTION;
     private final SharedPreferences sharedPreferences;
@@ -84,7 +86,8 @@ public class UIHandler {
         options.add(PRODUCT_RECOGNITION);
         options.add(ENTITY_ANALYZER);
         options.add(ENTITY_VIEW_FINDER);
-        options.add(WAREHOUSE_LOCALIZER);
+        options.add(PALLET_AND_BOX_LOCALIZER);
+        options.add(CUSTOM_DETECTOR);
         // options.add(LEGACY_BARCODE_DETECTION); // uncomment to use barcode legacy option
         // options.add(LEGACY_OCR_DETECTION); // uncomment to use ocr legacy option
        // options.add(LEGACY_PRODUCT_RECOGNITION); // Uncomment to use Product recognition legacy option
@@ -102,7 +105,9 @@ public class UIHandler {
                 isEntityViewFinder = selectedModel.equals(ENTITY_VIEW_FINDER);
 
                 Log.e(TAG, "selected option is " + selectedModel);
-                activity.getBinding().trackerFilter.setVisibility(TextUtils.equals(selectedModel, ENTITY_ANALYZER) ? VISIBLE : GONE);
+                boolean showFilter = TextUtils.equals(selectedModel, ENTITY_ANALYZER)
+                        || TextUtils.equals(selectedModel, CUSTOM_DETECTOR);
+                activity.getBinding().trackerFilter.setVisibility(showFilter ? VISIBLE : GONE);
 
                 // Lock orientation when Entity Viewfinder is selected
                 if (isEntityViewFinder) {
@@ -113,7 +118,7 @@ public class UIHandler {
                     Log.d(TAG, "Orientation unlocked for " + selectedModel + " mode");
                 }
                 activity.setModelLoaded(false);
-                if (selectedModel.equalsIgnoreCase(BARCODE_DETECTION) || selectedModel.equalsIgnoreCase(TEXT_OCR_DETECTION) || selectedModel.equalsIgnoreCase(PRODUCT_RECOGNITION) || selectedModel.equalsIgnoreCase(ENTITY_ANALYZER) || selectedModel.equalsIgnoreCase(WAREHOUSE_LOCALIZER)) {
+                if (selectedModel.equalsIgnoreCase(BARCODE_DETECTION) || selectedModel.equalsIgnoreCase(TEXT_OCR_DETECTION) || selectedModel.equalsIgnoreCase(PRODUCT_RECOGNITION) || selectedModel.equalsIgnoreCase(ENTITY_ANALYZER) || selectedModel.equalsIgnoreCase(PALLET_AND_BOX_LOCALIZER)) {
                     initializeCaptureFeature();
                     activity.getBinding().captureLayout.setVisibility(VISIBLE);
                 }  else {
@@ -143,24 +148,42 @@ public class UIHandler {
 
     private void setupFilterButton() {
         activity.getBinding().trackerFilter.setOnClickListener(v -> {
-            FilterDialog dialog = new FilterDialog(activity);
-            dialog.setCallback(options -> {
-                SharedPreferences.Editor editor = sharedPreferences.edit();
+            if (CUSTOM_DETECTOR.equals(selectedModel)) {
+                // Smart re-registration path: models stay loaded, only the analyzer is rebuilt
+                SharedPreferences customPrefs = activity.getSharedPreferences(
+                        CommonUtils.PREFS_NAME_CUSTOM_DETECTOR, android.content.Context.MODE_PRIVATE);
+                FilterDialog dialog = new FilterDialog(activity, CustomDetectorSample.MODEL_IDS, CommonUtils.PREFS_NAME_CUSTOM_DETECTOR);
+                dialog.setCallback(options -> {
+                    SharedPreferences.Editor editor = customPrefs.edit();
+                    List<String> selectedIds = new ArrayList<>();
+                    for (FilterItem option : options) {
+                        editor.putBoolean(option.getTitle(), option.isChecked());
+                        if (option.isChecked()) selectedIds.add(option.getTitle());
+                    }
+                    editor.apply();
+                    activity.reRegisterCustomDetectors(selectedIds);
+                });
+                dialog.show();
+            } else {
+                FilterDialog dialog = new FilterDialog(activity);
+                dialog.setCallback(options -> {
+                    SharedPreferences.Editor editor = sharedPreferences.edit();
 
-                for (FilterItem option : options) {
-                    editor.putBoolean(option.getTitle(), option.isChecked());
-                }
-                editor.apply();
-                activity.setModelLoaded(false);
+                    for (FilterItem option : options) {
+                        editor.putBoolean(option.getTitle(), option.isChecked());
+                    }
+                    editor.apply();
+                    activity.setModelLoaded(false);
 
-                activity.clearGraphicOverlay();
-                activity.stopAnalyzing();
-                cameraManager.unbindAll();
-                activity.disposeModels();
-                cameraManager.bindPreviewAndAnalysis(activity.getPreviewSurfaceProvider());
-                activity.bindAnalysisUseCase();
-            });
-            dialog.show();
+                    activity.clearGraphicOverlay();
+                    activity.stopAnalyzing();
+                    cameraManager.unbindAll();
+                    activity.disposeModels();
+                    cameraManager.bindPreviewAndAnalysis(activity.getPreviewSurfaceProvider());
+                    activity.bindAnalysisUseCase();
+                });
+                dialog.show();
+            }
         });
     }
 
@@ -192,7 +215,7 @@ public class UIHandler {
     }
     private void initializeCaptureFeature() {
         activity.getBinding().captureButton.setOnClickListener(v -> {
-            if(selectedModel.equalsIgnoreCase(BARCODE_DETECTION) || selectedModel.equalsIgnoreCase(TEXT_OCR_DETECTION) || selectedModel.equalsIgnoreCase(PRODUCT_RECOGNITION) || selectedModel.equalsIgnoreCase(ENTITY_ANALYZER) || selectedModel.equalsIgnoreCase(WAREHOUSE_LOCALIZER)) {
+            if(selectedModel.equalsIgnoreCase(BARCODE_DETECTION) || selectedModel.equalsIgnoreCase(TEXT_OCR_DETECTION) || selectedModel.equalsIgnoreCase(PRODUCT_RECOGNITION) || selectedModel.equalsIgnoreCase(ENTITY_ANALYZER) || selectedModel.equalsIgnoreCase(PALLET_AND_BOX_LOCALIZER)) {
                 if(activity.isModelLoaded()) {
                     activity.getBinding().captureLayout.setVisibility(GONE);
                     imageCapture = cameraManager.getImageCapture();
@@ -209,7 +232,7 @@ public class UIHandler {
                             initializeCaptureRecognitionAndCapture();
                         } else if (selectedModel.equalsIgnoreCase(ENTITY_ANALYZER)) {
                             initializeCaptureTracker();
-                        } else if (selectedModel.equalsIgnoreCase(WAREHOUSE_LOCALIZER)) {
+                        } else if (selectedModel.equalsIgnoreCase(PALLET_AND_BOX_LOCALIZER)) {
                             initializeCaptureWareHouseLocalizer();
                         }
                     });
@@ -270,7 +293,7 @@ public class UIHandler {
                         activity.processCaptureRecognition(imageProxy);
                     } else if(selectedModel.equalsIgnoreCase(ENTITY_ANALYZER)){
                         activity.processCaptureTracker(imageProxy);
-                    }else if(selectedModel.equalsIgnoreCase(WAREHOUSE_LOCALIZER)){
+                    }else if(selectedModel.equalsIgnoreCase(PALLET_AND_BOX_LOCALIZER)){
                         activity.processCaptureWareHouseLocalizer(imageProxy);
                     }
 
@@ -300,7 +323,9 @@ public class UIHandler {
             activity.getBinding().capturedImageView.setImageBitmap(null);
             activity.getBinding().backToLiveButton.setVisibility(View.GONE);
 
-            activity.getBinding().trackerFilter.setVisibility(TextUtils.equals(selectedModel, ENTITY_ANALYZER) ? VISIBLE : GONE);
+            activity.getBinding().trackerFilter.setVisibility(
+                    (TextUtils.equals(selectedModel, ENTITY_ANALYZER) || TextUtils.equals(selectedModel, CUSTOM_DETECTOR))
+                    ? VISIBLE : GONE);
             activity.getBinding().previewView.setVisibility(View.VISIBLE);
             activity.getBinding().previewView.setBackgroundColor(android.R.color.black);
             activity.getBinding().graphicOverlay.setVisibility(View.VISIBLE);
@@ -318,7 +343,7 @@ public class UIHandler {
             activity.setRecognitionAnalysis();
         } else if(selectedModel.equalsIgnoreCase(ENTITY_ANALYZER)){
             activity.setTrackerAnalysis();
-        } else if(selectedModel.equalsIgnoreCase(WAREHOUSE_LOCALIZER)){
+        } else if(selectedModel.equalsIgnoreCase(PALLET_AND_BOX_LOCALIZER)){
             activity.setWareHouseAnalysis();
         }
     }

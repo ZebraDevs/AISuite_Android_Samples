@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java;
 
 
-import static com.zebra.aisuite_quickstart.utils.CommonUtils.WAREHOUSE_LOCALIZER;
+import static com.zebra.aisuite_quickstart.utils.CommonUtils.PALLET_AND_BOX_LOCALIZER;
 
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -42,6 +42,7 @@ import com.zebra.aisuite_quickstart.R;
 import com.zebra.aisuite_quickstart.databinding.ActivityCameraXlivePreviewBinding;
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog;
 import com.zebra.aisuite_quickstart.java.analyzers.tracker.Tracker;
+import com.zebra.aisuite_quickstart.java.analyzers.customdetector.CustomDetectorSample;
 import com.zebra.aisuite_quickstart.java.camera.CameraManager;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeAnalyzer;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeHandler;
@@ -97,7 +98,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * Note: Ensure that the appropriate permissions are configured in the AndroidManifest to utilize camera capabilities.
  */
-public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, Tracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback, WareHouseAnalyzer.DetectionCallback {
+public class CameraXLivePreviewActivity extends AppCompatActivity implements BarcodeAnalyzer.DetectionCallback, TextOCRAnalyzer.DetectionCallback, ProductRecognitionAnalyzer.DetectionCallback, Tracker.DetectionCallback, EntityBarcodeTracker.DetectionCallback, BarcodeSampleAnalyzer.SampleBarcodeDetectionCallback, OCRAnalyzer.DetectionCallback, ProductRecognitionSampleAnalyzer.SampleDetectionCallback, WareHouseAnalyzer.DetectionCallback, CustomDetectorSample.DetectionCallback {
 
     private ActivityCameraXlivePreviewBinding binding;
     private final String TAG = "CameraXLivePreviewActivityJava";
@@ -109,18 +110,19 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private static final String PRODUCT_RECOGNITION = "Product Recognition";
     private static final String LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition";
     private static final String ENTITY_VIEW_FINDER = "Entity Viewfinder";
+    private static final String CUSTOM_DETECTOR = UIHandler.CUSTOM_DETECTOR;
     private ImageAnalysis analysisUseCase;
     private int imageWidth;
     private int imageHeight;
-    private final ExecutorService executors = Executors.newFixedThreadPool(3);
-    private BarcodeHandler barcodeHandler;
-    private OCRHandler ocrHandler;
-    private ProductRecognitionHandler productRecognitionHandler;
-    private ProductRecognitionSample productRecognitionSample;
-    private Tracker tracker;
-    private EntityBarcodeTracker entityBarcodeTracker;
-    private BarcodeSample barcodeLegacySample;
-    private OCRSample ocrSample;
+    private ExecutorService executors;
+    private volatile BarcodeHandler barcodeHandler;
+    private volatile OCRHandler ocrHandler;
+    private volatile ProductRecognitionHandler productRecognitionHandler;
+    private volatile ProductRecognitionSample productRecognitionSample;
+    private volatile Tracker tracker;
+    private volatile EntityBarcodeTracker entityBarcodeTracker;
+    private volatile BarcodeSample barcodeLegacySample;
+    private volatile OCRSample ocrSample;
     private String selectedModel = BARCODE_DETECTION;
     private String previousSelectedModel = "";
     private static final String STATE_SELECTED_MODEL = "selected_model";
@@ -141,7 +143,8 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     private SharedPreferences sharedPreferences;
     private CameraManager cameraManager;
     private DetectionResultHandler detectionHandler;
-    private WareHouseLocalizerHandler wareHouseLocalizerHandler;
+    private volatile WareHouseLocalizerHandler wareHouseLocalizerHandler;
+    private volatile CustomDetectorSample customDetectorSample;
     private UIHandler uiHandler;
     private BoundingBoxMapper boundingBoxMapper;
     private boolean isModelLoaded = false;
@@ -162,6 +165,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
         binding = ActivityCameraXlivePreviewBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        executors = Executors.newSingleThreadExecutor();
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.camx_main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -280,61 +284,70 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     }
 
     public void stopAnalyzing() {
+        if (analysisUseCase != null) {
+            analysisUseCase.clearAnalyzer();
+        }
         try {
             switch (previousSelectedModel) {
                 case BARCODE_DETECTION:
-                    Log.i(TAG, "Stopping the barcode analyzer");
                     if (barcodeHandler != null && barcodeHandler.getBarcodeAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the barcode analyzer");
                         barcodeHandler.getBarcodeAnalyzer().stopAnalyzing();
                     }
                     break;
                 case TEXT_OCR_DETECTION:
-                    Log.i(TAG, "Stopping the ocr analyzer");
                     if (ocrHandler != null && ocrHandler.getOCRAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the ocr analyzer");
                         ocrHandler.getOCRAnalyzer().stopAnalyzing();
                     }
                     break;
                 case ENTITY_VIEW_FINDER:
-                    Log.i(TAG, "Stopping the entity view tracker analyzer");
                     if (entityBarcodeTracker != null) {
+                        Log.i(TAG, "Stopping the entity view tracker analyzer");
                         entityBarcodeTracker.stopAnalyzing();
                     }
                     break;
                 case ENTITY_ANALYZER:
-                    Log.i(TAG, "Stopping the entity tracker analyzer");
                     if (tracker != null) {
+                        Log.i(TAG, "Stopping the entity tracker analyzer");
                         tracker.stopAnalyzing();
                     }
                     break;
 
                 case PRODUCT_RECOGNITION:
-                    Log.i(TAG, "Stopping the recognition analyzer");
                     if (productRecognitionHandler != null && productRecognitionHandler.getProductRecognitionAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the recognition analyzer");
                         productRecognitionHandler.getProductRecognitionAnalyzer().stopAnalyzing();
                     }
                     break;
                 case LEGACY_BARCODE_DETECTION:
-                    Log.i(TAG, "Stopping the barcode legacy analyzer");
                     if (barcodeLegacySample != null && barcodeLegacySample.getBarcodeAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the barcode legacy analyzer");
                         barcodeLegacySample.getBarcodeAnalyzer().stopAnalyzing();
                     }
                     break;
                 case LEGACY_OCR_DETECTION:
-                    Log.i(TAG, "Stopping the legacy ocr analyzer");
                     if (ocrSample != null && ocrSample.getOCRAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the legacy ocr analyzer");
                         ocrSample.getOCRAnalyzer().stopAnalyzing();
                     }
                     break;
                 case LEGACY_PRODUCT_RECOGNITION:
-                    Log.i(TAG, "Stopping the legacy product recognition analyzer");
                     if (productRecognitionSample != null && productRecognitionSample.getProductRecognitionSampleAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the legacy product recognition analyzer");
                         productRecognitionSample.getProductRecognitionSampleAnalyzer().stopAnalyzing();
                     }
                     break;
-                case WAREHOUSE_LOCALIZER:
-                    Log.i(TAG, "Stopping the warehouse localizer");
+                case PALLET_AND_BOX_LOCALIZER:
                     if (wareHouseLocalizerHandler != null && wareHouseLocalizerHandler.getWareHouseAnalyzer() != null) {
+                        Log.i(TAG, "Stopping the Pallet and Box Localizer");
                         wareHouseLocalizerHandler.getWareHouseAnalyzer().stopAnalyzing();
+                    }
+                    break;
+                case CUSTOM_DETECTOR:
+                    if (customDetectorSample != null) {
+                        Log.i(TAG, "Stopping the Custom Detector");
+                        customDetectorSample.stopAnalyzing();
                     }
                     break;
                 default:
@@ -351,59 +364,66 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         try {
             switch (previousSelectedModel) {
                 case BARCODE_DETECTION:
-                    Log.i(TAG, "Disposing the barcode analyzer");
                     if (barcodeHandler != null) {
+                        Log.i(TAG, "Disposing the barcode analyzer");
                         barcodeHandler.stop();
                     }
                     break;
                 case TEXT_OCR_DETECTION:
-                    Log.i(TAG, "Disposing the ocr analyzer");
                     if (ocrHandler != null) {
+                        Log.i(TAG, "Disposing the ocr analyzer");
                         ocrHandler.stop();
                     }
                     break;
                 case ENTITY_VIEW_FINDER:
-                    Log.i(TAG, "Disposing the entity view tracker analyzer");
                     if (entityBarcodeTracker != null) {
+                        Log.i(TAG, "Disposing the entity view tracker analyzer");
                         entityBarcodeTracker.stop();
                         entityBarcodeTracker = null;
                     }
                     break;
                 case ENTITY_ANALYZER:
-                    Log.i(TAG, "Disposing the entity tracker analyzer");
                     if (tracker != null) {
+                        Log.i(TAG, "Disposing the entity tracker analyzer");
                         tracker.stop();
                     }
                     break;
 
                 case PRODUCT_RECOGNITION:
-                    Log.i(TAG, "Disposing the recognition analyzer");
                     if (productRecognitionHandler != null) {
+                        Log.i(TAG, "Disposing the recognition analyzer");
                         productRecognitionHandler.stop();
                     }
                     break;
                 case LEGACY_BARCODE_DETECTION:
-                    Log.i(TAG, "Disposing the barcode legacy analyzer");
                     if (barcodeLegacySample != null) {
+                        Log.i(TAG, "Disposing the barcode legacy analyzer");
                         barcodeLegacySample.stop();
                     }
                     break;
                 case LEGACY_OCR_DETECTION:
-                    Log.i(TAG, "Disposing the legacy ocr analyzer");
                     if (ocrSample != null) {
+                        Log.i(TAG, "Disposing the legacy ocr analyzer");
                         ocrSample.stop();
                     }
                     break;
                 case LEGACY_PRODUCT_RECOGNITION:
-                    Log.i(TAG, "Disposing the legacy product recognition analyzer");
                     if (productRecognitionSample != null) {
+                        Log.i(TAG, "Disposing the legacy product recognition analyzer");
                         productRecognitionSample.stop();
                     }
                     break;
-                case WAREHOUSE_LOCALIZER:
-                    Log.i(TAG, "Disposing the warehouse localizer");
+                case PALLET_AND_BOX_LOCALIZER:
                     if (wareHouseLocalizerHandler != null) {
+                        Log.i(TAG, "Disposing the Pallet and Box Localizer");
                         wareHouseLocalizerHandler.stop();
+                    }
+                    break;
+                case CUSTOM_DETECTOR:
+                    if (customDetectorSample != null) {
+                        Log.i(TAG, "Disposing the Custom Detector");
+                        customDetectorSample.stop();
+                        customDetectorSample = null;
                     }
                     break;
                 default:
@@ -575,6 +595,37 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         detectionHandler.handleImageCaptureWareHouseResult(entities);
     }
 
+    @Override
+    public void handleCustomDetectionEntities(
+            List<com.zebra.ai.vision.entity.BarcodeEntity> barcodeEntities,
+            List<com.zebra.aisuite_quickstart.java.analyzers.customdetector.ocr.OcrTextEntity> ocrEntities,
+            List<com.zebra.ai.vision.entity.DetectionEntity> yoloEntities,
+            List<com.zebra.ai.vision.entity.DetectionEntity> mobileNetEntities) {
+        detectionHandler.handleCustomDetectionResult(barcodeEntities, ocrEntities, yoloEntities, mobileNetEntities);
+    }
+
+    public void reRegisterCustomDetectors(List<String> selectedIds) {
+        clearGraphicOverlay();
+        showModelLoadingProgress(true);
+
+        final CustomDetectorSample old = customDetectorSample;
+        customDetectorSample = null;
+
+        final int loadGeneration = modelLoadGeneration.incrementAndGet();
+
+        executors.execute(() -> {
+            if (old != null) {
+                analysisUseCase.clearAnalyzer();
+                old.stop();
+            }
+            CustomDetectorSample cds = new CustomDetectorSample(
+                    this, this, analysisUseCase, selectedIds,
+                    success -> handleModelLoadResult(loadGeneration, success));
+            if (loadGeneration != modelLoadGeneration.get()) { cds.stop(); return; }
+            customDetectorSample = cds;
+        });
+    }
+
     public void bindAnalysisUseCase() {
         if (cameraManager.cameraProvider == null) {
             return;
@@ -601,57 +652,98 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             switch (selectedModel) {
                 case BARCODE_DETECTION:
                     Log.i(TAG, "Using Barcode Decoder");
-                    executors.execute(() -> barcodeHandler = new BarcodeHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success)));
+                    executors.execute(() -> {
+                        BarcodeHandler bh = new BarcodeHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
+                        if (loadGeneration != modelLoadGeneration.get()) { bh.stop(); return; }
+                        barcodeHandler = bh;
+                    });
                     break;
                 case TEXT_OCR_DETECTION:
                     Log.i(TAG, "Using Text OCR");
-                    executors.execute(() -> ocrHandler = new OCRHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success)));
+                    executors.execute(() -> {
+                        OCRHandler oh = new OCRHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
+                        if (loadGeneration != modelLoadGeneration.get()) { oh.stop(); return; }
+                        ocrHandler = oh;
+                    });
                     break;
                 case ENTITY_VIEW_FINDER:
                     Log.i(TAG, "Using Entity View Analyzer");
-                    executors.execute(() -> entityBarcodeTracker = new EntityBarcodeTracker(this, this, analysisUseCase, success -> showModelLoadingProgress(false)));
+                    executors.execute(() -> {
+                        EntityBarcodeTracker ebt = new EntityBarcodeTracker(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
+                        if (loadGeneration != modelLoadGeneration.get()) { ebt.stop(); return; }
+                        entityBarcodeTracker = ebt;
+                    });
                     break;
                 case ENTITY_ANALYZER:
                     Log.i(TAG, "Using Entity Analyzer");
                     executors.execute(() -> {
                         try {
-                            tracker = new Tracker(this, this, analysisUseCase, selectedFilterItems, success -> handleModelLoadResult(loadGeneration, success));
+                            Tracker t = new Tracker(this, this, analysisUseCase, selectedFilterItems, success -> handleModelLoadResult(loadGeneration, success));
+                            if (loadGeneration != modelLoadGeneration.get()) { t.stop(); return; }
+                            tracker = t;
                         } catch (Exception e) {
                             showModelLoadingProgress(false);
                             throw new RuntimeException(e);
                         }
                     });
-
                     break;
                 case PRODUCT_RECOGNITION:
                     Log.i(TAG, "Using Product Recognition");
-                    executors.execute(() -> productRecognitionHandler = new ProductRecognitionHandler(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success)));
+                    executors.execute(() -> {
+                        ProductRecognitionHandler prh = new ProductRecognitionHandler(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
+                        if (loadGeneration != modelLoadGeneration.get()) { prh.stop(); return; }
+                        productRecognitionHandler = prh;
+                    });
                     break;
-
                 case LEGACY_BARCODE_DETECTION:
                     Log.i(TAG, "Using Legacy Barcode Detection");
                     executors.execute(() -> {
-                        barcodeLegacySample = new BarcodeSample(this, this, analysisUseCase,
-                                success -> showModelLoadingProgress(false));
+                        BarcodeSample bs = new BarcodeSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
+                        if (loadGeneration != modelLoadGeneration.get()) { bs.stop(); return; }
+                        barcodeLegacySample = bs;
                     });
                     break;
                 case LEGACY_OCR_DETECTION:
                     Log.i(TAG, "Using Legacy Text OCR");
                     executors.execute(() -> {
-                        ocrSample = new OCRSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
+                        OCRSample os = new OCRSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
+                        if (loadGeneration != modelLoadGeneration.get()) { os.stop(); return; }
+                        ocrSample = os;
                     });
                     break;
                 case LEGACY_PRODUCT_RECOGNITION:
                     Log.i(TAG, "Using Legacy Product Recognition");
                     executors.execute(() -> {
-                        productRecognitionSample = new ProductRecognitionSample(this, this, analysisUseCase,
-                                success -> showModelLoadingProgress(false));
+                        ProductRecognitionSample prs = new ProductRecognitionSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
+                        if (loadGeneration != modelLoadGeneration.get()) { prs.stop(); return; }
+                        productRecognitionSample = prs;
                     });
                     break;
-                case WAREHOUSE_LOCALIZER:
-                    Log.i(TAG, "Using WareHouse Localizer");
-                    executors.execute(() -> wareHouseLocalizerHandler = new WareHouseLocalizerHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success)));
+                case PALLET_AND_BOX_LOCALIZER:
+                    Log.i(TAG, "Using Pallet and Box Localizer");
+                    executors.execute(() -> {
+                        WareHouseLocalizerHandler wh = new WareHouseLocalizerHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
+                        if (loadGeneration != modelLoadGeneration.get()) { wh.stop(); return; }
+                        wareHouseLocalizerHandler = wh;
+                    });
                     break;
+                case CUSTOM_DETECTOR: {
+                    Log.i(TAG, "Using Custom Detector");
+                    SharedPreferences customPrefs = getSharedPreferences(CommonUtils.PREFS_NAME_CUSTOM_DETECTOR, MODE_PRIVATE);
+                    List<String> selectedCustomIds = new ArrayList<>();
+                    for (String id : CustomDetectorSample.MODEL_IDS) {
+                        if (customPrefs.getBoolean(id, true)) selectedCustomIds.add(id);
+                    }
+                    final List<String> activeIds = selectedCustomIds;
+                    executors.execute(() -> {
+                        CustomDetectorSample cds = new CustomDetectorSample(
+                                this, this, analysisUseCase, activeIds,
+                                success -> handleModelLoadResult(loadGeneration, success));
+                        if (loadGeneration != modelLoadGeneration.get()) { cds.stop(); return; }
+                        customDetectorSample = cds;
+                    });
+                    break;
+                }
                 default:
                     showModelLoadingProgress(false);
                     throw new IllegalStateException("Invalid model name");
@@ -696,6 +788,11 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         super.onResume();
         Log.v(TAG, "OnResume called");
         isActivityVisible = true;
+        // Recreate executor if it was shut down during onPause
+        if (executors == null || executors.isShutdown()) {
+            executors = Executors.newSingleThreadExecutor();
+            Log.d(TAG, "ExecutorService recreated");
+        }
         clearGraphicOverlay();
         restoreLiveUiState();
 
@@ -720,6 +817,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     }
 
     public void onPause() {
+        Log.v(TAG, "onPause called");
         isActivityVisible = false;
         modelLoadGeneration.incrementAndGet();
         setModelLoaded(false);
@@ -729,13 +827,16 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         cameraManager.unbindAll();
         disposeModels();
         super.onPause();
-        Log.v(TAG, "onPause called");
     }
 
     @Override
     protected void onDestroy() {
         if (displayManager != null && displayListener != null) {
             displayManager.unregisterDisplayListener(displayListener);
+        }
+        // Ensure executor is fully terminated on destroy
+        if (executors != null && !executors.isShutdown()) {
+            executors.shutdownNow();
         }
         super.onDestroy();
     }
@@ -978,11 +1079,12 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                             || TEXT_OCR_DETECTION.equalsIgnoreCase(selectedModel)
                             || PRODUCT_RECOGNITION.equalsIgnoreCase(selectedModel)
                             || ENTITY_ANALYZER.equalsIgnoreCase(selectedModel)
-                            || WAREHOUSE_LOCALIZER.equalsIgnoreCase(selectedModel);
+                            || PALLET_AND_BOX_LOCALIZER.equalsIgnoreCase(selectedModel);
 
             binding.captureLayout.setVisibility(supportsCapture ? View.VISIBLE : View.GONE);
             binding.trackerFilter.setVisibility(
-                    ENTITY_ANALYZER.equalsIgnoreCase(selectedModel) ? View.VISIBLE : View.GONE
+                    (ENTITY_ANALYZER.equalsIgnoreCase(selectedModel) ||
+                     CUSTOM_DETECTOR.equalsIgnoreCase(selectedModel)) ? View.VISIBLE : View.GONE
             );
         });
     }
