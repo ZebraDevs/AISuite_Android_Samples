@@ -5,6 +5,9 @@ package com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.h
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -61,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zebra.ai.barcodefinder.R
 import com.zebra.ai.barcodefinder.application.presentation.enums.ButtonType
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.components.ZebraButton
@@ -117,6 +121,42 @@ fun HomeScreen(
 
     val context = LocalContext.current
     var cameraPermissionDenied by remember { mutableStateOf(false) }
+
+    // Observe unsupported device error
+    val unsupportedDeviceError by homeViewModel.unsupportedDeviceError.collectAsState()
+    if (unsupportedDeviceError) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = {
+                Text(
+                    text = stringResource(id = R.string.unsupported_device_title),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(id = R.string.unsupported_device_error),
+                    fontWeight = FontWeight.Light,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { (context as? Activity)?.finish() }
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.unsupported_device_ok),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp
+                    )
+                }
+            },
+            properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        )
+
+    }
+
 
     // The launcher stays in the Composable, as it's part of the UI layer.
     val permissionLauncher = rememberLauncherForActivityResult(

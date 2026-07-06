@@ -70,7 +70,7 @@ fun AboutScreen(
     }
     val localizerModelVersion = remember {
         try {
-            BuildConfig.BARCODE_LOCALIZER_MODEL_VERSION
+            BuildConfig.BARCODE_DECODER_MODEL_VERSION
         } catch (e: Exception) {
             "?.?.?"
         }

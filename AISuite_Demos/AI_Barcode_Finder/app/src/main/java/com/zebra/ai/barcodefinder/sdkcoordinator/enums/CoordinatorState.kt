@@ -15,6 +15,7 @@ enum class CoordinatorState {
 
     // Error states - each maps to a specific domain error in the UseCase layer
     ERROR_AI_VISION_SDK,
+    ERROR_UNSUPPORTED_DEVICE,
     ERROR_BARCODE_DECODER_SETTINGS,
     ERROR_UNSUPPORTED_PROCESSOR,
     ERROR_BARCODE_DECODER,
@@ -30,6 +31,7 @@ enum class CoordinatorState {
     fun isTerminal(): Boolean = when (this) {
         COORDINATOR_READY,
         ERROR_AI_VISION_SDK,
+        ERROR_UNSUPPORTED_DEVICE,
         ERROR_BARCODE_DECODER_SETTINGS,
         ERROR_UNSUPPORTED_PROCESSOR,
         ERROR_BARCODE_DECODER,

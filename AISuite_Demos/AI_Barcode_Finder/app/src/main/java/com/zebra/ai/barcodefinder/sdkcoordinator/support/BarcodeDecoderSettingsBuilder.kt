@@ -5,7 +5,7 @@ import com.zebra.ai.barcodefinder.sdkcoordinator.model.BarcodeSymbology
 import com.zebra.ai.vision.detector.BarcodeDecoder
 
 class  BarcodeDecoderSettingsBuilder {
-    private val settings = BarcodeDecoder.Settings("barcode-localizer")
+    private val settings = BarcodeDecoder.Settings("barcode-decoder")
 
     // Configure symbologies
     fun configureSymbologies(barcodeSymbology: BarcodeSymbology): BarcodeDecoderSettingsBuilder {
@@ -81,6 +81,12 @@ class  BarcodeDecoderSettingsBuilder {
             dynamicDims.width = inputWidth
             dynamicDims.height = inputHeight
         }
+        return this
+    }
+
+    // Enable or disable the AI-powered barcode detection and decoding pipeline
+    fun configureAIBarcodeDecode(enabled: Boolean): BarcodeDecoderSettingsBuilder {
+        settings.enableAIBarcodeDecode = enabled
         return this
     }
 

@@ -142,7 +142,7 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
 
         // Step 3: Initialize BarcodeDecoder
         if (_coordinatorState.value == CoordinatorState.BARCODE_DECODER_SETTINGS_INITIALIZED) {
-            initializeBarcodeDecoderStep()
+            initializeBarcodeDecoderStep(appSettings)
                 .thenRun {
                     // Step 4: Initialize EntityTracker Step
                     if (_coordinatorState.value == CoordinatorState.BARCODE_DECODER_INITIALIZED) {
@@ -183,13 +183,18 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
             }
             _coordinatorState.value = CoordinatorState.AI_VISION_SDK_INITIALIZED
             Log.d(TAG, "AI Vision SDK initialized successfully")
+        } catch (e: UnsupportedOperationException) {
+            _coordinatorState.value = CoordinatorState.ERROR_UNSUPPORTED_DEVICE
+            Log.e(TAG, "SDK initialization failed: ${e.message}", e)
         } catch (e: Exception) {
             _coordinatorState.value = CoordinatorState.ERROR_AI_VISION_SDK
             Log.e(TAG, "SDK initialization failed: ${e.message}", e)
         }
     }
 
-    private fun initializeBarcodeDecoderSettingsStep(appSettings: AppSettings) {
+    private fun initializeBarcodeDecoderSettingsStep(
+        appSettings: AppSettings
+    ) {
         try {
             barcodeDecoderSettings = BarcodeDecoderSettingsBuilder()
                 .configureSymbologies(appSettings.barcodeSymbology)
@@ -198,15 +203,17 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                     appSettings.modelInput.width,
                     appSettings.modelInput.height
                 )
+                .configureAIBarcodeDecode(appSettings.enableAIBarcodeDecode)
                 .build()
             _coordinatorState.value = CoordinatorState.BARCODE_DECODER_SETTINGS_INITIALIZED
+            Log.d(TAG, "Barcode decoder settings built: enableAIBarcodeDecode=${barcodeDecoderSettings?.enableAIBarcodeDecode}")
         } catch (e: Exception) {
             _coordinatorState.value = CoordinatorState.ERROR_BARCODE_DECODER_SETTINGS
             Log.e(TAG, "Error creating barcode decoder settings: ${e.message}", e)
         }
     }
 
-    private fun initializeBarcodeDecoderStep(): CompletableFuture<BarcodeDecoder> {
+    private fun initializeBarcodeDecoderStep(appSettings: AppSettings): CompletableFuture<BarcodeDecoder> {
         return BarcodeDecoder.getBarcodeDecoder(barcodeDecoderSettings, cameraExecutor)
             .thenApply { decoderInstance ->
                 barcodeDecoder = decoderInstance
@@ -219,7 +226,7 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                 if (rootCause is com.zebra.ai.vision.detector.AIVisionSDKException &&
                     rootCause.message?.contains("Given runtimes are not available") == true
                 ) {
-                    // ToDo: The filtering done to identify the Unsupported runtime is dependant on the SDK Exception message. It makes it unreliable and fragile. A dedicated exception type or error code from the SDK would be much more robust.
+                    // ToDo: Filtering on SDK exception message is fragile — a dedicated exception type or error code from the SDK would be more robust.
                     Log.e(TAG, "Unsupported processor configuration: ${rootCause.message}", e)
                     _coordinatorState.value = CoordinatorState.ERROR_UNSUPPORTED_PROCESSOR
                 } else {

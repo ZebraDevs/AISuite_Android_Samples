@@ -105,6 +105,7 @@ fun SettingsScreen(
     var modelInputSizeExpanded by remember { mutableStateOf(false) }
     var resolutionExpanded by remember { mutableStateOf(false) }
     var inferenceExpanded by remember { mutableStateOf(false) }
+    var inferencerOptionsExpanded by remember { mutableStateOf(false) }
     var feedbackExpanded by remember { mutableStateOf(false) }
     var barcodeSymbologyExpanded by remember { mutableStateOf(false) }
 
@@ -541,6 +542,66 @@ fun SettingsScreen(
                                 selected = settings.processorType == ProcessorType.CPU,
                                 onSelected = {
                                     settingsViewModel.updateProcessorType(ProcessorType.CPU)
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
+                    }
+                }
+            }
+
+            // Inferencer Options Section
+            item {
+                SettingsCard(
+                    title = stringResource(id = R.string.setting_screen_inferencer_options_title),
+                    isExpanded = inferencerOptionsExpanded,
+                    onExpandToggle = { inferencerOptionsExpanded = !inferencerOptionsExpanded }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        val aiDecodeDescription = stringResource(id = R.string.setting_screen_ai_barcode_decode_description)
+                        if (aiDecodeDescription.isNotEmpty()) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    AppDimensions.dimension_10dp,
+                                    Alignment.Start
+                                ),
+                                verticalAlignment = Alignment.Top,
+                                modifier = Modifier
+                                    .background(mainInverse)
+                                    .padding(
+                                        start = AppDimensions.dimension_12dp,
+                                        top = AppDimensions.dimension_16dp,
+                                        end = AppDimensions.dimension_12dp,
+                                        bottom = AppDimensions.dimension_16dp
+                                    )
+                            ) {
+                                Text(
+                                    text = aiDecodeDescription,
+                                    color = textBlack,
+                                    fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                    lineHeight = AppDimensions.BulletLineHeight,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .padding(
+                                    horizontal = AppDimensions.dimension_2dp,
+                                    vertical = AppDimensions.zeroPadding
+                                )
+                                .semantics {
+                                    contentDescription = "SettingsOptionsToggles: Barcode Decoder Options"
+                                },
+                            verticalArrangement = Arrangement.spacedBy(AppDimensions.zeroPadding)
+                        ) {
+                            SwitchOption(
+                                title = stringResource(id = R.string.setting_screen_ai_barcode_decode_title),
+                                subtitle = stringResource(id = R.string.setting_screen_ai_barcode_decode_subtitle),
+                                checked = settings.enableAIBarcodeDecode,
+                                onCheckedChange = {
+                                    settingsViewModel.updateAIBarcodeDecode(it)
                                 }
                             )
                         }

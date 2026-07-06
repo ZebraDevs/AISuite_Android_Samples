@@ -55,8 +55,8 @@ android {
         )
         buildConfigField(
             "String",
-            "BARCODE_LOCALIZER_MODEL_VERSION",
-            "\"${libs.versions.barcodeLocalizer.get()}\""
+            "BARCODE_DECODER_MODEL_VERSION",
+            "\"${libs.versions.barcodeDecoder.get()}\""
         )
 
         val pendoApiKey = System.getenv("aibarcodefinder_pendo_api_key") ?: ""
@@ -65,7 +65,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -122,7 +123,7 @@ dependencies {
     implementation(libs.zebra.ai.vision.sdk) { artifact { type = "aar" } }
 
     //Below dependency is to get Barcode Localizer model for AI Data Capture SDK
-    implementation(libs.barcode.localizer) { artifact { type = "aar" } }
+    implementation(libs.barcode.decoder) { artifact { type = "aar" } }
 
     // Jetpack Compose BOM and dependencies
     implementation(platform(libs.androidx.compose.bom))

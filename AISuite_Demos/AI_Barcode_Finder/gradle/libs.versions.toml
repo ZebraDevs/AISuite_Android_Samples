@@ -11,8 +11,8 @@ appcompat = "1.7.1"
 material = "1.12.0"
 lifecycleLivedataKtx = "2.9.2"
 lifecycleViewmodelKtx = "2.9.2"
-barcodeLocalizer = "5.0.2"
-zebraAIVisionSdk = "3.3.0"
+barcodeDecoder = "5.0.3"
+zebraAIVisionSdk = "4.0.6"
 navigationCompose = "2.9.6"
 uiautomator = "2.3.0"
 composeBom = "2025.08.00"
@@ -45,8 +45,8 @@ camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cam
 camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
 camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCore" }
 camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCore" }
-barcode-localizer = { group = "com.zebra.ai.models", name = "barcode-localizer", version.ref = "barcodeLocalizer" }
-zebra-ai-vision-sdk = { group = "com.zebra.ai.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
+barcode-decoder = { group = "com.zebra.ai.models.vision", name = "barcode-decoder", version.ref = "barcodeDecoder" }
+zebra-ai-vision-sdk = { group = "com.zebra.ai.sdk.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
 
 # Compose BOM and core libraries
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }

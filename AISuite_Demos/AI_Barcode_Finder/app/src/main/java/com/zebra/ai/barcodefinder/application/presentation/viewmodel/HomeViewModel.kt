@@ -41,6 +41,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _settings = MutableStateFlow<AppSettings>(AppSettings() )
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
+    private val _unsupportedDeviceError = MutableStateFlow(false)
+    val unsupportedDeviceError: StateFlow<Boolean> = _unsupportedDeviceError.asStateFlow()
+
     // State to hold whether the camera permission is denied. The homeScreen will observe this.
     var cameraPermissionDenied by mutableStateOf(true)
         private set // Only ViewModel can change this state
@@ -185,6 +188,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isApplyingSettings = false
                     _entityTrackerInitState.update { it.copy(isInitialized = true) }
                     Log.d(TAG, "Entity tracker init state is updated to true")
+                } else if (coordinatorState == CoordinatorState.ERROR_UNSUPPORTED_DEVICE) {
+                    isApplyingSettings = false
+                    _entityTrackerInitState.update { it.copy(isInitialized = false) }
+                    _unsupportedDeviceError.value = true
+                    Log.e(TAG, "SDK requires a Zebra device — showing error dialog")
                 } else if (coordinatorState.isTerminal()) {
                     // Terminal error state: pipeline done (failed), release the guard
                     // so the user can retry. isInitialized stays false.

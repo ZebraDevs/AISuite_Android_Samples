@@ -13,6 +13,7 @@ data class AppSettings(
     val modelInput: ModelInput = ModelInput.SMALL_640, // AI model input size
     val resolution: Resolution = Resolution.TWO_MP,    // Camera resolution
     val processorType: ProcessorType = ProcessorType.AUTO, // Hardware processor type
+    val enableAIBarcodeDecode: Boolean = true, // Enable AI-powered barcode detection and decoding pipeline
     val barcodeSymbology: BarcodeSymbology = BarcodeSymbology(), // Barcode symbology config
     val feedbackType: FeedbackType = FeedbackType()
 ) {
@@ -24,6 +25,7 @@ data class AppSettings(
         return modelInput == other.modelInput &&
                 resolution == other.resolution &&
                 processorType == other.processorType &&
+                enableAIBarcodeDecode == other.enableAIBarcodeDecode &&
                 barcodeSymbology == other.barcodeSymbology &&
                 feedbackType == other.feedbackType
     }

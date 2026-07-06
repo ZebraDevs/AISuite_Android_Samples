@@ -90,6 +90,11 @@
     <string name="home_screen_camera_permission">Camera permission is required for barcode scanning</string>
     <string name="home_screen_auto_toast">Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.</string>
 
+    <!-- UnSupported Device Popup-->
+    <string name="unsupported_device_error">This application is not supported on non-Zebra devices.</string>
+    <string name="unsupported_device_title">Unsupported Device</string>
+    <string name="unsupported_device_ok">OK</string>
+
     <!--NavBarScreen-->
     <string name="navbar_screen_home">Home</string>
     <string name="navbar_screen_configure_demo">Configure Demo</string>
@@ -284,6 +289,13 @@
     <string name="setting_screen_barcode_symbology_description2">Enabling more symbologies may slow down scanning and increase power consumption.&#160;</string>
     <string name="setting_screen_barcode_symbology_description3">Choose the symbologies based on your barcode scanning requirements.&#160;</string>
     <string name="setting_screen_symbology_optimization_info">Different symbology types are optimized for different use cases and industries.</string>
+
+    <!-- Inferencer Options SettingsCard -->
+    <string name="setting_screen_inferencer_options_title">Barcode Decoder Options</string>
+    <string name="setting_screen_ai_barcode_decode_title">Enhanced 1D Barcode Decode</string>
+    <string name="setting_screen_ai_barcode_decode_subtitle">Uses the device\'s AI processor (NPU) to improve scanning performance. Enabling this may slow down other features that also use the AI processor.</string>
+    <string name="setting_screen_ai_barcode_decode_description"></string>
+
     <string name="setting_screen_reset_to_default">Reset to Default Settings </string>
     <string name="setting_screen_auto">Auto-select</string>
     <string name="setting_screen_auto_select_best_available_inference_type">Selects best available option</string>

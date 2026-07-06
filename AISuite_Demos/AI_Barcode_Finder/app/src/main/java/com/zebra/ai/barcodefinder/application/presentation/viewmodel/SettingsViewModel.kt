@@ -108,6 +108,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
+     * Updates the AI barcode decode setting.
+     */
+    fun updateAIBarcodeDecode(enabled: Boolean) {
+        updateDraftSettingsWith { it.copy(enableAIBarcodeDecode = enabled) }
+    }
+
+    /**
      * Updates the barcode symbology and syncs with the AI Vision SDK.
      */
     fun updateBarcodeSymbology(symbology: BarcodeSymbology) {
