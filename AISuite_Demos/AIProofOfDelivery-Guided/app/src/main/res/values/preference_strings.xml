@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources>
+    <string name="category_0">Image Compliance Checks</string>
+    <string name="category_description_0">These settings will be initiated before any image has been captured.</string>
+    <string name="category_1">Captured Image Modifications</string>
+    <string name="category_description_1">These settings will come into effect after an image has been captured.</string>
+    <string name="category_2">Captured Image Blurring</string>
+    <string name="category_description_2">These settings effect the security blurring of the captured image.</string>
+    <string name="category_3">Resolution Settings</string>
+    <string name="category_description_3">These settings modify the image resolutions.</string>
+    <string name="category_4">Model Thresholds</string>
+    <string name="category_description_4">These settings modify the behavior of the detection models.</string>
+    <string name="item_title_0">Reject blurry photos</string>
+    <string name="item_title_1">Ensure package in photo</string>
+    <string name="item_title_2">Verify proper surroundings</string>
+    <string name="item_title_3">Ensure no people present</string>
+    <string name="item_title_4">People blurring enabled</string>
+    <string name="item_title_5">Pets blurring enabled</string>
+    <string name="item_title_6">Text blurring enabled</string>
+    <string name="item_title_7">Barcode blurring enabled</string>
+    <string name="item_title_8">Blurring ratio</string>
+    <string name="item_title_9">Captured image resolution</string>
+    <string name="item_title_10">Saved image resolution</string>
+    <string name="item_title_11">Contains people threshold</string>
+    <string name="item_title_12">Includes package threshold</string>
+    <string name="item_title_13">Includes surroundings threshold</string>
+    <string name="item_title_14">Image quality threshold</string>
+    <string name="choice_default_0">3</string>
+    <string name="choice_0_entry_0">High</string>
+    <string name="choice_0_entry_1">Medium</string>
+    <string name="choice_0_entry_2">Low</string>
+    <string name="choice_default_1">1</string>
+    <string name="choice_1_entry_0">320x240</string>
+    <string name="choice_1_entry_1">640x480</string>
+    <string name="choice_1_entry_2">1280x960</string>
+    <string name="choice_1_entry_3">2560x1920</string>
+    <string name="choice_default_2">1</string>
+    <string name="choice_2_entry_0">320x240</string>
+    <string name="choice_2_entry_1">640x480</string>
+    <string name="choice_2_entry_2">1280x960</string>
+    <string name="choice_2_entry_3">2560x1920</string>
+    <string-array name="choice_0_entries">
+        <item>@string/choice_0_entry_0</item>
+        <item>@string/choice_0_entry_1</item>
+        <item>@string/choice_0_entry_2</item>
+    </string-array>
+    <string-array name="choice_0_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+    <string-array name="choice_1_entries">
+        <item>@string/choice_1_entry_0</item>
+        <item>@string/choice_1_entry_1</item>
+        <item>@string/choice_1_entry_2</item>
+        <item>@string/choice_1_entry_3</item>
+    </string-array>
+    <string-array name="choice_1_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="choice_2_entries">
+        <item>@string/choice_2_entry_0</item>
+        <item>@string/choice_2_entry_1</item>
+        <item>@string/choice_2_entry_2</item>
+        <item>@string/choice_2_entry_3</item>
+    </string-array>
+    <string-array name="choice_2_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+</resources>

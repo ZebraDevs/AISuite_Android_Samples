@@ -1,12 +1,10 @@
-import java.io.FileInputStream
 import java.util.Properties
+import kotlin.apply
 
 val properties = Properties().apply {
-    val localPropertiesFile = rootDir.resolve("local.properties")
-    if (localPropertiesFile.exists()) {
-        load(FileInputStream(localPropertiesFile))
-    }
+    file("local.properties").takeIf { it.exists() }?.reader()?.use(::load)
 }
+
 pluginManagement {
     repositories {
         google {
