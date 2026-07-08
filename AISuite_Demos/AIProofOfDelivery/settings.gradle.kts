@@ -28,8 +28,24 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url =uri("https://zebratech.jfrog.io/artifactory/emc-mvn-ext")
+        exclusiveContent {
+            forRepository {
+                maven {
+                    url = uri("https://software.mobile.pendo.io/artifactory/androidx-release")
+                }
+            }
+            filter {
+                includeGroup("sdk.pendo.io")
+            }
+        }
+        maven{
+            val user =  properties.getProperty("gpr.user") ?: System.getenv("GPR_USERNAME")
+            val token = properties.getProperty("gpr.key") ?: System.getenv("GPR_TOKEN")
+            credentials {
+                username =user
+                password = token
+            }
+            url =uri("https://artifactory-apac.zebra.com/artifactory/emc-mvn-rel")
         }
         flatDir {
             dirs("libs")

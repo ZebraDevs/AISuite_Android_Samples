@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -79,6 +80,12 @@ class MainActivity : ComponentActivity() {
     private fun startApplication() {
         enableEdgeToEdge()
 
+        val pendoApiKey = BuildConfig.PendoApiKey
+        if (pendoApiKey.isNotEmpty()) {
+            Log.d(TAG, "pendoApiKey is NotEmpty")
+            PendoInitializer.init(application, pendoApiKey, true)
+        }
+
         setContent {
             var eulaAccepted by remember { mutableStateOf(viewModel.preferences[PREF_KEY_EULA_ACCEPTED] as Boolean)}
 
@@ -112,5 +119,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }

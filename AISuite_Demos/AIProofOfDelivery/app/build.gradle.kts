@@ -17,8 +17,11 @@ android {
         applicationId = "com.zebra.ai.ppod"
         minSdk = 33
         targetSdk = 36
-        versionCode = 4
-        versionName = "4.0.5"
+        versionCode = 6
+        versionName = "4.1.5"
+
+        val pendoApiKey = System.getenv("aippod_pendo_api_key") ?: ""
+        buildConfigField(type = "String", name = "PendoApiKey", value = "\"$pendoApiKey\"")
     }
 
     buildTypes {
@@ -39,6 +42,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 
@@ -49,6 +53,7 @@ android {
     }
 
     applicationVariants.configureEach {
+        // rename the output APK file
         outputs.configureEach {
             (this as? ApkVariantOutputImpl)?.outputFileName =
                 "${rootProject.name}_${versionName}.apk"
@@ -95,7 +100,10 @@ dependencies {
 
     implementation(libs.zebra.ai.data.capture.sdk) { artifact { type = "aar" } }
     implementation(libs.proof.of.delivery) { artifact { type = "aar" } }
-    implementation(libs.barcode.localizer) { artifact { type = "aar" } }
+    implementation(libs.barcode.decoder) { artifact { type = "aar" } }
     implementation(libs.ocr.recognition) { artifact { type = "aar" } }
     implementation(libs.fcn.resnet.segmentation) { artifact { type = "aar" } }
+
+    // Pendo SDK
+    implementation(libs.pendo.io) { isChanging = true }
 }
