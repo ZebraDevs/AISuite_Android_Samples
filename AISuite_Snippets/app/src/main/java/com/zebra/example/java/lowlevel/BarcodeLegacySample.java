@@ -38,7 +38,7 @@ public class BarcodeLegacySample {
 
     // Executor service for handling asynchronous operations
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private String mavenModelName = "barcode-localizer";
+    private String mavenModelName = "barcode-decoder";
 
     /**
      * Constructor for BarcodeLegacySample.

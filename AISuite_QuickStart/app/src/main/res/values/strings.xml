@@ -3,4 +3,24 @@
     <string name="java_entry_title" translatable="false">Java</string>
     <string name="kotlin_entry_title" translatable="false">Kotlin</string>
     <string name="return_to_preview">Return to Preview</string>
+    <string name="about">About</string>
+    <string name="model_input_size">Model Input Size</string>
+    <string name="resolution">Resolution</string>
+    <string name="resolution_2MP">1920x1080 (2MP)</string>
+    <string name="resolution_4MP">2688x1512 (4MP)</string>
+    <string name="resolution_8MP">3840x2160 (8MP)</string>
+    <string name="resolution_1MP">1280x720 (1MP)</string>
+    <string name="settings">Settings</string>
+    <string name="sdk_version_format">SDK version: %1$s</string>
+    <string name="barcode_decoder_version_format">Barcode Decoder version: %1$s</string>
+    <string name="text_ocr_version_format">Text OCR version: %1$s</string>
+    <string name="module_recognizer_version_format">Module Recognizer version: %1$s</string>
+    <string name="pallet_box_localizer_version_format">Pallet Box and Localizer version: %1$s</string>
+    <string name="model_input_size_arrow_button">Model input size arrow button</string>
+    <string name="input_size_640">640 x 640</string>
+    <string name="input_size_1280">1280 x 1280</string>
+    <string name="input_size_1600">1600 x 1600</string>
+    <string name="input_size_2560">2560 x 2560</string>
+    <string name="resolution_arrow_button">Resolution arrow button</string>
+    <string name="expand_about">Expand About</string>
 </resources>

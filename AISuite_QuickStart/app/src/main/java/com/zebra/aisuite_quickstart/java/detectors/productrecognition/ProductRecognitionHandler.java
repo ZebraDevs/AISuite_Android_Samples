@@ -1,7 +1,10 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.productrecognition;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
@@ -11,6 +14,7 @@ import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.EntityType;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -41,11 +45,10 @@ public class ProductRecognitionHandler {
     private final ProductRecognitionAnalyzer.DetectionCallback callback;
 
     // Model input sizes
-    private static final int LIVE_PREVIEW_SIZE = 640;
     private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
-    String indexFilename = "product.index";
-    String labelsFilename = "product.txt";
+    String productIndexZipFilename = "product_index.zip";
     String toPath;
+    private final SharedPreferences sharedPreferences;
 
     /**
      * Callback interface for model loading completion
@@ -63,9 +66,9 @@ public class ProductRecognitionHandler {
         this.imageAnalysis = imageAnalysis;
         this.executor = Executors.newFixedThreadPool(3);
         this.loadingCallback = loadingCallback;
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
         toPath = context.getFilesDir() + "/";
-        copyFromAssets(indexFilename, toPath);
-        copyFromAssets(labelsFilename, toPath);
+        copyFromAssets(productIndexZipFilename, toPath);
         initializeModuleRecognizer();
         initializeCaptureRecognizer();
     }
@@ -74,10 +77,12 @@ public class ProductRecognitionHandler {
      * Initializes the ModuleRecognizer with product recognition enabled.
      */
     private void initializeModuleRecognizer() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
 
             // Create settings for live preview
-            ModuleRecognizer.Settings liveRecognizerSettings = createRecognizerSettings(LIVE_PREVIEW_SIZE, toPath, indexFilename, labelsFilename);
+            ModuleRecognizer.Settings liveRecognizerSettings = createRecognizerSettings(modelInputSize);
 
             // Call the helper function to create the recognizer
             createModuleRecognizer(liveRecognizerSettings);
@@ -98,7 +103,7 @@ public class ProductRecognitionHandler {
         try {
 
             // Create settings for capture
-            ModuleRecognizer.Settings captureRecognizerSettings = createRecognizerSettings(CAPTURE_SIZE, toPath, indexFilename, labelsFilename);
+            ModuleRecognizer.Settings captureRecognizerSettings = createRecognizerSettings(CAPTURE_SIZE);
             createCaptureRecognizer(captureRecognizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -108,7 +113,7 @@ public class ProductRecognitionHandler {
         }
     }
 
-    private ModuleRecognizer.Settings createRecognizerSettings(int inputSize, String toPath, String indexFilename, String labelsFilename) {
+    private ModuleRecognizer.Settings createRecognizerSettings(int inputSize) {
         // Create settings with base model
         ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
 
@@ -121,12 +126,14 @@ public class ProductRecognitionHandler {
         settings.inferencerOptions.defaultDims.height = inputSize;
         settings.inferencerOptions.defaultDims.width = inputSize;
 
-        // Enable product recognition with the same model and recognition data
-        settings.enableProductRecognitionWithIndex(
-                mavenModelName,
-                toPath + indexFilename,
-                toPath + labelsFilename
-        );
+        // Enable product recognition with cloud index
+        try {
+            settings.enableProductRecognition(mavenModelName,
+                    toPath + productIndexZipFilename);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to enable product recognition with cloud index: " + e.getMessage());
+            throw new RuntimeException("Product recognition setup failed", e);
+        }
 
         BarcodeDecoder.Settings labelBarcodeSettings = new BarcodeDecoder.Settings(barcodeMavenModelName);
         Map<EntityType, BarcodeDecoder.Settings> barcodeSettingsMap = new HashMap<>();

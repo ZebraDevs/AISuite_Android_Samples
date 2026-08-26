@@ -157,12 +157,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
         uiHandler = UIHandler(this, cameraManager, sharedPreferences)
         cameraManager.setUIHandler(uiHandler)
 
-        val selectedSize = cameraManager.getSelectedSize()
-        imageWidth = selectedSize.height
-        imageHeight = selectedSize.width
-
-        boundingBoxMapper.setImageDimensions(imageWidth, imageHeight)
-        boundingBoxMapper.setFrontCamera(cameraManager.isFrontCamera())
+        updateImageDimensionsFromCameraManager()
     }
 
     private fun setupCamera() {
@@ -230,15 +225,8 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
                     cameraManager.updateTargetRotation(newRotation)
                     boundingBoxMapper.setInitialRotation(initialRotation)
 
-                    val selectedSize = cameraManager.getSelectedSize()
-                    if (initialRotation == Surface.ROTATION_0 || initialRotation == Surface.ROTATION_180) {
-                        imageWidth = selectedSize.height
-                        imageHeight = selectedSize.width
-                    } else {
-                        imageWidth = selectedSize.width
-                        imageHeight = selectedSize.height
-                    }
-                    boundingBoxMapper.setImageDimensions(imageWidth, imageHeight)
+                    updateImageDimensionsFromCameraManager()
+
                     Log.i(
                         tag,
                         "Display changed: rotation=$newRotation, imageWidth=$imageWidth, imageHeight=$imageHeight"
@@ -259,6 +247,7 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
 
     private fun bindPreviewUseCase() {
         cameraManager.bindPreviewAndAnalysis(getPreviewSurfaceProvider())
+        updateImageDimensionsFromCameraManager()
     }
 
     fun clearGraphicOverlay() {
@@ -447,18 +436,30 @@ class CameraXLivePreviewActivity : AppCompatActivity(), BarcodeAnalyzer.Detectio
             cameraManager.updateTargetRotation(initialRotation)
             boundingBoxMapper.setInitialRotation(initialRotation)
 
-            val selectedSize = cameraManager.getSelectedSize()
-            if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
-                imageWidth = selectedSize.height
-                imageHeight = selectedSize.width
-            } else {
-                imageWidth = selectedSize.width
-                imageHeight = selectedSize.height
-            }
-            boundingBoxMapper.setImageDimensions(imageWidth, imageHeight)
+            updateImageDimensionsFromCameraManager()
+
             Log.d(tag, "Updated imageWidth=$imageWidth, imageHeight=$imageHeight")
         }
         if (uiHandler.isSpinnerInitialized) bindAllCameraUseCases()
+    }
+
+    fun updateImageDimensionsFromCameraManager() {
+        if (!::cameraManager.isInitialized || !::boundingBoxMapper.isInitialized) return
+
+        val actualAnalysisSize = cameraManager.getSelectedSize()
+
+        if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
+            imageWidth = actualAnalysisSize.height
+            imageHeight = actualAnalysisSize.width
+        } else {
+            imageWidth = actualAnalysisSize.width
+            imageHeight = actualAnalysisSize.height
+        }
+
+        boundingBoxMapper.setImageDimensions(imageWidth, imageHeight)
+        boundingBoxMapper.setFrontCamera(cameraManager.isFrontCamera())
+
+        Log.d(tag, "Updated mapper dimensions from CameraX size=$actualAnalysisSize, imageWidth=$imageWidth, imageHeight=$imageHeight")
     }
 
     fun stopAnalyzing() {

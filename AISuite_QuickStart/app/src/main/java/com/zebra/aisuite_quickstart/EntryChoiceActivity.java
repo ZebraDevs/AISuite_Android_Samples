@@ -10,7 +10,6 @@ import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -64,6 +63,12 @@ public class EntryChoiceActivity extends AppCompatActivity {
         binding = ActivityEntryChoiceBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.entry_main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
         binding.javaEntryPoint.setOnClickListener(v -> {
             Intent mainIntent = new Intent(this, CameraXLivePreviewActivity.class);
             startActivity(mainIntent);
@@ -72,6 +77,11 @@ public class EntryChoiceActivity extends AppCompatActivity {
         binding.kotlinEntryPoint.setOnClickListener(v -> {
             Intent mainIntent = new Intent(this, com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity.class);
             startActivity(mainIntent);
+        });
+
+        binding.settingsButton.setOnClickListener(v -> {
+            Intent settingsIntent = new Intent(this, SettingsActivity.class);
+            startActivity(settingsIntent);
         });
     }
 
@@ -87,7 +97,7 @@ public class EntryChoiceActivity extends AppCompatActivity {
             Log.i(TAG, "AI Vision SDK Init = " + isInitDone);
             // Get the SDK version
             String sdkVersion = AIVisionSDK.getInstance(this.getApplicationContext()).getSDKVersion();
-            binding.sdkVersionText.setText("SDK version: "+sdkVersion);
+            Log.d("Profiling ","SDK Version: " +sdkVersion);
         } catch (UnsupportedOperationException ex) {
             runOnUiThread(() -> showErrorDialog(ex.getMessage()));
         }

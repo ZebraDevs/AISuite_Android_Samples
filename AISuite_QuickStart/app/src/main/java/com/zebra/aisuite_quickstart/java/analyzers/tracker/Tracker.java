@@ -1,7 +1,10 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.analyzers.tracker;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
@@ -19,6 +22,7 @@ import com.zebra.ai.vision.detector.ModuleRecognizer;
 import com.zebra.ai.vision.detector.TextOCR;
 import com.zebra.ai.vision.entity.Entity;
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -132,8 +136,10 @@ public class Tracker {
     private final List<Detector<? extends List<? extends Entity>>> analyzerList = new ArrayList<>();
     private final List<Detector<? extends List<? extends Entity>>> captureAnalyzerList = new ArrayList<>();
     private final ModelLoadingCallback loadingCallback;
+
+    String productIndexZipFilename = "product_index.zip";
+
     // Model input sizes
-    private static final int LIVE_PREVIEW_SIZE = 640;
     private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
     // Capture instances
     private BarcodeDecoder captureBarcodeDecoder;
@@ -142,16 +148,13 @@ public class Tracker {
 
     private boolean captureModelsLoaded = false;
     private boolean modelsLoaded = false;
+    private final SharedPreferences sharedPreferences;
 
     /**
      * Callback interface for model loading completion
      */
     public interface ModelLoadingCallback {
         void onLoadingComplete(boolean success);
-    }
-
-    public interface CaptureTrackerCallback {
-        void onCaptureTrackerReady(boolean modelLoaded);
     }
 
     /**
@@ -167,6 +170,7 @@ public class Tracker {
         this.imageAnalysis = imageAnalysis;
         this.selectedFilterItems = filterItems;
         this.loadingCallback = loadingCallback;
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
 
         if (!selectedFilterItems.isEmpty()) {
             for (String item : selectedFilterItems) {
@@ -197,9 +201,11 @@ public class Tracker {
      * and decoding barcodes from image data.
      */
     public void initializeBarcodeDecoder() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "Barcode Live Preview Model Input Size: " + modelInputSize);
         try {
-            // Initialize live preview decoder with smaller input size
-            BarcodeDecoder.Settings liveDecoderSettings = createBarcodeDecoderSettings(LIVE_PREVIEW_SIZE);
+            // Initialize live preview decoder with selected input size
+            BarcodeDecoder.Settings liveDecoderSettings = createBarcodeDecoderSettings(modelInputSize);
             // Call the helper function to create the decoder
             createBarcodeDecoder(liveDecoderSettings);
 
@@ -242,9 +248,11 @@ public class Tracker {
      * image data.
      */
     private void initializeTextOCR() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "OCR Live Preview Model Input Size: " + modelInputSize);
         try {
-            // Initialize live preview OCR with smaller input size
-            TextOCR.Settings liveOCRSettings = createTextOCRSettings(LIVE_PREVIEW_SIZE);
+            // Initialize live preview OCR with selected input size
+            TextOCR.Settings liveOCRSettings = createTextOCRSettings(modelInputSize);
             // Call the helper function to create the TextOCR instance
             createTextOCR(liveOCRSettings);
 
@@ -282,9 +290,11 @@ public class Tracker {
     }
 
     private void initializeModuleRecognizer() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "MR Live Preview Model Input Size: " + modelInputSize);
         try {
             // Create settings for live preview
-            ModuleRecognizer.Settings liveRecognizerSettings = createModuleRecognizerSettings(LIVE_PREVIEW_SIZE);
+            ModuleRecognizer.Settings liveRecognizerSettings = createModuleRecognizerSettings(modelInputSize);
             // Call the helper function to create the recognizer
             createModuleRecognizer(liveRecognizerSettings);
 
@@ -339,7 +349,6 @@ public class Tracker {
         decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
         decoderSettings.enableAIBarcodeDecode = true;
 
-
         return decoderSettings;
     }
 
@@ -365,11 +374,10 @@ public class Tracker {
      */
     private ModuleRecognizer.Settings createModuleRecognizerSettings(int inputSize) {
         // Copy assets
-        String indexFilename = "product.index";
-        String labelsFilename = "product.txt";
+        String productIndexZipFilename = "product_index.zip";
         String toPath = context.getFilesDir() + "/";
-        copyFromAssets(indexFilename, toPath);
-        copyFromAssets(labelsFilename, toPath);
+        copyFromAssets(productIndexZipFilename, toPath);
+        
         // Create settings with base model
         ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenProductModelName);
 
@@ -378,8 +386,10 @@ public class Tracker {
         settings.inferencerOptions.defaultDims.height = inputSize;
         settings.inferencerOptions.defaultDims.width = inputSize;
 
-        // Enable product recognition with the same model and recognition data
-        settings.enableProductRecognitionWithIndex(mavenProductModelName, toPath + indexFilename, toPath + labelsFilename);
+        // Enable product recognition with cloud index
+        settings.enableProductRecognition(mavenProductModelName,
+                toPath + productIndexZipFilename
+        );
         return settings;
     }
 
@@ -575,7 +585,6 @@ public class Tracker {
      * Differentiates between license errors and other fatal errors,
      * providing appropriate error messages for debugging.
      *
-     * @param component Name of the component that failed to initialize
      * @param e         Exception that occurred during initialization
      */
     private Void handleException(Throwable e) {

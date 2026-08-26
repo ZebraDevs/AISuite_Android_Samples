@@ -5,16 +5,11 @@ import android.graphics.Rect
 import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.AIVisionSDKException
-import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
 import com.zebra.ai.vision.detector.ImageData
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.TextOCR
 import com.zebra.ai.vision.entity.ParagraphEntity
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.future.await
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
@@ -50,7 +45,6 @@ class OCRSample {
      * The OCR system is set up to recognize text within certain dimensions.
      */
     private fun initializeTextOCR() {
-        // Create settings for the text OCR using the apply scope function
         val textOCRSettings = TextOCR.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -66,22 +60,21 @@ class OCRSample {
             }
         }
 
-        // Record the start time for profiling
-        val startTime = System.currentTimeMillis()
+        // Call the helper function to handle initialization
+        createTextOCR(textOCRSettings, System.currentTimeMillis())
 
-        // Use a coroutine scope with the executor's coroutine dispatcher to initialize the OCR
-        CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                // Await the asynchronous creation of the TextOCR instance
-                val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
-                textOCR = ocrInstance
+    }
 
-                Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
-            } catch (e: AIVisionSDKLicenseException) {
-                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
-            }
+    private fun createTextOCR(settings: TextOCR.Settings, startTime: Long) {
+        TextOCR.getTextOCR(settings, executor).thenAccept { ocr ->
+            textOCR = ocr
+            Log.d(
+                TAG,
+                "TextOCR creation time: ${System.currentTimeMillis() - startTime}ms"
+            )
+        }.exceptionally { throwable ->
+            Log.e(TAG, "Fatal error: Text OCR creation failed - ${throwable.message}")
+            null // `exceptionally` requires a return value
         }
     }
 

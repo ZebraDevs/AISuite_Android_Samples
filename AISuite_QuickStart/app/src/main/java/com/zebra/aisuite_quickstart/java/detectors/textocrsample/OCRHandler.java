@@ -1,7 +1,10 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.textocrsample;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
@@ -9,6 +12,7 @@ import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.TextOCR;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,8 +31,8 @@ public class OCRHandler {
     private final ModelLoadingCallback loadingCallback;
 
     // Model input sizes
-    private static final int LIVE_PREVIEW_SIZE = 640;
     private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
+    private final SharedPreferences sharedPreferences;
 
     /**
      * Callback interface for model loading completion
@@ -43,14 +47,17 @@ public class OCRHandler {
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
         this.loadingCallback = loadingCallback;
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
         initializeTextOCR();
         initializeCaptureOCR();
     }
 
     private void initializeTextOCR() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
-            // Initialize live preview OCR with smaller input size
-            TextOCR.Settings liveOCRSettings = createOCRSettings(LIVE_PREVIEW_SIZE);
+            // Initialize live preview OCR with selected input size
+            TextOCR.Settings liveOCRSettings = createOCRSettings(modelInputSize);
             createTextOCR(liveOCRSettings);
         } catch (Exception e) {
             if (loadingCallback != null) {

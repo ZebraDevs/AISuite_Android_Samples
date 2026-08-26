@@ -1,8 +1,10 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.camera;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
-import android.graphics.Bitmap;
+import android.content.SharedPreferences;
 import android.hardware.camera2.CameraMetadata;
 import android.util.Log;
 import android.util.Size;
@@ -11,7 +13,6 @@ import android.view.Display;
 import androidx.annotation.Nullable;
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
-import androidx.camera.core.CameraProvider;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
@@ -36,7 +37,7 @@ public class CameraManager {
 
     private final Context context;
     private final LifecycleOwner lifecycleOwner;
-    private final Size selectedSize = new Size(1920, 1080);
+    private Size selectedSize = new Size(1920, 1080);
 
     @Nullable
     private Camera camera;
@@ -50,15 +51,34 @@ public class CameraManager {
     private UIHandler uiHandler;
     private CameraXLivePreviewActivity activity;
     private ImageCapture imageCapture;
-    private boolean isInCaptureMode = false;
-    private Bitmap currentCapture;
+    private SharedPreferences sharedPreferences;
 
     public CameraManager(CameraXLivePreviewActivity activity, Context context, LifecycleOwner lifecycleOwner) {
         this.context = context;
         this.activity = activity;
         this.lifecycleOwner = lifecycleOwner;
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
+        checkSelectedResolution();
         initializeCameraSelector();
         initializeResolutionSelector();
+    }
+
+    private void checkSelectedResolution() {
+        String resolution = sharedPreferences.getString(CommonUtils.PREF_RESOLUTION, "2MP");
+        switch (resolution) {
+            case "1MP":
+                selectedSize = new Size(1280,720);
+                break;
+            case "2MP":
+                selectedSize = new Size(1920,1080);
+                break;
+            case "4MP":
+                selectedSize = new Size(2688,1512);
+                break;
+            case "8MP":
+                selectedSize = new Size(3840,2160);
+                break;
+        }
     }
 
     private void initializeCameraSelector() {
@@ -125,6 +145,7 @@ public class CameraManager {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(rotation)
                 .build();
+
         if (uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.BARCODE_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.TEXT_OCR_DETECTION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.PRODUCT_RECOGNITION) || uiHandler.getSelectedModel().equalsIgnoreCase(UIHandler.ENTITY_ANALYZER) || uiHandler.getSelectedModel().equalsIgnoreCase(CommonUtils.PALLET_AND_BOX_LOCALIZER)) {
             // Build ImageCapture with ResolutionSelector
             ResolutionSelector imageResolutionSelector = new ResolutionSelector.Builder()
@@ -132,8 +153,7 @@ public class CameraManager {
                             new AspectRatioStrategy(AspectRatio.RATIO_16_9,
                                     AspectRatioStrategy.FALLBACK_RULE_NONE)
                     ).setResolutionStrategy(
-                            new ResolutionStrategy(new Size(4608, 2592),ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
-
+                            new ResolutionStrategy(new Size(4608, 2592), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
                     ).setAllowedResolutionMode(ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE).build();
 
             ImageCapture.Builder imageCaptureBuilder = new ImageCapture.Builder();
@@ -147,7 +167,20 @@ public class CameraManager {
                     previewUseCase, analysisUseCase);
         }
 
-        if(uiHandler.isEntityViewFinder()) activity.getEntityViewController().setCameraController(camera);
+        updateSelectedSizeFromBoundAnalysisUseCase();
+        activity.updateImageDimensionsFromCameraManager();
+
+        if (uiHandler.isEntityViewFinder()) activity.getEntityViewController().setCameraController(camera);
+    }
+
+    private void updateSelectedSizeFromBoundAnalysisUseCase() {
+        if (analysisUseCase != null && analysisUseCase.getResolutionInfo() != null) {
+            Size actualResolution = analysisUseCase.getResolutionInfo().getResolution();
+            selectedSize = actualResolution;
+            Log.d(TAG, "Actual bound ImageAnalysis size: " + actualResolution);
+        } else {
+            Log.w(TAG, "ImageAnalysis resolution info is not available after binding");
+        }
     }
 
     public void unbindAll() {

@@ -10,10 +10,10 @@ appcompat = "1.7.1"
 material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
-zebraAIVisionSdk = "3.1.10"
-barcodeLocalizer = "5.0.2"
-textOcrRecognizer = "2.8.1"
-productAndShelfRecognizer = "3.4.3"
+zebraAIVisionSdk = "4.1.0"
+barcodeDecoder = "5.0.4"
+textOcrRecognizer = "2.9.0"
+productAndShelfRecognizer = "3.4.4"
 kotlin = "2.2.0"
 kotlinxCoroutinesCore = "1.10.2"
 
@@ -32,10 +32,10 @@ camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = 
 camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCore" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesCore" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
-barcode-localizer = { group = "com.zebra.ai.models", name = "barcode-localizer", version.ref = "barcodeLocalizer" }
-text-ocr-recognizer = { group = "com.zebra.ai.models", name = "text-ocr-recognizer", version.ref = "textOcrRecognizer" }
-product-and-shelf-recognizer = { group = "com.zebra.ai.models", name = "product-and-shelf-recognizer", version.ref = "productAndShelfRecognizer" }
-zebra-ai-vision-sdk = { group = "com.zebra.ai.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
+barcode-decoder = { group = "com.zebra.ai.models.vision", name = "barcode-decoder", version.ref = "barcodeDecoder" }
+text-ocr-recognizer = { group = "com.zebra.ai.models.vision", name = "text-ocr-recognizer", version.ref = "textOcrRecognizer" }
+product-and-shelf-recognizer = { group = "com.zebra.ai.models.vision", name = "product-and-shelf-recognizer", version.ref = "productAndShelfRecognizer" }
+zebra-ai-vision-sdk = { group = "com.zebra.ai.sdk.vision", name = "AI-Data-Capture-SDK", version.ref = "zebraAIVisionSdk" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

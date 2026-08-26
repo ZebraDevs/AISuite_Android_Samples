@@ -14,10 +14,10 @@ android {
 
     defaultConfig {
         applicationId = "com.zebra.example"
-        minSdk = 30
+        minSdk = 33
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -61,7 +61,7 @@ dependencies {
     implementation(libs.zebra.ai.vision.sdk) { artifact { type = "aar" } }
 
     //Below dependency is to get Barcode Localizer model for AI Suite SDK
-    implementation(libs.barcode.localizer) { artifact { type = "aar" } }
+    implementation(libs.barcode.decoder) { artifact { type = "aar" } }
 
     //Below dependency is to get OCR model for AI Suite SDK
     implementation(libs.text.ocr.recognizer) { artifact { type = "aar" } }

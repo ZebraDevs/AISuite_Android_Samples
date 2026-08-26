@@ -1,7 +1,10 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
@@ -9,6 +12,7 @@ import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,9 +29,9 @@ public class BarcodeHandler {
     private final ImageAnalysis imageAnalysis;
     private final String mavenModelName = "barcode-decoder";
     private final ModelLoadingCallback loadingCallback;
+    private final SharedPreferences sharedPreferences;
 
     // Model input sizes
-    private static final int LIVE_PREVIEW_SIZE = 640;
     private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
 
     /**
@@ -43,14 +47,17 @@ public class BarcodeHandler {
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
         this.loadingCallback = loadingCallback;
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
         initializeBarcodeDecoder();
         initializeCaptureDecoder();
     }
 
     public void initializeBarcodeDecoder() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG,"Live Preview Model Input Size: "+modelInputSize);
         try {
-            // Initialize live preview decoder with smaller input size
-            BarcodeDecoder.Settings liveDecoderSettings = createDecoderSettings(LIVE_PREVIEW_SIZE);
+            // Initialize live preview decoder with selected input size
+            BarcodeDecoder.Settings liveDecoderSettings = createDecoderSettings(modelInputSize);
             createBarcodeDecoder(liveDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {

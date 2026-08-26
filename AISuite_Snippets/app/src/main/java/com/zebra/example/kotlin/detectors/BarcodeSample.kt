@@ -9,11 +9,7 @@ import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.ImageData
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.entity.BarcodeEntity
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.future.await
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
@@ -34,7 +30,7 @@ class BarcodeSample {
 
     // Executor service for handling asynchronous operations
     private val executor = Executors.newSingleThreadExecutor()
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
 
     /**
      * Initializes the BarcodeSample by setting up the barcode decoder.
@@ -48,38 +44,51 @@ class BarcodeSample {
      * The decoder is set up to detect specific symbologies and dimensions.
      */
     private fun initializeBarcodeDecoder() {
-        // Create settings for the barcode decoder using the apply scope function
-        val decoderSettings = BarcodeDecoder.Settings("barcode-localizer").apply {
-            Symbology.CODE39.enable(true)
-            Symbology.CODE128.enable(true)
+        try {
+            // Create settings for the barcode decoder
+            val decoderSettings = BarcodeDecoder.Settings(mavenModelName)
+
+            // Define runtime processor order
             val rpo = arrayOf(
                 InferencerOptions.DSP,
                 InferencerOptions.CPU,
                 InferencerOptions.GPU
             )
-            detectorSetting.inferencerOptions.apply {
-                runtimeProcessorOrder = rpo
-                defaultDims.height = 640
-                defaultDims.width = 640
-            }
+
+            // Enable specific symbologies for barcode decoding
+            decoderSettings.Symbology.CODE39.enable(true)
+            decoderSettings.Symbology.CODE128.enable(true)
+
+            // Set inferencer options
+            decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
+            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640
+            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640
+            decoderSettings.enableAIBarcodeDecode = true
+            // Call the helper function to handle initialization
+            createBarcodeDecoder(decoderSettings, System.currentTimeMillis())
+        } catch (e: AIVisionSDKLicenseException) {
+            Log.e(
+                TAG,
+                "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}"
+            )
+        } catch (ex: Exception) {
+            Log.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.message)
         }
+    }
 
-        // Record the start time for profiling
-        val startTime = System.currentTimeMillis()
-
-        // Use a coroutine scope with the executor's coroutine dispatcher to initialize the decoder
-        CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                // Await the asynchronous creation of the barcode decoder
-                val decoderInstance = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).await()
-                barcodeDecoder = decoderInstance
-
-                Log.d(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} milli sec")
-            } catch (e: AIVisionSDKLicenseException) {
-                Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
-            }
+    private fun createBarcodeDecoder(
+        settings: BarcodeDecoder.Settings,
+        startTime: Long
+    ) {
+        BarcodeDecoder.getBarcodeDecoder(settings, executor).thenAccept { decoder ->
+            barcodeDecoder = decoder
+            Log.d(
+                TAG,
+                "BarcodeDecoder creation time: ${System.currentTimeMillis() - startTime}ms"
+            )
+        }.exceptionally { throwable ->
+            Log.e(TAG, "Fatal error: Barcode decoder creation failed - ${throwable.message}")
+            null // `exceptionally` requires a return value
         }
     }
 

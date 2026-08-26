@@ -1,7 +1,10 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.viewfinder;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
@@ -10,6 +13,7 @@ import androidx.core.content.ContextCompat;
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -70,6 +74,7 @@ public class EntityBarcodeTracker {
     private final ImageAnalysis imageAnalysis;
     private final String mavenModelName = "barcode-decoder";
     private final ModelLoadingCallback loadingCallback;
+    private final SharedPreferences sharedPreferences;
 
     /**
      * Callback interface for model loading completion
@@ -91,6 +96,7 @@ public class EntityBarcodeTracker {
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
         this.loadingCallback = loadingCallback;
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
         initializeBarcodeDecoder();
     }
 
@@ -100,6 +106,8 @@ public class EntityBarcodeTracker {
      * and decoding barcodes from image data. Notifies the callback when the tracker is ready.
      */
     public void initializeBarcodeDecoder() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
             Integer[] rpo = new Integer[3];
@@ -117,8 +125,8 @@ public class EntityBarcodeTracker {
             decoderSettings.Symbology.I2OF5.enable(true);
 
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640;
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640;
+            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = modelInputSize;
+            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = modelInputSize;
             decoderSettings.enableAIBarcodeDecode = true;
 
             // Call the helper function to create the decoder

@@ -1,6 +1,9 @@
 package com.zebra.aisuite_quickstart.java.detectors.warehouselocalizer;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
@@ -8,6 +11,7 @@ import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.Localizer;
+import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,9 +28,9 @@ public class WareHouseLocalizerHandler {
     private final ImageAnalysis imageAnalysis;
     private final String mavenModelName = "pallet-and-box-localizer";
     private final ModelLoadingCallback loadingCallback;
+    private final SharedPreferences sharedPreferences;
 
     // Model input sizes
-    private static final int LIVE_PREVIEW_SIZE = 640;
     private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
 
     /**
@@ -42,15 +46,17 @@ public class WareHouseLocalizerHandler {
         this.executor = Executors.newSingleThreadExecutor();
         this.imageAnalysis = imageAnalysis;
         this.loadingCallback = loadingCallback;
-
+        this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
         initializeWareHouseLocalizer();
         initializeCaptureLocalizer();
     }
 
     public void initializeWareHouseLocalizer() {
+        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
-            // Initialize live preview localizer with smaller input size
-            Localizer.Settings liveLocalizerSettings = createLocalizerSettings(LIVE_PREVIEW_SIZE);
+            // Initialize live preview localizer with selected input size
+            Localizer.Settings liveLocalizerSettings = createLocalizerSettings(modelInputSize);
             createWareHouseLocalizer(liveLocalizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {

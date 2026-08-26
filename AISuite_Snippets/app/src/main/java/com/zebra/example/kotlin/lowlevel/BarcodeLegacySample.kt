@@ -31,7 +31,7 @@ class BarcodeLegacySample {
 
     // Executor service for handling asynchronous operations
     private val executor = Executors.newSingleThreadExecutor()
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
 
     /**
      * Initializes the BarcodeLegacySample by setting up the localizer and barcode decoder.

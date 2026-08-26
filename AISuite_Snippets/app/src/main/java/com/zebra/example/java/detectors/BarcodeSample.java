@@ -14,6 +14,7 @@ import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.entity.BarcodeEntity;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,7 +32,7 @@ public class BarcodeSample {
 
     // Executor service for asynchronous operations
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private String mavenModelName = "barcode-localizer";
+    private String mavenModelName = "barcode-decoder";
 
     /**
      * Constructor for BarcodeSample.
@@ -49,36 +50,40 @@ public class BarcodeSample {
         try {
             // Create decoder settings
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
-
-            // Define runtime processor order
             Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
             rpo[1] = InferencerOptions.CPU;
             rpo[2] = InferencerOptions.GPU;
 
-            // Enable specific symbologies for barcode decoding
             decoderSettings.Symbology.CODE39.enable(true);
             decoderSettings.Symbology.CODE128.enable(true);
 
-            // Set Inferencer options
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640;
+            decoderSettings.enableAIBarcodeDecode = true;
 
-            // Record the start time for profiling
-            long m_Start = System.currentTimeMillis();
+            // Call the helper function to create the decoder.
+            createBarcodeDecoder(decoderSettings);
 
-            // Get barcode decoder asynchronously and handle result or exception
-            BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
-                barcodeDecoder = decoderInstance;
-                Log.d(TAG, "BarcodeDecoder() obj creation time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
-            }).exceptionally(e -> {
-                Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
-                return null;
-            });
-        } catch (Exception ex) {
+        } catch (AIVisionSDKException ex) {
             Log.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.getMessage());
         }
+    }
+
+    private void createBarcodeDecoder(BarcodeDecoder.Settings decoderSettings) {
+        long m_Start = System.currentTimeMillis();
+        BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
+            barcodeDecoder = decoderInstance;
+            Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+        }).exceptionally(e -> {
+            if (e instanceof AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
+            } else {
+                Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+            }
+            return null;
+        });
     }
 
     /**

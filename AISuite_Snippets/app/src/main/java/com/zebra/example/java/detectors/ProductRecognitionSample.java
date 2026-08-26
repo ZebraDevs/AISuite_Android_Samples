@@ -7,6 +7,9 @@ import android.util.Log;
 
 import androidx.camera.core.ImageProxy;
 
+import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
+import com.zebra.ai.vision.detector.BarcodeDecoder;
+import com.zebra.ai.vision.detector.EntityType;
 import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
@@ -23,7 +26,9 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,6 +42,8 @@ public class ProductRecognitionSample {
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final String mavenModelName = "product-and-shelf-recognizer";
+    private final String productIndexZipFilename = "product_index.zip";
+    private final String barcodeMavenModelName = "barcode-decoder";
 
     /**
      * Constructor for ProductRecognitionSample.
@@ -55,11 +62,8 @@ public class ProductRecognitionSample {
     private void initializeModuleRecognizer() {
         try {
             // Copy assets
-            String indexFilename = "product.index";
-            String labelsFilename = "product.txt";
             String toPath = context.getFilesDir() + "/";
-            copyFromAssets(indexFilename, toPath);
-            copyFromAssets(labelsFilename, toPath);
+            copyFromAssets(productIndexZipFilename, toPath);
 
             // Create settings with base model
             ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
@@ -73,32 +77,45 @@ public class ProductRecognitionSample {
             settings.inferencerOptions.defaultDims.height = 640;
             settings.inferencerOptions.defaultDims.width = 640;
 
-            // Enable product recognition with the same model and recognition data
-            settings.enableProductRecognitionWithIndex(
-                    mavenModelName,
-                    toPath + indexFilename,
-                    toPath + labelsFilename
-            );
+            // Enable product recognition with cloud index
+            try {
+                settings.enableProductRecognition(mavenModelName,
+                        toPath + productIndexZipFilename);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to enable product recognition with cloud index: " + e.getMessage());
+                throw new RuntimeException("Product recognition setup failed", e);
+            }
 
-            // Initialize ModuleRecognizer
-            long startTime = System.currentTimeMillis();
-            ModuleRecognizer.getModuleRecognizer(settings, executor)
-                    .thenAccept(recognizerInstance -> {
-                        long creationTime = System.currentTimeMillis() - startTime;
-                        Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms");
-                        Log.i(TAG, "ModuleRecognizer instance created successfully");
+            BarcodeDecoder.Settings labelBarcodeSettings = new BarcodeDecoder.Settings(barcodeMavenModelName);
+            Map<EntityType, BarcodeDecoder.Settings> barcodeSettingsMap = new HashMap<>();
+            barcodeSettingsMap.put(EntityType.LABEL, labelBarcodeSettings);
+            settings.enableBarcodeRecognition(barcodeSettingsMap);
 
-                        moduleRecognizer = recognizerInstance;
-
-                    })
-                    .exceptionally(throwable -> {
-                        Log.e(TAG, "Failed to initialize ModuleRecognizer: " + throwable.getMessage());
-                        return null;
-                    });
+            // Call the helper function to create the recognizer.
+            createModuleRecognizer(settings);
 
         } catch (Exception e) {
             Log.e(TAG, "Fatal error during initialization: " + e.getMessage());
         }
+    }
+
+    private void createModuleRecognizer(ModuleRecognizer.Settings settings) {
+        long startTime = System.currentTimeMillis();
+        ModuleRecognizer.getModuleRecognizer(settings, executor)
+                .thenAccept(recognizerInstance -> {
+                    long creationTime = System.currentTimeMillis() - startTime;
+                    Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms");
+
+                    moduleRecognizer = recognizerInstance;
+
+                }).exceptionally(e -> {
+                    if (e instanceof AIVisionSDKLicenseException) {
+                        Log.e(TAG, "AIVisionSDKLicenseException: ModuleRecognizer object creation failed, " + e.getMessage());
+                    } else {
+                        Log.e(TAG, "Fatal error: ModuleRecognizer creation failed - " + e.getMessage());
+                    }
+                    return null;
+                });
     }
 
     /**

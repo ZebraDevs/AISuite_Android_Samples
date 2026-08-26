@@ -189,12 +189,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         uiHandler = new UIHandler(this, cameraManager, sharedPreferences);
         cameraManager.setUIHandler(uiHandler);
 
-        // Initialize dimensions
-        Size selectedSize = cameraManager.getSelectedSize();
-        imageWidth = selectedSize.getHeight();
-        imageHeight = selectedSize.getWidth();
-        boundingBoxMapper.setImageDimensions(imageWidth, imageHeight);
-        boundingBoxMapper.setFrontCamera(cameraManager.isFrontCamera());
+        updateImageDimensionsFromCameraManager();
     }
 
     private void setupCamera() {
@@ -758,6 +753,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     private void bindPreviewUseCase() {
         cameraManager.bindPreviewAndAnalysis(getPreviewSurfaceProvider());
+        updateImageDimensionsFromCameraManager();
     }
 
     // Getters for components
@@ -800,18 +796,15 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         if (currentRotation != initialRotation) {
             Log.d(TAG, "Rotation changed during pause, updating initialRotation from " + initialRotation + " to " + currentRotation);
             initialRotation = currentRotation;
-            if (boundingBoxMapper != null) boundingBoxMapper.setInitialRotation(initialRotation);
-            if (cameraManager != null) cameraManager.updateTargetRotation(currentRotation);
-            // check if the device rotation is changes when suspended (0-> 0°, 2 -> 180°)
-            if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
-                imageWidth = selectedSize.getHeight();
-                imageHeight = selectedSize.getWidth();
-            } else {
-                imageWidth = selectedSize.getWidth();
-                imageHeight = selectedSize.getHeight();
+            if (boundingBoxMapper != null) {
+                boundingBoxMapper.setInitialRotation(initialRotation);
             }
-            boundingBoxMapper.setImageDimensions(imageWidth, imageHeight);
-            Log.d(TAG, "Updated imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
+            if (cameraManager != null) cameraManager.updateTargetRotation(currentRotation);
+
+            updateImageDimensionsFromCameraManager();
+
+            Log.i(TAG, "Display changed, updated targetRotation and dimensions: rotation=" + currentRotation
+                    + ", imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
         }
         if (uiHandler.isSpinnerInitialized) bindAllCameraUseCases();
     }
@@ -865,19 +858,37 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                         boundingBoxMapper.setInitialRotation(initialRotation);
                     }
 
-                    if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
-                        imageWidth = selectedSize.getHeight();
-                        imageHeight = selectedSize.getWidth();
-                    } else {
-                        imageWidth = selectedSize.getWidth();
-                        imageHeight = selectedSize.getHeight();
-                    }
-                    boundingBoxMapper.setImageDimensions(imageWidth, imageHeight);
-                    Log.i(TAG, "Display changed, updated targetRotation and dimensions: rotation=" + newRotation + ", imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
+                    updateImageDimensionsFromCameraManager();
+
+                    Log.i(TAG, "Display changed, updated targetRotation and dimensions: rotation=" + newRotation
+                            + ", imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
                 });
             }
         };
         displayManager.registerDisplayListener(displayListener, null);
+    }
+
+    public void updateImageDimensionsFromCameraManager() {
+        if (cameraManager == null || boundingBoxMapper == null) {
+            return;
+        }
+
+        Size actualAnalysisSize = cameraManager.getSelectedSize();
+
+        if (initialRotation == ROTATION_0 || initialRotation == ROTATION_180) {
+            imageWidth = actualAnalysisSize.getHeight();
+            imageHeight = actualAnalysisSize.getWidth();
+        } else {
+            imageWidth = actualAnalysisSize.getWidth();
+            imageHeight = actualAnalysisSize.getHeight();
+        }
+
+        boundingBoxMapper.setImageDimensions(imageWidth, imageHeight);
+        boundingBoxMapper.setFrontCamera(cameraManager.isFrontCamera());
+
+        Log.d(TAG, "Updated mapper dimensions from actual CameraX size: "
+                + actualAnalysisSize + ", imageWidth=" + imageWidth
+                + ", imageHeight=" + imageHeight);
     }
 
     public EntityViewController getEntityViewController() {

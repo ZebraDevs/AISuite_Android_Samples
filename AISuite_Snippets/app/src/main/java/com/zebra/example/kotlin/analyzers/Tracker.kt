@@ -47,7 +47,7 @@ class Tracker(private val context: Context) {
 
     // Executor service for handling asynchronous operations
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val mavenModelName = "barcode-localizer"
+    private val mavenModelName = "barcode-decoder"
     private val mavenOCRModelName = "text-ocr-recognizer"
     private val mavenProductModelName = "product-and-shelf-recognizer"
 
@@ -85,27 +85,33 @@ class Tracker(private val context: Context) {
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640
-
-            // Record the start time for profiling
-            val mStart = System.currentTimeMillis()
-
-            // Asynchronously get the barcode decoder and handle the result or any exceptions
-            BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor)
-                .thenAccept { decoderInstance: BarcodeDecoder? ->
-                    barcodeDecoder = decoderInstance
-                    initializeTracker(listOfNotNull(barcodeDecoder))
-                    Log.d(
-                        TAG,
-                        "BarcodeDecoder() obj creation time = " + (System.currentTimeMillis() - mStart) + " milli sec"
-                    )
-                }.exceptionally { e: Throwable? ->
-                    Log.e(TAG, "Fatal error: decoder creation failed - " + e?.message)
-                    null
-                }
+            decoderSettings.enableAIBarcodeDecode = true
+            // Call the helper function to handle initialization
+            createBarcodeDecoder(decoderSettings, System.currentTimeMillis())
         } catch (e: AIVisionSDKLicenseException) {
-            Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
+            Log.e(
+                TAG,
+                "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}"
+            )
         } catch (ex: Exception) {
             Log.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.message)
+        }
+    }
+
+    private fun createBarcodeDecoder(
+        settings: BarcodeDecoder.Settings,
+        startTime: Long
+    ) {
+        BarcodeDecoder.getBarcodeDecoder(settings, executor).thenAccept { decoder ->
+            barcodeDecoder = decoder
+            initializeTracker(listOfNotNull(barcodeDecoder))
+            Log.d(
+                TAG,
+                "BarcodeDecoder creation time: ${System.currentTimeMillis() - startTime}ms"
+            )
+        }.exceptionally { throwable ->
+            Log.e(TAG, "Fatal error: Barcode decoder creation failed - ${throwable.message}")
+            null // `exceptionally` requires a return value
         }
     }
 
@@ -128,72 +134,83 @@ class Tracker(private val context: Context) {
             }
         }
 
-        val startTime = System.currentTimeMillis()
+        // Call the helper function to handle initialization
+        createTextOCR(textOCRSettings, System.currentTimeMillis())
 
-        CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                val ocrInstance = TextOCR.getTextOCR(textOCRSettings, executor).await()
-                textOCR = ocrInstance
-                Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
-                initializeTracker(listOfNotNull(textOCR))
-            }
-            catch (e: AIVisionSDKLicenseException) {
-                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
-            }
-            catch (e: Exception) {
-                Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
-            }
+    }
+
+    private fun createTextOCR(settings: TextOCR.Settings, startTime: Long) {
+        TextOCR.getTextOCR(settings, executor).thenAccept { ocr ->
+            textOCR = ocr
+            initializeTracker(listOfNotNull(textOCR))
+            Log.d(
+                TAG,
+                "TextOCR creation time: ${System.currentTimeMillis() - startTime}ms"
+            )
+        }.exceptionally { throwable ->
+            Log.e(TAG, "Fatal error: Text OCR creation failed - ${throwable.message}")
+            null // `exceptionally` requires a return value
         }
     }
+
     /**
      * Initialize ModuleRecognizer with product recognition enabled
      */
     private fun initializeModuleRecognizer() {
-        CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                Log.i(TAG, "Initializing ModuleRecognizer")
+        try {
+            Log.i(TAG, "Initializing ModuleRecognizer for Product Recognition")
+            // --- Asset Setup ---
+            val productIndexFilename = "product_index.zip"
+            val toPath = "${context.filesDir}/"
+            copyFromAssets(productIndexFilename, toPath)
 
-                // Copy assets
-                val indexFilename = "product.index"
-                val labelsFilename = "product.txt"
-                val toPath = "${context.filesDir}/"
-                copyFromAssets(indexFilename, toPath)
-                copyFromAssets(labelsFilename, toPath)
+            // --- Settings Configuration ---
+            val settings = ModuleRecognizer.Settings(mavenProductModelName).apply {
+                inferencerOptions.apply {
+                    runtimeProcessorOrder = arrayOf(
+                        InferencerOptions.DSP,
+                        InferencerOptions.CPU,
+                        InferencerOptions.GPU
+                    )
+                    defaultDims.height = 640
+                    defaultDims.width = 640
+                }
 
-                // Create settings with base model (localization)
-                val settings = ModuleRecognizer.Settings(mavenProductModelName)
-
-                // Configure InferencerOptions
-                val rpo = arrayOf(
-                    InferencerOptions.DSP,
-                    InferencerOptions.CPU,
-                    InferencerOptions.GPU
-                )
-                settings.inferencerOptions.runtimeProcessorOrder = rpo
-                settings.inferencerOptions.defaultDims.height = 640
-                settings.inferencerOptions.defaultDims.width = 640
-
-                // Enable product recognition with the same model and recognition data
-                settings.enableProductRecognitionWithIndex(
+                enableProductRecognition(
                     mavenProductModelName,
-                    "$toPath$indexFilename",
-                    "$toPath$labelsFilename"
+                    "$toPath$productIndexFilename"
                 )
+            }
 
-                // Initialize ModuleRecognizer
-                val startTime = System.currentTimeMillis()
-                moduleRecognizer = ModuleRecognizer.getModuleRecognizer(settings, executor).await()
-                val creationTime = System.currentTimeMillis() - startTime
-
-                Log.d(TAG, "ModuleRecognizer Creation Time: ${creationTime}ms")
-                Log.i(TAG, "ModuleRecognizer instance created successfully")
-                initializeTracker(listOfNotNull(moduleRecognizer))
+            // --- Launch Initializer ---
+            createProductRecognizer(settings, System.currentTimeMillis())
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize ModuleRecognizer: ${e.message}")
                 e.printStackTrace()
             }
         }
+
+
+    private fun createProductRecognizer(
+        settings: ModuleRecognizer.Settings,
+        startTime: Long
+    ) {
+        ModuleRecognizer.getModuleRecognizer(settings, executor)
+            .thenAccept { recognizerInstance ->
+                // --- On Success ---
+                Log.i(TAG, "ModuleRecognizer instance created successfully for Product Recognition")
+                moduleRecognizer = recognizerInstance
+                initializeTracker(listOfNotNull(moduleRecognizer))
+                Log.d(
+                    TAG,
+                    "Product Recognition creation time: ${System.currentTimeMillis() - startTime}ms"
+                )
+            }.exceptionally { throwable ->
+                // For all other errors, log as a fatal failure
+                Log.e(TAG, "Failed to create ModuleRecognizer for Product Recognition: ${throwable.message}")
+                null // `exceptionally` requires a return value
+            }
     }
 
     private fun copyFromAssets(filename: String, toPath: String) {

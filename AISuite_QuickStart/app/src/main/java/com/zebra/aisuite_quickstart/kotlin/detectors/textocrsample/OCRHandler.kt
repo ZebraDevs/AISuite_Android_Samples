@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.TextOCR
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -57,10 +58,10 @@ class OCRHandler(
     private val executor = Executors.newSingleThreadExecutor()
     private val captureExecutor = Executors.newSingleThreadExecutor()
     private val mavenModelName = "text-ocr-recognizer"
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     // Model input sizes
     companion object {
-        private const val LIVE_PREVIEW_SIZE = 640
         private const val CAPTURE_SIZE = 1280 // Higher resolution for capture
     }
 
@@ -98,8 +99,10 @@ class OCRHandler(
      * Initializes the live preview TextOCR with smaller input size for real-time processing.
      */
     private fun initializeTextOCR() {
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(tag, " LivePreview Model Input Size: $modelInputSize")
         try {
-            val liveOCRSettings = createOCRSettings(LIVE_PREVIEW_SIZE)
+            val liveOCRSettings = createOCRSettings(modelInputSize)
             CoroutineScope(executor.asCoroutineDispatcher()).launch {
                 createTextOCR(liveOCRSettings)
             }

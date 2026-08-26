@@ -9,6 +9,7 @@ import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -70,6 +71,7 @@ class EntityBarcodeTracker(
     private val executor = Executors.newSingleThreadExecutor()
     private var entityTrackerAnalyzer: EntityTrackerAnalyzer? = null
     private val mavenModelName = "barcode-decoder"
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     init {
         initializeBarcodeDecoder()
@@ -82,6 +84,8 @@ class EntityBarcodeTracker(
      */
     // Assuming 'callback' is a member variable or passed as a parameter to the class
     private fun initializeBarcodeDecoder() {
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(TAG, "Entity ViewFinder LivePreview Model Input Size: $modelInputSize")
         val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -100,8 +104,8 @@ class EntityBarcodeTracker(
 
             detectorSetting.inferencerOptions.apply {
                 runtimeProcessorOrder = rpo
-                defaultDims.height = 640
-                defaultDims.width = 640
+                defaultDims.height = modelInputSize
+                defaultDims.width = modelInputSize
             }
             enableAIBarcodeDecode = true
         }

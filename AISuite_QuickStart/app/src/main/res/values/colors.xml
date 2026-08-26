@@ -5,4 +5,5 @@
     <color name="blue">#4286f4</color>
     <color name="transparent">#00000000</color>
     <color name="black_transparent_50">#80000000</color>
+    <color name="status_bar_color">#007CB0</color>
 </resources>

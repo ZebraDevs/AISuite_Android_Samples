@@ -5,16 +5,14 @@ import android.content.Context
 import android.graphics.Rect
 import android.util.Log
 import androidx.camera.core.ImageProxy
+import com.zebra.ai.vision.detector.BarcodeDecoder
+import com.zebra.ai.vision.detector.EntityType
 import com.zebra.ai.vision.detector.ImageData
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.ModuleRecognizer
 import com.zebra.ai.vision.entity.LabelEntity
 import com.zebra.ai.vision.entity.ProductEntity
 import com.zebra.ai.vision.entity.ShelfEntity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.future.await
-import kotlinx.coroutines.launch
 import java.io.BufferedOutputStream
 import java.io.IOException
 import java.nio.file.Files
@@ -27,6 +25,8 @@ class ProductRecognitionSample(private val context: Context){
     private val executor = Executors.newFixedThreadPool(3)
     private var moduleRecognizer: ModuleRecognizer? = null
     private val mavenModelName = "product-and-shelf-recognizer"
+    private val barcodeMavenModelName = "barcode-decoder"
+    private val productIndexFilename = "product_index.zip"
     /**
      * Initializes the ProductRecognitionSample by setting up the module recognizer models.
      */
@@ -38,50 +38,65 @@ class ProductRecognitionSample(private val context: Context){
      * Initialize ModuleRecognizer with product recognition enabled
      */
     private fun initializeModuleRecognizer() {
-        CoroutineScope(executor.asCoroutineDispatcher()).launch {
-            try {
-                Log.i(TAG, "Initializing ModuleRecognizer")
+        try {
+            Log.i(TAG, "Initializing ModuleRecognizer for Product Recognition")
+            // --- Asset Setup ---
+            val toPath = context.filesDir.absolutePath + "/"
+            copyFromAssets(productIndexFilename, toPath)
 
-                // Copy assets
-                val indexFilename = "product.index"
-                val labelsFilename = "product.txt"
-                val toPath = "${context.filesDir}/"
-                copyFromAssets(indexFilename, toPath)
-                copyFromAssets(labelsFilename, toPath)
+            // --- Settings Configuration ---
+            val settings = ModuleRecognizer.Settings(mavenModelName).apply {
+                inferencerOptions.apply {
+                    runtimeProcessorOrder = arrayOf(
+                        InferencerOptions.DSP,
+                        InferencerOptions.CPU,
+                        InferencerOptions.GPU
+                    )
+                    defaultDims.height = 640
+                    defaultDims.width = 640
+                    val labelBarcodeSettings: BarcodeDecoder.Settings =
+                        BarcodeDecoder.Settings(barcodeMavenModelName)
+                    val barcodeSettingsMap: MutableMap<EntityType?, BarcodeDecoder.Settings?> =
+                        HashMap()
+                    barcodeSettingsMap[EntityType.LABEL] = labelBarcodeSettings
+                    enableBarcodeRecognition(barcodeSettingsMap)
+                }
 
-                // Create settings with base model (localization)
-                val settings = ModuleRecognizer.Settings(mavenModelName)
 
-                // Configure InferencerOptions
-                val rpo = arrayOf(
-                    InferencerOptions.DSP,
-                    InferencerOptions.CPU,
-                    InferencerOptions.GPU
-                )
-                settings.inferencerOptions.runtimeProcessorOrder = rpo
-                settings.inferencerOptions.defaultDims.height = 640
-                settings.inferencerOptions.defaultDims.width = 640
-
-                // Enable product recognition with the same model and recognition data
-                settings.enableProductRecognitionWithIndex(
+                enableProductRecognition(
                     mavenModelName,
-                    "$toPath$indexFilename",
-                    "$toPath$labelsFilename"
+                    "$toPath$productIndexFilename"
                 )
-
-                // Initialize ModuleRecognizer
-                val startTime = System.currentTimeMillis()
-                moduleRecognizer = ModuleRecognizer.getModuleRecognizer(settings, executor).await()
-                val creationTime = System.currentTimeMillis() - startTime
-
-                Log.d(TAG, "ModuleRecognizer Creation Time: ${creationTime}ms")
-                Log.i(TAG, "ModuleRecognizer instance created successfully")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialize ModuleRecognizer: ${e.message}")
-                e.printStackTrace()
             }
+
+            // --- Launch Initializer ---
+            createProductRecognizer(settings, System.currentTimeMillis())
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize ModuleRecognizer: ${e.message}")
+            e.printStackTrace()
         }
+    }
+
+
+    private fun createProductRecognizer(
+        settings: ModuleRecognizer.Settings,
+        startTime: Long
+    ) {
+        ModuleRecognizer.getModuleRecognizer(settings, executor)
+            .thenAccept { recognizerInstance ->
+                // --- On Success ---
+                Log.i(TAG, "ModuleRecognizer instance created successfully for Product Recognition")
+                moduleRecognizer = recognizerInstance
+                Log.d(
+                    TAG,
+                    "Product Recognition creation time: ${System.currentTimeMillis() - startTime}ms"
+                )
+            }.exceptionally { throwable ->
+                // For all other errors, log as a fatal failure
+                Log.e(TAG, "Failed to create ModuleRecognizer for Product Recognition: ${throwable.message}")
+                null // `exceptionally` requires a return value
+            }
     }
     private fun copyFromAssets(filename: String, toPath: String) {
         val bufferSize = 8192

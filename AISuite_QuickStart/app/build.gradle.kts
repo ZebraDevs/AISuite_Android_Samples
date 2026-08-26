@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.zebra.aisuite_quickstart"
-    compileSdk = 35
+    compileSdk = 36
     androidResources {
         noCompress.add("tar")
         noCompress.add("tar.crypt")
@@ -15,10 +15,17 @@ android {
     defaultConfig {
         applicationId = "com.zebra.aisuite_quickstart"
         minSdk = 33
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         val appVersion: String = libs.versions.appVersion.get()
         versionName = appVersion
+
+        buildConfigField("String", "AI_VISION_SDK_VERSION", "\"${libs.versions.zebraAIVisionSdk.get()}\"")
+        buildConfigField("String", "BARCODE_DECODER_VERSION", "\"${libs.versions.barcodeDecoder.get()}\"")
+        buildConfigField("String", "TEXT_OCR_VERSION", "\"${libs.versions.textOcrRecognizer.get()}\"")
+        buildConfigField("String", "MODULE_RECOGNIZER_VERSION", "\"${libs.versions.productAndShelfRecognizer.get()}\"")
+        buildConfigField("String", "PALLET_BOX_LOCALIZER_VERSION", "\"${libs.versions.palletAndBoxLocalizer.get()}\"")
+
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

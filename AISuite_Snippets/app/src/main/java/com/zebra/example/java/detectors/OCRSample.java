@@ -53,39 +53,38 @@ public class OCRSample {
      */
     private void initializeTextOCR() {
         try {
-            // Create TextOCR settings with the specified model name
             TextOCR.Settings textOCRSettings = new TextOCR.Settings(mavenModelName);
 
-            // Define runtime processor order
             Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
             rpo[1] = InferencerOptions.CPU;
             rpo[2] = InferencerOptions.GPU;
 
-            // Apply runtime processor order and default dimensions to detection and recognition settings
             textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = rpo;
             textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
             textOCRSettings.detectionInferencerOptions.defaultDims.height = 640;
             textOCRSettings.detectionInferencerOptions.defaultDims.width = 640;
 
-            // Record the start time for profiling
-            long m_Start = System.currentTimeMillis();
-
-            // Get TextOCR asynchronously and handle the result or any exceptions
-            TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
-                textOCR = OCRInstance;
-                Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
-            }).exceptionally(e -> {
-                if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
-                } else {
-                    Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
-                }
-                return null;
-            });
+            // Call the helper function to create the TextOCR instance.
+            createTextOCR(textOCRSettings);
         } catch (Exception e) {
             Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
+    }
+
+    private void createTextOCR(TextOCR.Settings textOCRSettings) {
+        long m_Start = System.currentTimeMillis();
+        TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
+            textOCR = OCRInstance;
+            Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
+        }).exceptionally(e -> {
+            if (e instanceof AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
+            } else {
+                Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
+            }
+            return null;
+        });
     }
 
     /**

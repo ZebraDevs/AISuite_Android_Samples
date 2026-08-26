@@ -8,6 +8,7 @@ import android.util.Log;
 import androidx.camera.core.ImageAnalysis;
 
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer;
+import com.zebra.ai.vision.detector.AIVisionSDKException;
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.ComplexBBox;
@@ -54,7 +55,7 @@ public class Tracker {
 
     // Executor service for asynchronous operations
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final String mavenModelName = "barcode-localizer";
+    private final String mavenModelName = "barcode-decoder";
     private final String mavenOCRModelName = "text-ocr-recognizer";
     private final String mavenProductModelName = "product-and-shelf-recognizer";
 
@@ -76,41 +77,41 @@ public class Tracker {
         try {
             // Create decoder settings
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
-
-            // Define runtime processor order
             Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
             rpo[1] = InferencerOptions.CPU;
             rpo[2] = InferencerOptions.GPU;
 
-            // Enable specific symbologies for barcode decoding
             decoderSettings.Symbology.CODE39.enable(true);
             decoderSettings.Symbology.CODE128.enable(true);
 
-            // Set Inferencer options
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = 640;
             decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = 640;
+            decoderSettings.enableAIBarcodeDecode = true;
 
-            // Record the start time for profiling
-            long m_Start = System.currentTimeMillis();
+            // Call the helper function to create the decoder
+            createBarcodeDecoder(decoderSettings);
 
-            // Get barcode decoder asynchronously and handle result or exception
-            BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
-                barcodeDecoder = decoderInstance;
-                initializeTracker(List.of(barcodeDecoder));
-                Log.d(TAG, "BarcodeDecoder() obj creation time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
-            }).exceptionally(e -> {
-                if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
-                } else {
-                    Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
-                }
-                return null;
-            });
         } catch (Exception ex) {
             Log.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.getMessage());
         }
+    }
+
+    private void createBarcodeDecoder(BarcodeDecoder.Settings decoderSettings) {
+        long m_Start = System.currentTimeMillis();
+        BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
+            barcodeDecoder = decoderInstance;
+            initializeTracker(List.of(barcodeDecoder));
+            Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+        }).exceptionally(e -> {
+           if (e instanceof AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
+            } else {
+                Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+            }
+            return null;
+        });
     }
 
     /**
@@ -132,22 +133,27 @@ public class Tracker {
             textOCRSettings.detectionInferencerOptions.defaultDims.height = 640;
             textOCRSettings.detectionInferencerOptions.defaultDims.width = 640;
 
-            long m_Start = System.currentTimeMillis();
-            TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
-                textOCR = OCRInstance;
-                initializeTracker(List.of(textOCR));
-                Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
-            }).exceptionally(e -> {
-                if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
-                } else {
-                    Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
-                }
-                return null;
-            });
+            // Call the helper function to create the TextOCR instance
+            createTextOCR(textOCRSettings);
         } catch (Exception e) {
             Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
+    }
+
+    private void createTextOCR(TextOCR.Settings textOCRSettings) {
+        long m_Start = System.currentTimeMillis();
+        TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
+            textOCR = OCRInstance;
+            initializeTracker(List.of(textOCR));
+            Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
+        }).exceptionally(e -> {
+            if (e instanceof AIVisionSDKLicenseException) {
+                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
+            } else {
+                Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
+            }
+            return null;
+        });
     }
 
     /**
@@ -156,11 +162,9 @@ public class Tracker {
     private void initializeModuleRecognizer() {
         try {
             // Copy assets
-            String indexFilename = "product.index";
-            String labelsFilename = "product.txt";
+            String productIndexZipFilename = "product_index.zip";
             String toPath = context.getFilesDir() + "/";
-            copyFromAssets(indexFilename, toPath);
-            copyFromAssets(labelsFilename, toPath);
+            copyFromAssets(productIndexZipFilename, toPath);
 
             // Create settings with base model
             ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenProductModelName);
@@ -174,34 +178,39 @@ public class Tracker {
             settings.inferencerOptions.defaultDims.height = 640;
             settings.inferencerOptions.defaultDims.width = 640;
 
-            // Enable product recognition with the same model and recognition data
-            settings.enableProductRecognitionWithIndex(
-                    mavenProductModelName,
-                    toPath + indexFilename,
-                    toPath + labelsFilename
+            // Enable product recognition with cloud index
+            settings.enableProductRecognition(mavenProductModelName,
+                    toPath + productIndexZipFilename
             );
 
-            // Initialize ModuleRecognizer
-            long startTime = System.currentTimeMillis();
-            ModuleRecognizer.getModuleRecognizer(settings, executor)
-                    .thenAccept(recognizerInstance -> {
-                        long creationTime = System.currentTimeMillis() - startTime;
-                        Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms");
-                        Log.i(TAG, "ModuleRecognizer instance created successfully");
-
-                        moduleRecognizer = recognizerInstance;
-                        initializeTracker(List.of(moduleRecognizer));
-
-                    })
-                    .exceptionally(throwable -> {
-                        Log.e(TAG, "Failed to initialize ModuleRecognizer: " + throwable.getMessage());
-                        return null;
-                    });
+            // Call the helper function to create the recognizer
+            createModuleRecognizer(settings);
 
         } catch (Exception e) {
             Log.e(TAG, "Fatal error during initialization: " + e.getMessage());
         }
     }
+
+    private void createModuleRecognizer(ModuleRecognizer.Settings settings) {
+        long startTime = System.currentTimeMillis();
+        ModuleRecognizer.getModuleRecognizer(settings, executor)
+                .thenAccept(recognizerInstance -> {
+                    long creationTime = System.currentTimeMillis() - startTime;
+                    Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms");
+
+                    moduleRecognizer = recognizerInstance;
+                    // Use EntityTrackerAnalyzer with moduleRecognizer as a Detector
+                    initializeTracker(List.of(moduleRecognizer));
+                }).exceptionally(e -> {
+                    if (e instanceof AIVisionSDKLicenseException) {
+                        Log.e(TAG, "AIVisionSDKLicenseException: ModuleRecognizer object creation failed, " + e.getMessage());
+                    } else {
+                        Log.e(TAG, "Fatal error: ModuleRecognizer creation failed - " + e.getMessage());
+                    }
+                    return null;
+                });
+    }
+
 
     /**
      * Initializes the entity tracker analyzer after loading the barcode decoder model.
@@ -308,6 +317,7 @@ public class Tracker {
             Log.e(TAG, "Error copying from assets: " + e.getMessage());
         }
     }
+
     /**
      * Stops and disposes of the BarcodeDecoder,textOCR releasing any resources held.
      * This method should be called when detectors are no longer needed.

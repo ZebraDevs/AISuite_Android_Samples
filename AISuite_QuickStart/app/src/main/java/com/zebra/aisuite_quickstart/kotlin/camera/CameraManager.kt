@@ -19,6 +19,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
 import com.zebra.aisuite_quickstart.kotlin.handlers.UIHandler
 import com.zebra.aisuite_quickstart.utils.CameraUtil
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 
 /**
  * CameraManager handles all CameraX related operations including initialization,
@@ -34,7 +35,7 @@ class CameraManager(
         private const val TAG = "CameraManager"
     }
 
-    private val selectedSize = Size(1920, 1080)
+    private var selectedSize = Size(1920, 1080)
 
     private var camera: Camera? = null
     private var previewUseCase: Preview? = null
@@ -47,11 +48,22 @@ class CameraManager(
     private lateinit var resolutionSelector: ResolutionSelector
     private var isFrontCamera: Boolean = false
     var imageCapture: ImageCapture? = null
-
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     init {
+        checkSelectedResolution()
         initializeCameraSelector()
         initializeResolutionSelector()
+    }
+
+    private fun checkSelectedResolution() {
+        val resolution: String = sharedPreferences.getString(CommonUtils.PREF_RESOLUTION, "2MP")!!
+        when (resolution) {
+            "1MP" -> selectedSize = Size(1280, 720)
+            "2MP" -> selectedSize = Size(1920, 1080)
+            "4MP" -> selectedSize = Size(2688, 1512)
+            "8MP" -> selectedSize = Size(3840, 2160)
+        }
     }
 
     private fun initializeCameraSelector() {
@@ -117,30 +129,49 @@ class CameraManager(
             .setTargetRotation(rotation)
             .build()
 
-
-        val imageResolutionSelector = ResolutionSelector.Builder()
-            .setAspectRatioStrategy(
-                AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_NONE)
-            ).setResolutionStrategy(
-                ResolutionStrategy(
-                    Size(4608, 2592),
-                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+        if (uiHandler?.selectedModel.equals(UIHandler.BARCODE_DETECTION, ignoreCase = true) || uiHandler?.selectedModel.equals(UIHandler.TEXT_OCR_DETECTION, ignoreCase = true) || uiHandler?.selectedModel.equals(UIHandler.PRODUCT_RECOGNITION, ignoreCase = true) || uiHandler?.selectedModel.equals(UIHandler.ENTITY_ANALYZER, ignoreCase = true) || uiHandler?.selectedModel.equals(CommonUtils.PALLET_AND_BOX_LOCALIZER, ignoreCase = true)
+        ) {
+            val imageResolutionSelector = ResolutionSelector.Builder()
+                .setAspectRatioStrategy(
+                    AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_NONE)
+                ).setResolutionStrategy(
+                    ResolutionStrategy(
+                        Size(4608, 2592),
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                    )
                 )
+                .setAllowedResolutionMode(ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE)
+                .build()
+
+            imageCapture = ImageCapture.Builder()
+                .setResolutionSelector(imageResolutionSelector)
+                .build()
+
+            camera = cameraProvider?.bindToLifecycle(
+                lifecycleOwner, cameraSelector, previewUseCase, analysisUseCase, imageCapture
             )
-            .setAllowedResolutionMode(ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE)
-            .build()
+        } else {
+            camera = cameraProvider?.bindToLifecycle(
+                lifecycleOwner, cameraSelector, previewUseCase, analysisUseCase
+            )
+        }
 
-        imageCapture = ImageCapture.Builder()
-            .setResolutionSelector(imageResolutionSelector)
-            .build()
-
-        camera = cameraProvider?.bindToLifecycle(
-            lifecycleOwner, cameraSelector, previewUseCase, analysisUseCase, imageCapture
-        )
+        updateSelectedSizeFromBoundAnalysisUseCase()
+        activity.updateImageDimensionsFromCameraManager()
 
         if (uiHandler?.isEntityViewFinder == true) activity.entityViewController?.setCameraController(
             camera
         )
+    }
+
+    private fun updateSelectedSizeFromBoundAnalysisUseCase() {
+        val actualResolution = analysisUseCase?.resolutionInfo?.resolution
+        if (actualResolution != null) {
+            selectedSize = actualResolution
+            Log.d(TAG, "Actual bound ImageAnalysis size: $actualResolution")
+        } else {
+            Log.w(TAG, "ImageAnalysis resolution info is not available after binding")
+        }
     }
 
     fun unbindAll() {

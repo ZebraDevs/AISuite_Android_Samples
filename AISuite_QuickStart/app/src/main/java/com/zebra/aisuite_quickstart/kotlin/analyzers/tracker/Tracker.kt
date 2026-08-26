@@ -16,6 +16,7 @@ import com.zebra.ai.vision.detector.ModuleRecognizer
 import com.zebra.ai.vision.detector.TextOCR
 import com.zebra.ai.vision.entity.Entity
 import com.zebra.aisuite_quickstart.filtertracker.FilterDialog
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import java.io.BufferedOutputStream
 import java.io.IOException
 import java.nio.file.Files
@@ -43,7 +44,6 @@ class Tracker(
 
     companion object {
         private const val TAG = "Tracker"
-        private const val LIVE_PREVIEW_SIZE = 640
         private const val CAPTURE_SIZE = 1280 // Higher resolution for capture
     }
 
@@ -70,6 +70,7 @@ class Tracker(
 
     private var modelsLoaded = false
     var captureModelsLoaded = false
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     init {
         if (selectedFilterItems.isNotEmpty()) {
@@ -134,11 +135,9 @@ class Tracker(
      * Creates module recognizer settings with specified input size.
      */
     private fun createModuleRecognizerSettings(inputSize: Int): ModuleRecognizer.Settings {
-        val indexFilename = "product.index"
-        val labelsFilename = "product.txt"
+        val productIndexFilename = "product_index.zip"
         val toPath = "${context.filesDir}/"
-        copyFromAssets(indexFilename, toPath)
-        copyFromAssets(labelsFilename, toPath)
+        copyFromAssets(productIndexFilename, toPath)
 
         return ModuleRecognizer.Settings(mavenProductModelName).apply {
             inferencerOptions.apply {
@@ -146,10 +145,9 @@ class Tracker(
                 defaultDims.height = inputSize
                 defaultDims.width = inputSize
             }
-            enableProductRecognitionWithIndex(
+            enableProductRecognition(
                 mavenProductModelName,
-                "$toPath$indexFilename",
-                "$toPath$labelsFilename"
+                "$toPath$productIndexFilename"
             )
         }
     }
@@ -159,8 +157,10 @@ class Tracker(
     // ========================
 
     fun initializeBarcodeDecoder() {
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(TAG, "Barcode LivePreview Model Input Size: $modelInputSize")
         try {
-            val liveDecoderSettings = createBarcodeDecoderSettings(LIVE_PREVIEW_SIZE)
+            val liveDecoderSettings = createBarcodeDecoderSettings(modelInputSize)
             createBarcodeDecoder(liveDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -185,8 +185,10 @@ class Tracker(
     }
 
     private fun initializeTextOCR() {
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(TAG, "OCR LivePreview Model Input Size: $modelInputSize")
         try {
-            val liveOCRSettings = createTextOCRSettings(LIVE_PREVIEW_SIZE)
+            val liveOCRSettings = createTextOCRSettings(modelInputSize)
             createTextOCR(liveOCRSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
@@ -211,9 +213,11 @@ class Tracker(
     }
 
     fun initializeModuleRecognizer() {
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(TAG, "MR LivePreview Model Input Size: $modelInputSize")
         try {
             Log.i(TAG, "Initializing ModuleRecognizer for Product Recognition")
-            val liveRecognizerSettings = createModuleRecognizerSettings(LIVE_PREVIEW_SIZE)
+            val liveRecognizerSettings = createModuleRecognizerSettings(modelInputSize)
             createModuleRecognizer(liveRecognizerSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)

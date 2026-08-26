@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -55,10 +56,10 @@ class BarcodeHandler(
     private val captureExecutor = Executors.newSingleThreadExecutor()
     var barcodeAnalyzer: BarcodeAnalyzer? = null
     private val mavenModelName = "barcode-decoder"
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     // Model input sizes
     companion object {
-        private const val LIVE_PREVIEW_SIZE = 640
         private const val CAPTURE_SIZE = 1280  // Higher resolution for capture
     }
 
@@ -72,7 +73,9 @@ class BarcodeHandler(
      * Initializes the live preview BarcodeDecoder with 640px input size.
      */
     fun initializeBarcodeDecoder() {
-        val liveDecoderSettings = createDecoderSettings(LIVE_PREVIEW_SIZE)
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(tag, " LivePreview Model Input Size: $modelInputSize")
+        val liveDecoderSettings = createDecoderSettings(modelInputSize)
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
             createBarcodeDecoder(liveDecoderSettings, System.currentTimeMillis())
         }

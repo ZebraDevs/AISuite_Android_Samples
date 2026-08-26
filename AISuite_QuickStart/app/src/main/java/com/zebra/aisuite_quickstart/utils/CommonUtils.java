@@ -17,6 +17,9 @@ public class CommonUtils {
     public static final String PREFS_NAME_KOTLIN ="FilterPreferencesKotlin";
     public static final String PREFS_NAME_CUSTOM_DETECTOR = "CustomDetectorPreferences";
     public static final String PALLET_AND_BOX_LOCALIZER = "Pallet and Box Localizer(Beta)";
+    public static final String SETTINGS_PREFS = "quick_start_settings";
+    public static final String PREF_MODEL_INPUT_SIZE = "model_input_size";
+    public static final String PREF_RESOLUTION = "resolution";
     /**
      * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
      *

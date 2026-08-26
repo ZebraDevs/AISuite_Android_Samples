@@ -9,6 +9,7 @@ import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.EntityType
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.ModuleRecognizer
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
@@ -26,7 +27,6 @@ class ProductRecognitionHandler(
     private val loadingCallback: ((Boolean) -> Unit)? = null
 ) {
     companion object {
-        private const val LIVE_PREVIEW_SIZE = 640
         private const val CAPTURE_SIZE = 1280 // Higher resolution for capture
     }
 
@@ -40,13 +40,12 @@ class ProductRecognitionHandler(
     private val barcodeMavenModelName = "barcode-decoder"
 
     // --- Asset Setup ---
-    val indexFilename = "product.index"
-    val labelsFilename = "product.txt"
+    val productIndexFilename = "product_index.zip"
     val toPath = "${context.filesDir}/"
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     init {
-        copyFromAssets(indexFilename, toPath)
-        copyFromAssets(labelsFilename, toPath)
+        copyFromAssets(productIndexFilename, toPath)
         initializeModuleRecognizer()
         initializeCaptureRecognizer()
     }
@@ -56,16 +55,10 @@ class ProductRecognitionHandler(
      * Creates recognizer settings with specified input size.
      *
      * @param inputSize The input dimension size for the recognizer model.
-     * @param toPath The path where asset files are stored.
-     * @param indexFilename The product index filename.
-     * @param labelsFilename The product labels filename.
      * @return Configured ModuleRecognizer.Settings instance.
      */
     private fun createRecognizerSettings(
-        inputSize: Int,
-        toPath: String,
-        indexFilename: String,
-        labelsFilename: String
+        inputSize: Int
     ): ModuleRecognizer.Settings {
         return ModuleRecognizer.Settings(mavenModelName).apply {
             inferencerOptions.apply {
@@ -84,10 +77,9 @@ class ProductRecognitionHandler(
                 enableBarcodeRecognition(barcodeSettingsMap)
             }
 
-            enableProductRecognitionWithIndex(
+            enableProductRecognition(
                 mavenModelName,
-                "$toPath$indexFilename",
-                "$toPath$labelsFilename"
+                "$toPath$productIndexFilename"
             )
         }
     }
@@ -99,10 +91,11 @@ class ProductRecognitionHandler(
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
             try {
                 Log.i(tag, "Initializing ModuleRecognizer")
-
+                val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+                Log.d(tag, "LivePreview Model Input Size: $modelInputSize")
                 // --- Settings Configuration ---
                 val liveRecognizerSettings = createRecognizerSettings(
-                    LIVE_PREVIEW_SIZE, toPath, indexFilename, labelsFilename
+                    modelInputSize
                 )
 
                 // --- Launch Initializer ---
@@ -128,7 +121,7 @@ class ProductRecognitionHandler(
 
                 // Create settings for capture
                 val captureRecognizerSettings = createRecognizerSettings(
-                    CAPTURE_SIZE, toPath, indexFilename, labelsFilename
+                    CAPTURE_SIZE
                 )
 
                 createCaptureRecognizer(

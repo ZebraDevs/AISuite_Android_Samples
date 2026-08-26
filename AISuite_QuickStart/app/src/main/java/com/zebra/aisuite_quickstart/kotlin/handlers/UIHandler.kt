@@ -39,12 +39,12 @@ class UIHandler(
         private const val TAG = "UIHandler"
 
         // Model constants
-        private const val BARCODE_DETECTION = "Barcode"
+        const val BARCODE_DETECTION = "Barcode"
         private const val LEGACY_BARCODE_DETECTION = "Legacy Barcode"
-        private const val TEXT_OCR_DETECTION = "OCR"
+        const val TEXT_OCR_DETECTION = "OCR"
         private const val LEGACY_OCR_DETECTION = "Legacy OCR"
-        private const val ENTITY_ANALYZER = "Tracker"
-        private const val PRODUCT_RECOGNITION = "Product Recognition"
+        const val ENTITY_ANALYZER = "Tracker"
+        const val PRODUCT_RECOGNITION = "Product Recognition"
         private const val LEGACY_PRODUCT_RECOGNITION = "Legacy Product Recognition"
         private const val ENTITY_VIEW_FINDER = "Entity Viewfinder"
         const val CUSTOM_DETECTOR = "Custom Detector"

@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.Localizer
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
+import com.zebra.aisuite_quickstart.utils.CommonUtils
 import java.util.concurrent.Executors
 
 class WareHouseLocalizerHandler(
@@ -17,7 +18,6 @@ class WareHouseLocalizerHandler(
 ) {
     companion object {
         private const val TAG = "WareHouseLocalizerHandler"
-        private const val LIVE_PREVIEW_SIZE = 640
         private const val CAPTURE_SIZE = 1280 // Higher resolution for capture
     }
 
@@ -27,6 +27,7 @@ class WareHouseLocalizerHandler(
     private val captureExecutor = Executors.newSingleThreadExecutor()
     var wareHouseAnalyzer: WareHouseAnalyzer? = null
     private val mavenModelName = "pallet-and-box-localizer"
+    private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
 
     init {
         initializeWareHouseLocalizer()
@@ -56,8 +57,10 @@ class WareHouseLocalizerHandler(
      * Initializes the live preview WareHouse localizer with smaller input size for real-time processing.
      */
     private fun initializeWareHouseLocalizer() {
+        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
+        Log.d(TAG, " LivePreview Model Input Size: $modelInputSize")
         try {
-            val liveLocalizerSettings = createLocalizerSettings(LIVE_PREVIEW_SIZE)
+            val liveLocalizerSettings = createLocalizerSettings(modelInputSize)
             createWareHouseLocalizer(liveLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
