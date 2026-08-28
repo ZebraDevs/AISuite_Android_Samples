@@ -1,0 +1,40 @@
+package com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums
+
+enum class CoordinatorState {
+    NOT_INITIALIZED,
+    CONFIGURING,
+    AI_VISION_SDK_INITIALIZED,
+    BARCODE_DECODER_SETTINGS_INITIALIZED,
+    BARCODE_DECODER_INITIALIZED,
+    ENTITY_TRACKER_INITIALIZED,
+    CAMERA_PERMISSION_REQUIRED,
+    CAMERA_PERMISSION_RECEIVED,
+    CAMERA_PERMISSION_DENIED,
+    CAMERA_INITIALIZED,
+    COORDINATOR_READY,
+    ERROR,
+    ERROR_AI_VISION_SDK,
+    ERROR_UNSUPPORTED_DEVICE,
+    ERROR_BARCODE_DECODER_SETTINGS,
+    ERROR_UNSUPPORTED_PROCESSOR,
+    ERROR_BARCODE_DECODER,
+    ERROR_ENTITY_TRACKER,
+    ERROR_CAMERA,
+    ERROR_SDK,
+    ERROR_DISPOSE;
+
+    fun isTerminal(): Boolean = when (this) {
+        COORDINATOR_READY -> true
+        ERROR_AI_VISION_SDK -> true
+        ERROR_UNSUPPORTED_DEVICE -> true
+        ERROR_BARCODE_DECODER_SETTINGS -> true
+        ERROR_UNSUPPORTED_PROCESSOR -> true
+        ERROR_BARCODE_DECODER -> true
+        ERROR_ENTITY_TRACKER -> true
+        ERROR_CAMERA -> true
+        ERROR_SDK -> true
+        ERROR_DISPOSE -> true
+        ERROR -> true
+        else -> false
+    }
+}

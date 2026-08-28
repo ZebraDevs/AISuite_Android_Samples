@@ -1,0 +1,55 @@
+package com.zebra.ai.barcodebatchinventory.application.domain.services.barcodeprocessing
+
+import android.util.Log
+import com.zebra.ai.barcodebatchinventory.application.domain.model.BarcodeProcessingResult
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.EntityTrackerCoordinator
+import com.zebra.ai.vision.entity.Entity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+
+/**
+ * Defines the template for a screen-specific barcode processor.
+ *
+ * This abstract class handles the common orchestration logic of subscribing to the entity
+ * stream from the [EntityTrackerCoordinator].
+ *
+ * Subclasses are required to implement the screen-specific logic in [processScreenSpecificLogic],
+ * including the now-optional feedback processing.
+ */
+abstract class BaseBarcodeProcessor(
+    private val entityTrackerCoordinator: EntityTrackerCoordinator
+) {
+
+    /**
+     * Constructs and returns the complete processing flow.
+     * This method acts as the "template method", orchestrating the shared logic and
+     * calling the abstract method for subclass-specific behavior.
+     *
+     * @return A [Flow] of [BarcodeProcessingResult] ready for UI consumption.
+     */
+    private var flowFrameCount = 0L
+
+    fun getProcessingFlow(): Flow<BarcodeProcessingResult> {
+        return entityTrackerCoordinator.observeEntityTrackingResults()
+            .map { entities ->
+                flowFrameCount++
+                Log.i("AppPerfMon", "FlowMap: app=BatchInventory" +
+                        " flow#=$flowFrameCount" +
+                        " inputEntities=${entities.size}" +
+                        " thread=${Thread.currentThread().name}")
+                processScreenSpecificLogic(entities)
+            }
+            .flowOn(Dispatchers.Default)
+    }
+
+    /**
+     * Abstract suspend method to be implemented by subclasses. This method should contain all the
+     * unique processing logic for a specific screen.
+     *
+     * @param entities The list of entities from the vision SDK for the current frame.
+     * @return A [BarcodeProcessingResult] containing the complete UI state for the screen.
+     */
+    protected abstract suspend fun processScreenSpecificLogic(entities: List<Entity>): BarcodeProcessingResult
+}
