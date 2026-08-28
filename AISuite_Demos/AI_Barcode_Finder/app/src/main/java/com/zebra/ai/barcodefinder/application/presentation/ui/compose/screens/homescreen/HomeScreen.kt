@@ -114,7 +114,6 @@ fun HomeScreen(
     val appContext = LocalContext.current
     val inferenceErrorMessage = stringResource(id = R.string.home_screen_inference_error_toast)
 
-    val topBarHeight = HomeScreenUiDefaults.TopBarHeight
     val navBarWidthFraction = HomeScreenUiDefaults.NavBarWidthFraction
     val navBarAnimationDuration = HomeScreenUiDefaults.AnimationDuration
     val scrimAlpha = HomeScreenUiDefaults.ScrimAlpha
@@ -124,6 +123,7 @@ fun HomeScreen(
 
     // Observe unsupported device error
     val unsupportedDeviceError by homeViewModel.unsupportedDeviceError.collectAsState()
+    val errorMessage by homeViewModel.errorMessage.collectAsState()
     if (unsupportedDeviceError) {
         AlertDialog(
             onDismissRequest = {},
@@ -136,7 +136,7 @@ fun HomeScreen(
             },
             text = {
                 Text(
-                    text = stringResource(id = R.string.unsupported_device_error),
+                    text = errorMessage.ifEmpty { stringResource(id = R.string.unsupported_device_error) },
                     fontWeight = FontWeight.Light,
                     fontSize = 14.sp
                 )
@@ -178,7 +178,37 @@ fun HomeScreen(
         }
     }
 
-    Scaffold { paddingValues ->
+    Scaffold(
+        topBar = {
+            if (!cameraPermissionDenied) {
+                TopAppBar(
+                    title = {
+                        ZebraText(
+                            textValue = stringResource(id = R.string.home_screen_content_app_name),
+                            style = AppTextStyles.TitleTextLight,
+                            textColor = AppColors.TextWhite
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                isNavBarVisible = !isNavBarVisible
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Menu",
+                                tint = AppColors.TextWhite
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = headerBackgroundColor
+                    ),
+                )
+            }
+        }
+    ) { paddingValues ->
         if (cameraPermissionDenied) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Text(
@@ -194,31 +224,6 @@ fun HomeScreen(
                 .fillMaxSize()
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    TopAppBar(
-                        title = {
-                            ZebraText(
-                                textValue = stringResource(id = R.string.home_screen_content_app_name),
-                                style = AppTextStyles.TitleTextLight,
-                                textColor = AppColors.TextWhite
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(
-                                onClick = {
-                                    isNavBarVisible = !isNavBarVisible
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu",
-                                    tint = AppColors.TextWhite
-                                )
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = headerBackgroundColor
-                        ),
-                    )
                     // HomeScreen Content always visible
                     Column(
                         modifier = Modifier
@@ -397,7 +402,6 @@ fun HomeScreen(
                     enter = fadeIn(animationSpec = tween(durationMillis = navBarAnimationDuration)),
                     exit = fadeOut(animationSpec = tween(durationMillis = navBarAnimationDuration)),
                     modifier = Modifier
-                        .padding(top = topBarHeight)
                         .align(Alignment.TopStart)
                 ) {
                     Box(
@@ -422,7 +426,6 @@ fun HomeScreen(
                         animationSpec = tween(durationMillis = navBarAnimationDuration)
                     ),
                     modifier = Modifier
-                        .padding(top = topBarHeight)
                         .align(Alignment.TopStart)
                 ) {
                     Box(

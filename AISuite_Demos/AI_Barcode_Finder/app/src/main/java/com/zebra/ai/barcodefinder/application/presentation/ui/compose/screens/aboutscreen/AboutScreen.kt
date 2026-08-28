@@ -22,6 +22,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -84,29 +86,28 @@ fun AboutScreen(
             .fillMaxSize()
             .background(white)
     ) {
-        // Header with back arrow and title
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(darkBackground)
-                .padding(horizontal = AppDimensions.zeroPadding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    modifier = Modifier.semantics{contentDescription = "OnScreenBackNavigation"},
-                    contentDescription = null,
-                    tint = white
+        TopAppBar(
+            title = {
+                ZebraText(
+                    textValue = BuildConfig.APP_NAME,
+                    style = AppTextStyles.TitleTextLight,
+                    textColor = AppColors.TextWhite
                 )
-            }
-            //Spacer(modifier = Modifier.width(8.dp))
-            ZebraText(
-                textValue = BuildConfig.APP_NAME,
-                style = AppTextStyles.TitleTextLight,
-                textColor = AppColors.TextWhite
+            },
+            navigationIcon = {
+                IconButton(onClick = onMenuClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        modifier = Modifier.semantics { contentDescription = "OnScreenBackNavigation" },
+                        contentDescription = null,
+                        tint = white
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = darkBackground
             )
-        }
+        )
 
         // Increased vertical spacing between title bar and About section
         Spacer(modifier = Modifier.height(AppDimensions.spacerHeight12))

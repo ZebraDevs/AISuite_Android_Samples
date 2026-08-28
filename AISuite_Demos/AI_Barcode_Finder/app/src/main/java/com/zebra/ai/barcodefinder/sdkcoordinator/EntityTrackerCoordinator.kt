@@ -83,6 +83,10 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
     private val _coordinatorState = MutableStateFlow(CoordinatorState.NOT_INITIALIZED)
     val coordinatorState: StateFlow<CoordinatorState> = _coordinatorState.asStateFlow()
 
+    // Error message for unsupported device and other critical errors
+    private val _errorMessage = MutableStateFlow("")
+    val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
+
     // SharedFlow for entity tracking results (observed by UI)
     private val _entityTrackingResults = MutableSharedFlow<List<Entity>>(replay = 1)
     private val entityTrackingResults: SharedFlow<List<Entity>> = _entityTrackingResults
@@ -182,12 +186,15 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                 throw SDKInitializationException("Failed to initialize AI Vision SDK")
             }
             _coordinatorState.value = CoordinatorState.AI_VISION_SDK_INITIALIZED
+            _errorMessage.value = ""
             Log.d(TAG, "AI Vision SDK initialized successfully")
         } catch (e: UnsupportedOperationException) {
             _coordinatorState.value = CoordinatorState.ERROR_UNSUPPORTED_DEVICE
+            _errorMessage.value = e.message ?: "Device is not supported"
             Log.e(TAG, "SDK initialization failed: ${e.message}", e)
         } catch (e: Exception) {
             _coordinatorState.value = CoordinatorState.ERROR_AI_VISION_SDK
+            _errorMessage.value = e.message ?: "Failed to initialize SDK"
             Log.e(TAG, "SDK initialization failed: ${e.message}", e)
         }
     }
