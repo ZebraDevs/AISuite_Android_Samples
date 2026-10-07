@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.simpleocrsample;
 
 import android.graphics.Bitmap;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
@@ -88,11 +88,11 @@ public class OCRAnalyzer implements ImageAnalysis.Analyzer {
             return;
         }
 
-        isAnalyzing = false; // Set to false to prevent re-entry
+        isAnalyzing = false; // Set false to prevent re-entry
 
         Future<?> future = executorService.submit(() -> {
             try {
-                Log.d(TAG, "Starting image analysis");
+                AppLog.v(TAG, "Starting image analysis");
                 Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
 
                 CompletableFuture<Word[]> futureTextWords = textOCR.detectWords(bitmap, executorService);
@@ -102,13 +102,13 @@ public class OCRAnalyzer implements ImageAnalysis.Analyzer {
                     isAnalyzing = true;
                     image.close();
                 }).exceptionally(ex -> {
-                    Log.e(TAG, "In non-enable grouping Exception occurred: " + ex.getMessage());
+                    AppLog.e(TAG, "In non-enable grouping Exception occurred: " + ex.getMessage());
                     isAnalyzing = true;
                     image.close();
                     return null;
                 });
             } catch (InvalidInputException e) {
-                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+                AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
                 isAnalyzing = true;
                 image.close();
             }

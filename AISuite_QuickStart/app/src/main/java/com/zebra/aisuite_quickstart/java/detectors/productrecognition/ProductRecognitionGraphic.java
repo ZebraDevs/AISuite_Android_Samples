@@ -5,8 +5,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.util.Log;
-
 
 import com.zebra.aisuite_quickstart.GraphicOverlay;
 
@@ -175,7 +173,7 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
         for (int i = 0; i < barcodeBBoxes.size(); i++) {
             Rect rect = barcodeBBoxes.get(i);
             canvas.drawRect(rect, barPaint);
-            if (barcodeTexts != null && i < barcodeTexts.size()) {
+            if (i < barcodeTexts.size()) {
                 getTextSizeWithinBounds(barcodeTexts.get(i), rect.left, rect.top, rect.right, rect.bottom, contentTextPaint);
                 canvas.drawText(barcodeTexts.get(i), rect.left, rect.bottom, contentTextPaint);
             }
@@ -207,7 +205,5 @@ public class ProductRecognitionGraphic extends GraphicOverlay.Graphic {
             paint.setTextSize(textSize);
             paint.getTextBounds(text, 0, text.length(), textBounds);
         }
-
-        Log.v("Text and size", text + " " + textSize);
     }
 }

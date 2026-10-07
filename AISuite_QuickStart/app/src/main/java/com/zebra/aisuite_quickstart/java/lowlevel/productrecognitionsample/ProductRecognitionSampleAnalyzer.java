@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
 
 import android.graphics.Bitmap;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
@@ -93,14 +93,14 @@ public class ProductRecognitionSampleAnalyzer implements ImageAnalysis.Analyzer{
 
         Future<?> future = executorService.submit(() -> {
             try {
-                Log.d(TAG, "Starting image analysis");
+                AppLog.v(TAG, "Starting image analysis");
                 Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
                 CompletableFuture<BBox[]> futureResultBBox = localizer.detect(bitmap, executorService);
 
                 futureResultBBox.thenCompose(bBoxes -> {
                     detections = bBoxes;
                     products = Arrays.stream(bBoxes).filter(x -> x.cls == 1).toArray(BBox[]::new);
-                    Log.d(TAG, "Products size =" + products.length + " detections " + detections.length);
+                    AppLog.d(TAG, "Products size =" + products.length + " detections " + detections.length);
 
                     if (detections != null && detections.length > 0) {
                         try {
@@ -123,20 +123,20 @@ public class ProductRecognitionSampleAnalyzer implements ImageAnalysis.Analyzer{
                     }
                 }).thenAccept(recognitions -> {
                     if (recognitions != null) {
-                        Log.d(TAG, "Products recognitions " + recognitions.length);
+                        AppLog.d(TAG, "Products recognitions " + recognitions.length);
                         if (!isStopped) callback.onDetectionRecognitionResult(detections, products, recognitions);
                     }
                     image.close();
                     isAnalyzing = true;
                 }).exceptionally(ex -> {
-                    Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                    AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
                     image.close();
                     isAnalyzing = true;
                     return null;
                 });
 
             } catch (AIVisionSDKException e) {
-                Log.e(TAG, "Exception occurred: " + e.getMessage());
+                AppLog.e(TAG, "Exception occurred: " + e.getMessage());
                 image.close();
                 isAnalyzing = true;
             }
@@ -154,7 +154,7 @@ public class ProductRecognitionSampleAnalyzer implements ImageAnalysis.Analyzer{
      */
 
     public void stopAnalyzing() {
-        Log.d(TAG, "stopAnalyzing() called. Shutting down executor.");
+        AppLog.i(TAG, "stopAnalyzing() called. Shutting down executor.");
         isStopped = true;
         executorService.shutdownNow(); // Attempt to cancel ongoing tasks
     }

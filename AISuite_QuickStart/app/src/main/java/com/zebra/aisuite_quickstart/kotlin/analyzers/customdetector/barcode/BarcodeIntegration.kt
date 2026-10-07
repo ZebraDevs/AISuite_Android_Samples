@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.barcode
 
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.InferencerOptions
 import java.util.concurrent.ExecutorService
@@ -21,7 +21,7 @@ object BarcodeIntegration {
     private const val MODEL_NAME = "barcode-decoder"
 
     fun create(executor: ExecutorService): BarcodeDecoder {
-        Log.d(TAG, "Initializing BarcodeDecoder…")
+        AppLog.d(TAG, "Initializing BarcodeDecoder…")
 
         // Step 1: Initialize
         val settings = BarcodeDecoder.Settings(MODEL_NAME).apply {
@@ -49,13 +49,13 @@ object BarcodeIntegration {
             enableAIBarcodeDecode = true
         }
 
-        Log.d(TAG, "BarcodeDecoder settings — enableAIBarcodeDecode=true" +
+        AppLog.d(TAG, "BarcodeDecoder settings — enableAIBarcodeDecode=true" +
                 " dims=640x640" +
                 " symbologies=[CODE39, CODE93, CODE128, CODABAR, EAN8, EAN13, UPCA, UPCE0, I2OF5, QRCODE, DATAMATRIX, PDF417]" +
                 " rpo=[DSP, CPU, GPU]")
 
         val decoder = BarcodeDecoder.getBarcodeDecoder(settings, executor).get()
-        Log.d(TAG, "BarcodeDecoder ready")
+        AppLog.d(TAG, "BarcodeDecoder ready")
         return decoder
     }
 }

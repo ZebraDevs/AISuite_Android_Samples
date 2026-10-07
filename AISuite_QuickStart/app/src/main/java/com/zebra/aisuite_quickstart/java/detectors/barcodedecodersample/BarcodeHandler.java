@@ -5,13 +5,13 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
 
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.util.concurrent.ExecutorService;
@@ -54,7 +54,6 @@ public class BarcodeHandler {
 
     public void initializeBarcodeDecoder() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG,"Live Preview Model Input Size: "+modelInputSize);
         try {
             // Initialize live preview decoder with selected input size
             BarcodeDecoder.Settings liveDecoderSettings = createDecoderSettings(modelInputSize);
@@ -63,7 +62,7 @@ public class BarcodeHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.getMessage());
+            AppLog.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.getMessage());
         }
     }
 
@@ -78,7 +77,7 @@ public class BarcodeHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture decoder initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture decoder initialization failed: " + ex.getMessage());
         }
     }
 
@@ -119,12 +118,12 @@ public class BarcodeHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+            AppLog.e(TAG, "BarcodeDecoder model loading failed - " + e.getMessage());
             return null;
         });
     }
@@ -139,12 +138,12 @@ public class BarcodeHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Capture BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "Capture BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture decoder creation failed: " + e.getMessage());
+            AppLog.e(TAG, "Capture BarcodeDecoder model loading failed: " + e.getMessage());
             return null;
         });
     }
@@ -157,12 +156,12 @@ public class BarcodeHandler {
         captureExecutor.shutdownNow();
         if (barcodeDecoder != null) {
             barcodeDecoder.dispose();
-            Log.d(TAG, "Live preview barcode decoder disposed");
+            AppLog.i(TAG, "Live preview barcode decoder disposed");
             barcodeDecoder = null;
         }
         if (captureDecoder != null) {
             captureDecoder.dispose();
-            Log.d(TAG, "Capture barcode decoder disposed");
+            AppLog.i(TAG, "Capture barcode decoder disposed");
             captureDecoder = null;
         }
     }

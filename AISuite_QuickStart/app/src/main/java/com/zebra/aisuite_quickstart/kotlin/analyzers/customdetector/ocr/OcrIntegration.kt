@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.ocr
 
 import android.graphics.Bitmap
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -22,7 +22,7 @@ object OcrIntegration {
     private const val TAG = "OcrIntegration"
 
     fun create(): CustomDetector<OcrTextEntity> {
-        Log.d(TAG, "Initializing ML Kit OCR…")
+        AppLog.d(TAG, "Initializing ML Kit OCR…")
 
         // Step 1: Initialize
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -37,11 +37,11 @@ object OcrIntegration {
                 val box = block.boundingBox ?: return@mapNotNull null
                 OcrTextEntity(box, block.cornerPoints?.toList() ?: emptyList(), block.text)
             }
-            Log.v(TAG, "  ML Kit OCR: ${entities.size} text block(s)")
+            AppLog.v(TAG, "  ML Kit OCR: ${entities.size} text block(s)")
             entities
         }
 
-        Log.d(TAG, "ML Kit OCR detector ready")
+        AppLog.d(TAG, "ML Kit OCR detector ready")
         return detector
     }
 }

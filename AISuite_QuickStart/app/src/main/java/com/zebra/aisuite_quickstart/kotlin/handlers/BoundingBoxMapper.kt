@@ -7,7 +7,7 @@ import android.content.res.Configuration
 import android.graphics.Rect
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import android.view.WindowManager
 import com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity
 
@@ -59,7 +59,6 @@ class BoundingBoxMapper(
         val currentRotation = display.rotation
 
         val relativeRotation = ((currentRotation - initialRotation + 4) % 4)
-        Log.d(TAG, "current rotation: $currentRotation, initial rotation: $initialRotation, relative: $relativeRotation")
 
         val overlayWidth = activity.binding.previewView.width
         val overlayHeight = activity.binding.previewView.height
@@ -81,7 +80,6 @@ class BoundingBoxMapper(
                 effectiveImageHeight = imageWidth
             }
         }
-        Log.d(TAG, "overlay width: $overlayWidth, height: $overlayHeight, effective width: $effectiveImageWidth, height: $effectiveImageHeight")
 
         val scaleX = overlayWidth.toFloat() / effectiveImageWidth
         val scaleY = overlayHeight.toFloat() / effectiveImageHeight
@@ -128,7 +126,7 @@ class BoundingBoxMapper(
                 bbox.right
             )
             else -> {
-                Log.w(TAG, "Unknown relative rotation: $relativeRotation, using original bbox")
+                AppLog.w(TAG, "Unknown relative rotation: $relativeRotation, using original bbox")
                 Rect(bbox)
             }
         }
@@ -155,7 +153,7 @@ class BoundingBoxMapper(
                     isHorizontalCameraTablet =
                         isTablet && (cameraOrientation == 0 || cameraOrientation == 180)
 
-                    Log.d(
+                    AppLog.i(
                         TAG,
                         "Camera orientation: $cameraOrientation, isHorizontalCameraTablet: $isHorizontalCameraTablet"
                     )
@@ -163,11 +161,11 @@ class BoundingBoxMapper(
                 }
             }
             if (!found) {
-                Log.e(TAG, "No suitable camera found for orientation detection")
+                AppLog.e(TAG, "No suitable camera found for orientation detection")
             }
 
         } catch (e: java.lang.Exception) {
-            Log.e(TAG, "Failed to get camera orientation", e)
+            AppLog.e(TAG, "Failed to get camera orientation", e)
         }
     }
 }

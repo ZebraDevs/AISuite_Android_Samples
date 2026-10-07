@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
@@ -80,11 +80,11 @@ class ProductRecognitionSample(
         try {
             var mStart = System.currentTimeMillis()
             val locSettings = Localizer.Settings(mavenModelName)
-            Log.d(TAG, "Shelf Localizer.settings() obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
+            AppLog.i(TAG, "Shelf Localizer.settings() obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
 
             mStart = System.currentTimeMillis()
             val feSettings = FeatureExtractor.Settings(mavenModelName)
-            Log.d(TAG, "FeatureExtractor.Settings obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
+            AppLog.i(TAG, "FeatureExtractor.Settings obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
 
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -106,7 +106,7 @@ class ProductRecognitionSample(
 
             mStart = System.currentTimeMillis()
             val reSettings = Recognizer.SettingsIndex()
-            Log.d(TAG, "Recognizer.SettingsIndex() obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
+            AppLog.i(TAG, "Recognizer.SettingsIndex() obj creation time = ${System.currentTimeMillis() - mStart} milli sec")
 
             reSettings.indexFilename = "$toPath$indexFilename"
             reSettings.labelFilename = "$toPath$labelsFilename"
@@ -117,13 +117,13 @@ class ProductRecognitionSample(
                     localizer = Localizer.getLocalizer(locSettings, executor).await()
                     localizerInitialized = true
                     setupAnalyzerIfReady()
-                    Log.d(TAG, "Shelf Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - mStartLocalizer} milli sec")
+                    AppLog.i(TAG, "Shelf Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - mStartLocalizer} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Shelf Localizer object creation failed, ${e.message}")
+                    AppLog.e(TAG, "AIVisionSDKLicenseException: Shelf Localizer object creation failed, ${e.message}")
                     // Notify failed loading
                     loadingCallback?.invoke(false)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Fatal error: load failed - ${e.message}")
+                    AppLog.e(TAG, "Fatal error: load failed - ${e.message}")
                     // Notify failed loading
                     loadingCallback?.invoke(false)
                 }
@@ -136,19 +136,19 @@ class ProductRecognitionSample(
                         FeatureExtractor.getFeatureExtractor(feSettings, executor).await()
                     featureExtractorInitialized = true
                     setupAnalyzerIfReady()
-                    Log.d(
+                    AppLog.i(
                         TAG,
                         "FeatureExtractor() obj creation time = ${System.currentTimeMillis() - mStartFeatureExtractor} milli sec"
                     )
                 } catch (e: AIVisionSDKLicenseException) {
-                    Log.e(
+                    AppLog.e(
                         TAG,
                         "AIVisionSDKLicenseException: Feature Extractor object creation failed, ${e.message}"
                     )
                     // Notify failed loading
                     loadingCallback?.invoke(false)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
+                    AppLog.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
                     // Notify failed loading
                     loadingCallback?.invoke(false)
                 }
@@ -160,16 +160,16 @@ class ProductRecognitionSample(
                         recognizer = Recognizer.getRecognizer(reSettings, executor).await()
                         recognizerInitialized = true
                         setupAnalyzerIfReady()
-                        Log.d(TAG, "Recognizer(reSettings) obj creation time = ${System.currentTimeMillis() - mStartRecognizer} milli sec")
+                        AppLog.i(TAG, "Recognizer(reSettings) obj creation time = ${System.currentTimeMillis() - mStartRecognizer} milli sec")
                     } catch (e: Exception) {
                         // Notify failed loading
                         loadingCallback?.invoke(false)
-                        Log.e(TAG, "Fatal error: recognizer creation failed - ${e.message}")
+                        AppLog.e(TAG, "Fatal error: recognizer creation failed - ${e.message}")
                     }
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "Fatal error: load failed - ${e.message}")
+                AppLog.e(TAG, "Fatal error: load failed - ${e.message}")
             }
         }
 
@@ -206,7 +206,7 @@ class ProductRecognitionSample(
                 }
             }
         } catch (e: IOException) {
-            Log.e(TAG, "Error in copy from assets ${e.message}")
+            AppLog.e(TAG, "Error in copy from assets ${e.message}")
         }
     }
     /**
@@ -227,17 +227,17 @@ class ProductRecognitionSample(
         executor.shutdownNow()
         localizer?.let {
             it.dispose()
-            Log.d(TAG, "Localizer is disposed")
+            AppLog.i(TAG, "Localizer is disposed")
             localizer = null
         }
         featureExtractor?.let {
             it.dispose()
-            Log.d(TAG, "Feature extractor is disposed")
+            AppLog.i(TAG, "Feature extractor is disposed")
             featureExtractor = null
         }
         recognizer?.let {
             it.dispose()
-            Log.d(TAG, "Recognizer is disposed")
+            AppLog.i(TAG, "Recognizer is disposed")
             recognizer = null
         }
 

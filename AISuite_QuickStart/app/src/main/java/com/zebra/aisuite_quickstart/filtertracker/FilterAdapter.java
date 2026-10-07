@@ -1,7 +1,6 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.filtertracker;
 
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,7 +12,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.zebra.aisuite_quickstart.R;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class FilterAdapter extends  RecyclerView.Adapter<FilterAdapter.ViewHolder> {
 
@@ -21,7 +19,6 @@ public class FilterAdapter extends  RecyclerView.Adapter<FilterAdapter.ViewHolde
 
     public FilterAdapter(List<FilterItem> list) {
         filterList = list;
-        Log.d("FilterAdapter", "Filter List " + list.size());
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -53,8 +50,6 @@ public class FilterAdapter extends  RecyclerView.Adapter<FilterAdapter.ViewHolde
 
     @Override
     public int getItemCount() {
-        Log.d("FilterAdapter", "Filter " + filterList.size());
-
         return filterList.size();
     }
 

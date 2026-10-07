@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.analyzers.customdetector.barcode;
 
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.InferencerOptions;
@@ -23,7 +23,7 @@ public class BarcodeIntegration {
     private static final String MODEL_NAME       = "barcode-decoder";
 
     public static BarcodeDecoder create(ExecutorService executor) throws Exception {
-        Log.d(TAG, "Initializing BarcodeDecoder…");
+        AppLog.d(TAG, "Initializing BarcodeDecoder…");
 
         // Step 1: Initialize
         BarcodeDecoder.Settings settings = new BarcodeDecoder.Settings(MODEL_NAME);
@@ -45,13 +45,13 @@ public class BarcodeIntegration {
         settings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
         settings.enableAIBarcodeDecode = true;
 
-        Log.d(TAG, "BarcodeDecoder settings — enableAIBarcodeDecode=true"
+        AppLog.d(TAG, "BarcodeDecoder settings — enableAIBarcodeDecode=true"
                 + " dims=640x640"
                 + " symbologies=[CODE39, CODE93, CODE128, CODABAR, EAN8, EAN13, UPCA, UPCE0, I2OF5, QRCODE, DATAMATRIX, PDF417]"
                 + " rpo=[DSP, CPU, GPU]");
 
         BarcodeDecoder decoder = BarcodeDecoder.getBarcodeDecoder(settings, executor).get();
-        Log.d(TAG, "BarcodeDecoder ready");
+        AppLog.d(TAG, "BarcodeDecoder ready");
         return decoder;
     }
 }

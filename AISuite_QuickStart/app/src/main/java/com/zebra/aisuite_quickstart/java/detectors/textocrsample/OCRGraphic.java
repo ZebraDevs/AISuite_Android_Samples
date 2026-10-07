@@ -7,13 +7,11 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.util.Log;
 
 import com.zebra.aisuite_quickstart.GraphicOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
-import static java.lang.Math.abs;
 
 /**
  * The OCRGraphic class extends the GraphicOverlay.Graphic class and is responsible for
@@ -38,10 +36,16 @@ import static java.lang.Math.abs;
  * visually display the results of the detection process in an Android application.
  */
 public class OCRGraphic extends GraphicOverlay.Graphic {
+    // For picklist OCR: a word's box is green once its top predicted-text confidence clears
+    // this bar, red otherwise.
+    private static final float PICKLIST_CONFIDENCE_THRESHOLD = 0.99f;
+
     private final Paint boxPaint;
     private final Paint contentTextPaint;
     private final List<Rect> boundingBoxes = new ArrayList<>();
     private final List<String> decodedValues = new ArrayList<>();
+    private final List<Float> wordConfidences = new ArrayList<>();
+    private final boolean colorByConfidence;
 
     /**
      * Constructs a new OCRGraphic object, initializing the Paint objects used for drawing
@@ -52,6 +56,22 @@ public class OCRGraphic extends GraphicOverlay.Graphic {
      * @param decodedStrings A list of strings representing the recognized content of each text area.
      */
     public OCRGraphic(GraphicOverlay overlay, List<Rect> boxes, List<String> decodedStrings) {
+        this(overlay, boxes, decodedStrings, null);
+    }
+
+    /**
+     * Constructs a new OCRGraphic that colors each box green/red based on that word's top
+     * predicted-text confidence (picklist OCR only) - green once it clears
+     * {@link #PICKLIST_CONFIDENCE_THRESHOLD}, red otherwise. Pass {@code wordConfidences} as
+     * {@code null} to keep the box always green (non-picklist behavior).
+     *
+     * @param overlay The GraphicOverlay on which this graphic will be drawn.
+     * @param boxes A list of Rect objects representing the bounding boxes of detected text.
+     * @param decodedStrings A list of strings representing the recognized content of each text area.
+     * @param wordConfidences A list (parallel to {@code decodedStrings}) of each word's top
+     *                        predicted-text confidence. May be {@code null}.
+     */
+    public OCRGraphic(GraphicOverlay overlay, List<Rect> boxes, List<String> decodedStrings, List<Float> wordConfidences) {
         super(overlay);
      //   overlay.clear();
 
@@ -79,6 +99,12 @@ public class OCRGraphic extends GraphicOverlay.Graphic {
             decodedValues.addAll(decodedStrings);
         }
 
+        this.colorByConfidence = wordConfidences != null;
+        this.wordConfidences.clear();
+        if (wordConfidences != null) {
+            this.wordConfidences.addAll(wordConfidences);
+        }
+
         // Trigger a redraw of the overlay
         postInvalidate();
     }
@@ -91,8 +117,12 @@ public class OCRGraphic extends GraphicOverlay.Graphic {
     @Override
     public void draw(Canvas canvas) {
         // Draw bounding boxes
-        for (Rect rect : boundingBoxes) {
-            canvas.drawRect(rect, boxPaint);
+        for (int i = 0; i < boundingBoxes.size(); i++) {
+            if (colorByConfidence) {
+                float confidence = i < wordConfidences.size() ? wordConfidences.get(i) : 0f;
+                boxPaint.setColor(confidence > PICKLIST_CONFIDENCE_THRESHOLD ? Color.GREEN : Color.RED);
+            }
+            canvas.drawRect(boundingBoxes.get(i), boxPaint);
         }
 
         // Draw the text content of the OCR
@@ -138,6 +168,5 @@ public class OCRGraphic extends GraphicOverlay.Graphic {
             paint.getTextBounds(text, 0, text.length(), textBounds);
         }
 
-        Log.v("Text and size", text + " " + textSize);
     }
 }

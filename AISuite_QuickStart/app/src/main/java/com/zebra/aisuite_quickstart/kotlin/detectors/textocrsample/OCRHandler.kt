@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.InferencerOptions
@@ -59,6 +59,7 @@ class OCRHandler(
     private val captureExecutor = Executors.newSingleThreadExecutor()
     private val mavenModelName = "text-ocr-recognizer"
     private val sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
+    private var isPicklistEnabled = false
 
     // Model input sizes
     companion object {
@@ -66,6 +67,7 @@ class OCRHandler(
     }
 
     init {
+        isPicklistEnabled = sharedPreferences.getBoolean(CommonUtils.PREF_TEXT_OCR_PICKLIST_ENABLED, false)
         initializeTextOCR()
         initializeCaptureOCR()
     }
@@ -92,6 +94,7 @@ class OCRHandler(
                 width = inputSize
             }
             unclipRatio = 0.6f
+            picklistConfig.setOCRPicklist(isPicklistEnabled)
         }
     }
 
@@ -100,7 +103,6 @@ class OCRHandler(
      */
     private fun initializeTextOCR() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(tag, " LivePreview Model Input Size: $modelInputSize")
         try {
             val liveOCRSettings = createOCRSettings(modelInputSize)
             CoroutineScope(executor.asCoroutineDispatcher()).launch {
@@ -108,7 +110,7 @@ class OCRHandler(
             }
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Fatal error: load failed - ${e.message}")
+            AppLog.e(tag, "Fatal error: load failed - ${e.message}")
         }
     }
 
@@ -123,7 +125,7 @@ class OCRHandler(
             }
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Capture OCR initialization failed: ${ex.message}")
+            AppLog.e(tag, "Capture OCR initialization failed: ${ex.message}")
         }
     }
 
@@ -142,14 +144,10 @@ class OCRHandler(
                 attachAnalysisAfterModelLoading()
             }
 
-            Log.d(
-                tag,
-                "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms" +
-                        " and input size: ${textOCRSettings.detectionInferencerOptions.defaultDims.width}"
-            )
+            AppLog.i(tag, "TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${textOCRSettings.detectionInferencerOptions.defaultDims.width}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Fatal error: TextOCR creation failed - ${e.message}")
+            AppLog.e(tag, "TextOCR model loading failed - ${e.message}")
         }
     }
 
@@ -168,10 +166,10 @@ class OCRHandler(
                 attachAnalysisAfterModelLoading()
             }
 
-            Log.d(tag, "Capture TextOCR created in ${System.currentTimeMillis() - startTime} ms")
+            AppLog.i(tag, "Capture TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${textOCRSettings.detectionInferencerOptions.defaultDims.width}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Capture OCR creation failed: ${e.message}")
+            AppLog.e(tag, "Capture TextOCR model loading failed: ${e.message}")
         }
     }
 
@@ -192,12 +190,12 @@ class OCRHandler(
         captureExecutor.shutdownNow()
         textOCR?.let {
             it.dispose()
-            Log.v(tag, "Live preview OCR is disposed")
+            AppLog.i(tag, "Live preview OCR is disposed")
             textOCR = null
         }
         captureOCR?.let {
             it.dispose()
-            Log.v(tag, "Capture OCR is disposed")
+            AppLog.i(tag, "Capture OCR is disposed")
             captureOCR = null
         }
     }

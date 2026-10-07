@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.viewfinder
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
@@ -85,7 +85,6 @@ class EntityBarcodeTracker(
     // Assuming 'callback' is a member variable or passed as a parameter to the class
     private fun initializeBarcodeDecoder() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(TAG, "Entity ViewFinder LivePreview Model Input Size: $modelInputSize")
         val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -143,17 +142,14 @@ class EntityBarcodeTracker(
                 entityTrackerAnalyzer!!
             )
 
-            Log.d(
-                TAG,
-                "Entity Tracker BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(TAG, "Entity Tracker BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}")
 
             // Notify that the tracker is ready
             callback.onEntityBarcodeTrackerReady()
 
         } catch (e: Exception) {
-                loadingCallback?.invoke(false)
-                Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
+            loadingCallback?.invoke(false)
+            AppLog.e(TAG, "Entity Tracker BarcodeDecoder model loading failed - ${e.message}")
         }
     }
 
@@ -173,7 +169,7 @@ class EntityBarcodeTracker(
     fun stop() {
         barcodeDecoder?.let {
             it.dispose()
-            Log.v(TAG, "Barcode decoder is disposed")
+            AppLog.i(TAG, "Barcode decoder is disposed")
             barcodeDecoder = null
         }
     }

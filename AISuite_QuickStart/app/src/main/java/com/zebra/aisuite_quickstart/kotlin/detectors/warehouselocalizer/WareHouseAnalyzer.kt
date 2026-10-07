@@ -1,6 +1,6 @@
 package com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer
 
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.AIVisionSDKException
@@ -50,19 +50,17 @@ class WareHouseAnalyzer(
             return
         }
         isAnalyzing = false // Prevent re-entry
-
+        AppLog.v(TAG, "Starting image analysis")
         scope.launch {
             try {
-                Log.d(TAG, "Starting image analysis")
                 val result = processImageAsync(image)
                 withContext(Dispatchers.Main) {
                     if (!isStopped) callback.onLocalizerDetectionResult(result)
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error during image processing: ${ex.message}")
-            } finally {
+                AppLog.e(TAG, "Error during image processing: ${ex.message}")
+                image.close()
                 isAnalyzing = true
-                image.close() // Ensure image is closed
             }
         }
     }
@@ -79,13 +77,19 @@ class WareHouseAnalyzer(
             try {
                 localizer?.process(ImageData.fromImageProxy(image))
                     ?.thenAccept { result ->
+                        image.close()
+                        isAnalyzing = true
                         cont.resume(result) // Resume the coroutine with the result
                     }
                     ?.exceptionally { ex ->
+                        image.close()
+                        isAnalyzing = true
                         cont.resumeWithException(ex) // Resume with exception
                         null
                     }
             } catch (e: AIVisionSDKException) {
+                image.close()
+                isAnalyzing = true
                 cont.resumeWithException(e)
             }
         }
@@ -102,18 +106,24 @@ class WareHouseAnalyzer(
         val captureScope = CoroutineScope(Dispatchers.IO + Job())
         captureScope.launch {
             try {
-                Log.d(TAG, "Starting image capture analysis")
+                AppLog.v(TAG, "Starting image capture analysis")
                 val result = suspendCancellableCoroutine<List<LocalizerEntity>> { cont ->
                     try {
                         captureLocalizer.process(ImageData.fromImageProxy(image))
                             .thenAccept { result ->
+                                image.close()
+                                isAnalyzing = true
                                 cont.resume(result)
                             }
                             .exceptionally { ex ->
+                                image.close()
+                                isAnalyzing = true
                                 cont.resumeWithException(ex)
                                 null
                             }
                     } catch (e: AIVisionSDKException) {
+                        image.close()
+                        isAnalyzing = true
                         cont.resumeWithException(e)
                     }
                 }
@@ -121,8 +131,7 @@ class WareHouseAnalyzer(
                     callback.onCaptureWareHouseDetectionResult(result)
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error in capture image processing: ${ex.message}")
-            } finally {
+                AppLog.e(TAG, "Error in capture image processing: ${ex.message}")
                 image.close()
                 isAnalyzing = true
             }
@@ -142,7 +151,7 @@ class WareHouseAnalyzer(
      * and creates a new coroutine scope for processing.
      */
     fun startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called.")
+        AppLog.i(TAG, "startAnalyzing() called.")
         isStopped = false
         job = Job()
         scope = CoroutineScope(Dispatchers.IO + job)

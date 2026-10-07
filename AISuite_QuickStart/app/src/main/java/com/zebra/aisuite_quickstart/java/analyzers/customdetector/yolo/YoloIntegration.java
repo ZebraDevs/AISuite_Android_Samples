@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.analyzers.customdetector.yolo;
 
 import android.content.Context;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.vision.common.InputImage;
@@ -24,7 +24,7 @@ public class YoloIntegration {
     private static final String TAG = "YoloIntegration";
 
     public static CustomDetector<DetectionEntity> create(Context context) throws Exception {
-        Log.d(TAG, "Initializing YOLOv8n ONNX…");
+        AppLog.d(TAG, "Initializing YOLOv8n ONNX…");
 
         // Step 1: Initialize
         YoloOnnxModel model = new YoloOnnxModel(context);
@@ -35,14 +35,14 @@ public class YoloIntegration {
                     try {
                         List<DetectionEntity> entities = Tasks.await(
                                 m.process(InputImage.fromBitmap(imageData.getBitmap(), 0)));
-                        Log.v(TAG, "  YOLO: " + entities.size() + " detection(s)");
+                        AppLog.v(TAG, "  YOLO: " + entities.size() + " detection(s)");
                         return entities;
                     } catch (Exception e) {
                         throw new RuntimeException("YOLO inference failed", e);
                     }
                 });
 
-        Log.d(TAG, "YOLOv8n ONNX detector ready");
+        AppLog.d(TAG, "YOLOv8n ONNX detector ready");
         return detector;
     }
 }

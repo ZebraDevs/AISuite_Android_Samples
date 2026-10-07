@@ -7,7 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -22,6 +22,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.zebra.ai.vision.detector.AIVisionSDK;
 import com.zebra.aisuite_quickstart.databinding.ActivityEntryChoiceBinding;
 import com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 /**
  * The EntryChoiceActivity class is an Android activity that serves as an entry point for selecting
@@ -94,10 +95,10 @@ public class EntryChoiceActivity extends AppCompatActivity {
         // Initializing the AI Vision SDK
         try {
             boolean isInitDone = AIVisionSDK.getInstance(this.getApplicationContext()).init();
-            Log.i(TAG, "AI Vision SDK Init = " + isInitDone);
+            AppLog.i(TAG, "AI Vision SDK Init = " + isInitDone);
             // Get the SDK version
             String sdkVersion = AIVisionSDK.getInstance(this.getApplicationContext()).getSDKVersion();
-            Log.d("Profiling ","SDK Version: " +sdkVersion);
+            AppLog.i("Profiling ","SDK Version: " +sdkVersion);
         } catch (UnsupportedOperationException ex) {
             runOnUiThread(() -> showErrorDialog(ex.getMessage()));
         }
@@ -140,7 +141,7 @@ public class EntryChoiceActivity extends AppCompatActivity {
                         REQUEST_CAMERA_PERMISSION);
             }
         } else {
-            Log.v(TAG, "Camera permission granted");
+            AppLog.v(TAG, "Camera permission granted");
         }
     }
 
@@ -180,7 +181,7 @@ public class EntryChoiceActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CAMERA_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Log.v(TAG, "Camera permission granted");
+                AppLog.v(TAG, "Camera permission granted");
             } else {
                 Toast.makeText(this, "Camera permission is required to use this feature", Toast.LENGTH_SHORT).show();
                 showNonCancellablePermissionRationaleDialog();

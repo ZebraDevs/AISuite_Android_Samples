@@ -4,7 +4,7 @@ package com.zebra.aisuite_quickstart.java.analyzers.customdetector.mobilenet;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -58,7 +58,7 @@ public class TFLiteModel implements AutoCloseable {
         scoresIdx     = idx[1];
         numDetIdx     = idx[2];
         maxDetections = idx[3];
-        Log.i(TAG, "Model ready — inputSize=" + inputSize + " maxDetections=" + maxDetections);
+        AppLog.i(TAG, "Model ready — inputSize=" + inputSize + " maxDetections=" + maxDetections);
     }
 
     private int[] resolveOutputIndices() {
@@ -67,7 +67,7 @@ public class TFLiteModel implements AutoCloseable {
         for (int i = 0; i < numOutputs; i++) {
             int[]  sh = interpreter.getOutputTensor(i).shape();
             String nm = interpreter.getOutputTensor(i).name();
-            Log.i(TAG, "  output[" + i + "] name=" + nm + " shape=" + Arrays.toString(sh)
+            AppLog.i(TAG, "  output[" + i + "] name=" + nm + " shape=" + Arrays.toString(sh)
                     + " dtype=" + interpreter.getOutputTensor(i).dataType());
             if (sh.length == 3 && sh[sh.length - 1] == 4) { foundBoxes = i; foundMaxDet = sh[sh.length - 2]; }
             if (sh.length == 1) foundNumDet = i;
@@ -116,7 +116,7 @@ public class TFLiteModel implements AutoCloseable {
                     Math.round(xmax * bw), Math.round(ymax * bh)));
         }
         if (n > 0) {
-            Log.v(TAG, "  MobileNet SSD detections kept=" + results.size() + "/" + n
+            AppLog.v(TAG, "  MobileNet SSD detections kept=" + results.size() + "/" + n
                     + " top_score=" + scores[0][0]);
         }
         return results;

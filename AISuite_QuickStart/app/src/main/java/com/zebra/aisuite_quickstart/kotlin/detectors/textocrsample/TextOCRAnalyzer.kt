@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample
 
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.AIVisionSDKException
@@ -78,19 +78,16 @@ class TextOCRAnalyzer(
             return
         }
 
-        isAnalyzing = false // Set to false to prevent re-entry
-
+        isAnalyzing = false // Set false to prevent re-entry
+        AppLog.v(TAG, "Starting image analysis")
         scope.launch {
             try {
-                Log.d(TAG, "Starting image analysis")
                 val result = processImageAsync(image)
                 withContext(Dispatchers.Main) {
                     if (!isStopped) callback.onDetectionTextResult(result)
-                    isAnalyzing = true
-                    image.close()
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error during image processing: ${ex.message}")
+                AppLog.e(TAG, "Error during image processing: ${ex.message}")
                 isAnalyzing = true
                 image.close()
             }
@@ -108,18 +105,23 @@ class TextOCRAnalyzer(
         val captureScope = CoroutineScope(Dispatchers.IO + Job())
         captureScope.launch {
             try {
-                Log.d(TAG, "Starting image capture OCR analysis")
                 val result = suspendCancellableCoroutine<List<ParagraphEntity>> { cont ->
                     try {
                         captureOCR.process(ImageData.fromImageProxy(image))
                             .thenAccept { result ->
+                                image.close()
+                                isAnalyzing = true
                                 cont.resume(result)
                             }
                             .exceptionally { ex ->
+                                image.close()
+                                isAnalyzing = true
                                 cont.resumeWithException(ex)
                                 null
                             }
                     } catch (e: AIVisionSDKException) {
+                        image.close()
+                        isAnalyzing = true
                         cont.resumeWithException(e)
                     }
                 }
@@ -127,9 +129,9 @@ class TextOCRAnalyzer(
                     callback.onCaptureDetectionTextResult(result)
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error in capture OCR processing: ${ex.message}")
-            } finally {
+                AppLog.e(TAG, "Error in capture OCR processing: ${ex.message}")
                 image.close()
+                isAnalyzing = true
             }
         }
     }
@@ -143,20 +145,23 @@ class TextOCRAnalyzer(
     private suspend fun processImageAsync(image: ImageProxy): List<ParagraphEntity> {
         return suspendCancellableCoroutine { cont ->
             try {
+                AppLog.v(TAG, "Starting image capture OCR analysis")
                 textOCR?.process(ImageData.fromImageProxy(image))
                     ?.thenAccept { result ->
+                        image.close()
+                        isAnalyzing = true
                         cont.resume(result) // Resume the coroutine with the result
                     }
                     ?.exceptionally { ex ->
-                        cont.resumeWithException(ex) // Resume with exception
                         isAnalyzing = true
                         image.close()
+                        cont.resumeWithException(ex) // Resume with exception
                         null
                     }
             } catch (e: AIVisionSDKException) {
-                cont.resumeWithException(e)
                 isAnalyzing = true
                 image.close()
+                cont.resumeWithException(e)
             }
         }
     }
@@ -175,7 +180,7 @@ class TextOCRAnalyzer(
      * and creates a new coroutine scope for processing.
      */
     fun startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called.")
+        AppLog.i(TAG, "startAnalyzing() called.")
         isStopped = false
         isAnalyzing = true
         job = Job()

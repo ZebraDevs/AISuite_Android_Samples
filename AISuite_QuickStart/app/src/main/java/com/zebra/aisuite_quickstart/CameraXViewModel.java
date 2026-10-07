@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart;
 
 import android.app.Application;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.annotation.NonNull;
 import androidx.camera.lifecycle.ProcessCameraProvider;
@@ -39,7 +39,7 @@ public final class CameraXViewModel extends AndroidViewModel {
                             cameraProviderLiveData.setValue(cameraProviderFuture.get());
                         } catch (ExecutionException | InterruptedException e) {
                             // Handle any errors (including cancellation) here.
-                            Log.e(TAG, "Unhandled exception", e);
+                            AppLog.e(TAG, "Unhandled exception", e);
                         }
                     },
                     ContextCompat.getMainExecutor(getApplication()));

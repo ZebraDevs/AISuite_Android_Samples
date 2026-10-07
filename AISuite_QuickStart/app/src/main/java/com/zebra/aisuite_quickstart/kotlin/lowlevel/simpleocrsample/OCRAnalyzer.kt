@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample
 
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.InvalidInputException
@@ -79,11 +79,11 @@ class OCRAnalyzer(
             return
         }
 
-        isAnalyzing = false // Set to false to prevent re-entry
+        isAnalyzing = false // Set false to prevent re-entry
 
         scope.launch {
             try {
-                Log.d(TAG, "Starting image analysis")
+                AppLog.v(TAG, "Starting image analysis")
                 val words = processImageAsync(image)
                 withContext(Dispatchers.Main) {
                     if (!isStopped) {
@@ -93,7 +93,7 @@ class OCRAnalyzer(
                     image.close()
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error during image processing: ${ex.message}")
+                AppLog.e(TAG, "Error during image processing: ${ex.message}")
                 isAnalyzing = true
                 image.close()
             }

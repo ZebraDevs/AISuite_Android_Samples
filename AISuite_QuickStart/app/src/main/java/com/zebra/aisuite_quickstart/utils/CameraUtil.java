@@ -6,7 +6,7 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 public class CameraUtil {
 
@@ -32,7 +32,7 @@ public class CameraUtil {
             return CameraMetadata.LENS_FACING_FRONT;
 
         } catch (CameraAccessException e) {
-            Log.e("CameraUtil", "Error : "+e.getMessage());
+            AppLog.e("CameraUtil", "Error : "+e.getMessage());
             // If an exception occurs, default to front camera
             return CameraMetadata.LENS_FACING_FRONT;
         }

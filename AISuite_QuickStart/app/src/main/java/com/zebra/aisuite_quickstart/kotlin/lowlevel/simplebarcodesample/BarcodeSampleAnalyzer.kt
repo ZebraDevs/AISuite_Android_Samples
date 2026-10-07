@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample
 
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.AIVisionSDKException
@@ -89,7 +89,7 @@ class BarcodeSampleAnalyzer(
 
         scope.launch {
             try {
-                Log.d(TAG, "Starting image analysis")
+                AppLog.v(TAG, "Starting image analysis")
                 val barcodes = processImageAsync(image)
                 withContext(Dispatchers.Main) {
                     if (!isStopped) {
@@ -97,7 +97,7 @@ class BarcodeSampleAnalyzer(
                     }
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error during image processing: ${ex.message}")
+                AppLog.e(TAG, "Error during image processing: ${ex.message}")
             } finally {
                 isAnalyzing = true
                 image.close() // Ensure image is closed

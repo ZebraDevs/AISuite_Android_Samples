@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.mobilenet
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import com.zebra.ai.vision.custommodels.CustomDetector
 import com.zebra.ai.vision.entity.DetectionEntity
 
@@ -22,7 +22,7 @@ object TFLiteModelIntegration {
     private const val TAG = "TFLiteModelIntegration"
 
     fun create(context: Context): CustomDetector<DetectionEntity> {
-        Log.d(TAG, "Initializing MobileNet SSD object detector…")
+        AppLog.d(TAG, "Initializing MobileNet SSD object detector…")
 
         // Step 1: Initialize
         val model = TFLiteModel(context)
@@ -31,11 +31,11 @@ object TFLiteModelIntegration {
         val detector = CustomDetector.create(model, MODEL_ID) { m, imageData ->
             val entities = m.detect(imageData.getBitmap())
                 .map { rect -> DetectionEntity(rect, emptyList()) }
-            Log.v(TAG, "  MobileNet SSD: ${entities.size} detection(s)")
+            AppLog.v(TAG, "  MobileNet SSD: ${entities.size} detection(s)")
             entities
         }
 
-        Log.d(TAG, "MobileNet SSD object detector ready")
+        AppLog.d(TAG, "MobileNet SSD object detector ready")
         return detector
     }
 }

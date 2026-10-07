@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample;
 
 import android.graphics.Bitmap;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
@@ -100,7 +100,7 @@ public class BarcodeSampleAnalyzer implements ImageAnalysis.Analyzer {
             try {
                 Bitmap bitmap = CommonUtils.rotateBitmapIfNeeded(image);
                 CompletableFuture<BBox[]> futureResult = localizer.detect(bitmap, executorService);
-                Log.d(TAG, "Starting image analysis");
+                AppLog.v(TAG, "Starting image analysis");
                 futureResult.thenCompose(bBoxes -> {
                     detections = bBoxes;
                     // Proceed to barcode decoding
@@ -114,14 +114,14 @@ public class BarcodeSampleAnalyzer implements ImageAnalysis.Analyzer {
                     isAnalyzing = true;
                     image.close();
                 }).exceptionally(ex -> {
-                    Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                    AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
                     isAnalyzing = true;
                     image.close();
                     return null;
                 });
 
             } catch (AIVisionSDKException e) {
-                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+                AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
                 isAnalyzing = true;
                 image.close();
             }

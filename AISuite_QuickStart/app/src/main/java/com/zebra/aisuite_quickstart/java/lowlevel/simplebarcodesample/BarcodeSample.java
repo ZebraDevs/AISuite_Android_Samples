@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.simplebarcodesample;
 
 import android.content.Context;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -90,7 +90,7 @@ public class BarcodeSample {
 
             Localizer.Settings locSettings = new Localizer.Settings(mavenModelName);
             long diff = System.currentTimeMillis() - mStart;
-            Log.d(TAG, "Barcode Localizer.settings() obj creation time =" + diff + " milli sec");
+            AppLog.i(TAG, "Barcode Localizer.settings() obj creation time =" + diff + " milli sec");
 
             Integer[] rpo = new Integer[3];
             rpo[0] = InferencerOptions.DSP;
@@ -104,13 +104,13 @@ public class BarcodeSample {
             long start = System.currentTimeMillis();
             Localizer.getLocalizer(locSettings, executor).thenAccept(localizerInstance -> {
                 localizer = localizerInstance;
-                Log.d(TAG, "Barcode Localizer(locSettings) obj creation / model loading time =" + (System.currentTimeMillis() - start) + " milli sec");
+                AppLog.i(TAG, "Barcode Localizer(locSettings) obj creation / model loading time =" + (System.currentTimeMillis() - start) + " milli sec");
 
             }).exceptionally(e -> {
                 if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Barcode Localizer object creation failed, " + e.getMessage());
+                    AppLog.e(TAG, "AIVisionSDKLicenseException: Barcode Localizer object creation failed, " + e.getMessage());
                 } else {
-                    Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
+                    AppLog.e(TAG, "Fatal error: load failed - " + e.getMessage());
                 }
                 // Notify failed loading
                 if (loadingCallback != null) {
@@ -124,7 +124,7 @@ public class BarcodeSample {
             long m_Start = System.currentTimeMillis();
             BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
                 barcodeDecoder = decoderInstance;
-                Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+                AppLog.i(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
                 // Notify successful loading
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(true);
@@ -133,9 +133,9 @@ public class BarcodeSample {
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), barcodeAnalyzer);
             }).exceptionally(e -> {
                 if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
+                    AppLog.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
                 } else {
-                    Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+                    AppLog.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
                 }
                 // Notify failed loading
                 if (loadingCallback != null) {
@@ -148,7 +148,7 @@ public class BarcodeSample {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
+            AppLog.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
     }
 
@@ -159,7 +159,7 @@ public class BarcodeSample {
     public void stop() {
         if (barcodeDecoder != null) {
             barcodeDecoder.dispose();
-            Log.d(TAG, "Barcode decoder is disposed");
+            AppLog.i(TAG, "Barcode decoder is disposed");
             barcodeDecoder = null;
         }
     }

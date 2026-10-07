@@ -9,7 +9,7 @@ import ai.onnxruntime.OrtSession;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -50,14 +50,14 @@ public class YoloOnnxModel implements AutoCloseable {
     private final OrtSession     session;
 
     public YoloOnnxModel(Context context) throws IOException, OrtException {
-        Log.d(TAG, "Loading ONNX session from assets: " + MODEL_FILE);
+        AppLog.d(TAG, "Loading ONNX session from assets: " + MODEL_FILE);
         env = OrtEnvironment.getEnvironment();
         android.content.res.AssetFileDescriptor fd = context.getAssets().openFd(MODEL_FILE);
         MappedByteBuffer buffer = new FileInputStream(fd.getFileDescriptor())
                 .getChannel()
                 .map(FileChannel.MapMode.READ_ONLY, fd.getStartOffset(), fd.getDeclaredLength());
         session = env.createSession(buffer);
-        Log.i(TAG, "ONNX session ready — inputs=" + session.getInputNames()
+        AppLog.i(TAG, "ONNX session ready — inputs=" + session.getInputNames()
                 + " outputs=" + session.getOutputNames());
     }
 

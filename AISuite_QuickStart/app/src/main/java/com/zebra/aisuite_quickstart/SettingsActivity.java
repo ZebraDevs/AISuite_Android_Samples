@@ -132,6 +132,14 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
+        boolean isTextOcrPicklistEnabled = sharedPreferences.getBoolean(CommonUtils.PREF_TEXT_OCR_PICKLIST_ENABLED, false);
+        binding.cbTextOcrPicklist.setChecked(isTextOcrPicklistEnabled);
+
+        binding.cbTextOcrPicklist.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            editor.putBoolean(CommonUtils.PREF_TEXT_OCR_PICKLIST_ENABLED, isChecked);
+            editor.apply();
+        });
+
         binding.ivResolution.setOnClickListener(v -> {
             resOptions = !resOptions;
             if (resOptions) {

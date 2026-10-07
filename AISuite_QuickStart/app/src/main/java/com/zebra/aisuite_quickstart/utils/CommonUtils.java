@@ -1,14 +1,13 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.utils;
 
+import static java.lang.Math.abs;
+
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.util.Log;
-
-import static java.lang.Math.abs;
 
 import androidx.camera.core.ImageProxy;
 
@@ -20,6 +19,7 @@ public class CommonUtils {
     public static final String SETTINGS_PREFS = "quick_start_settings";
     public static final String PREF_MODEL_INPUT_SIZE = "model_input_size";
     public static final String PREF_RESOLUTION = "resolution";
+    public static final String PREF_TEXT_OCR_PICKLIST_ENABLED = "text_ocr_picklist_enabled";
     /**
      * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
      *
@@ -76,14 +76,11 @@ public class CommonUtils {
             paint.getTextBounds(text, 0, text.length(), textBounds);
         }
 
-        Log.v("Text and size", text + " " + textSize);
-
         // Calculate x and y coordinates to center the text within the bounding box
         float textX = minX + (maxWidth - textBounds.width()) / 2;
         float textY = minY + (maxHeight + textBounds.height()) / 2;
 
         // Draw the text on the canvas
-        //   Log.v("text and coords ",text+" "+textX+" "+textY);
         canvas.drawText(text, textX, textY, paint);
     }
 }

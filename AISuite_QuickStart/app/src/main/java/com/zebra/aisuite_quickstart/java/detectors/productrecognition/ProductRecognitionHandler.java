@@ -5,7 +5,6 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -14,6 +13,7 @@ import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.EntityType;
 import com.zebra.ai.vision.detector.InferencerOptions;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import com.zebra.aisuite_quickstart.utils.CommonUtils;
 
 import java.io.BufferedOutputStream;
@@ -78,7 +78,6 @@ public class ProductRecognitionHandler {
      */
     private void initializeModuleRecognizer() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
 
             // Create settings for live preview
@@ -92,7 +91,7 @@ public class ProductRecognitionHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error during initialization setup: " + e.getMessage());
+            AppLog.e(TAG, "Fatal error during initialization setup: " + e.getMessage());
         }
     }
 
@@ -103,13 +102,13 @@ public class ProductRecognitionHandler {
         try {
 
             // Create settings for capture
-            ModuleRecognizer.Settings captureRecognizerSettings = createRecognizerSettings(CAPTURE_SIZE);
+            ModuleRecognizer.Settings captureRecognizerSettings = createCaptureRecognizerSettings(CAPTURE_SIZE);
             createCaptureRecognizer(captureRecognizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture recognizer initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture recognizer initialization failed: " + ex.getMessage());
         }
     }
 
@@ -131,11 +130,45 @@ public class ProductRecognitionHandler {
             settings.enableProductRecognition(mavenModelName,
                     toPath + productIndexZipFilename);
         } catch (Exception e) {
-            Log.e(TAG, "Failed to enable product recognition with cloud index: " + e.getMessage());
+            AppLog.e(TAG, "Failed to enable product recognition with cloud index: " + e.getMessage());
             throw new RuntimeException("Product recognition setup failed", e);
         }
 
         BarcodeDecoder.Settings labelBarcodeSettings = new BarcodeDecoder.Settings(barcodeMavenModelName);
+        labelBarcodeSettings.enableAIBarcodeDecode = true;
+        Map<EntityType, BarcodeDecoder.Settings> barcodeSettingsMap = new HashMap<>();
+        barcodeSettingsMap.put(EntityType.LABEL, labelBarcodeSettings);
+        settings.enableBarcodeRecognition(barcodeSettingsMap);
+
+        return settings;
+    }
+
+    private ModuleRecognizer.Settings createCaptureRecognizerSettings(int inputSize) {
+        // Create settings with base model
+        ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
+
+        // Configure InferencerOptions
+        settings.inferencerOptions.runtimeProcessorOrder = new Integer[]{
+                InferencerOptions.DSP,
+                InferencerOptions.CPU,
+                InferencerOptions.GPU
+        };
+        settings.inferencerOptions.defaultDims.height = inputSize;
+        settings.inferencerOptions.defaultDims.width = inputSize;
+
+        // Enable product recognition with cloud index
+        try {
+            settings.enableProductRecognition(mavenModelName,
+                    toPath + productIndexZipFilename);
+        } catch (Exception e) {
+            AppLog.e(TAG, "Failed to enable product recognition with cloud index: " + e.getMessage());
+            throw new RuntimeException("Product recognition setup failed", e);
+        }
+
+        BarcodeDecoder.Settings labelBarcodeSettings = new BarcodeDecoder.Settings(barcodeMavenModelName);
+        labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
+        labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.height = inputSize;
+        labelBarcodeSettings.enableAIBarcodeDecode = true;
         Map<EntityType, BarcodeDecoder.Settings> barcodeSettingsMap = new HashMap<>();
         barcodeSettingsMap.put(EntityType.LABEL, labelBarcodeSettings);
         settings.enableBarcodeRecognition(barcodeSettingsMap);
@@ -155,13 +188,13 @@ public class ProductRecognitionHandler {
                         attachAnalysisAfterModelLoading();
                     }
                     long creationTime = System.currentTimeMillis() - startTime;
-                    Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms and input size: " + settings.inferencerOptions.defaultDims.width);
+                    AppLog.i(TAG, "ModuleRecognizer model loading time: " + creationTime + " milli sec and input size: " + settings.inferencerOptions.defaultDims.width);
                 })
                 .exceptionally(throwable -> {
                     if (loadingCallback != null) {
                         loadingCallback.onLoadingComplete(false);
                     }
-                    Log.e(TAG, "Failed to initialize ModuleRecognizer: " + throwable.getMessage());
+                    AppLog.e(TAG, "ModuleRecognizer model loading failed " + throwable.getMessage());
                     return null;
                 });
     }
@@ -176,12 +209,12 @@ public class ProductRecognitionHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Capture ModuleRecognizer created in " + (System.currentTimeMillis() - m_Start) + " ms");
+            AppLog.i(TAG, "Capture ModuleRecognizer model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: "+ settings.inferencerOptions.defaultDims.width);
         }).exceptionally(throwable -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture recognizer creation failed: " + throwable.getMessage());
+            AppLog.e(TAG, "Capture ModuleRecognizer model loading failed: " + throwable.getMessage());
             return null;
         });
     }
@@ -202,7 +235,7 @@ public class ProductRecognitionHandler {
             }
             output.flush();
         } catch (IOException e) {
-            Log.e(TAG, "Error copying from assets: " + e.getMessage());
+            AppLog.e(TAG, "Error copying from assets: " + e.getMessage());
         }
     }
 
@@ -228,12 +261,12 @@ public class ProductRecognitionHandler {
         captureExecutor.shutdownNow();
         if (moduleRecognizer != null) {
             moduleRecognizer.dispose();
-            Log.d(TAG, "ModuleRecognizer disposed");
+            AppLog.i(TAG, "ModuleRecognizer disposed");
             moduleRecognizer = null;
         }
         if (captureRecognizer != null) {
             captureRecognizer.dispose();
-            Log.d(TAG, "Capture module recognizer disposed");
+            AppLog.i(TAG, "Capture module recognizer disposed");
             captureRecognizer = null;
         }
     }

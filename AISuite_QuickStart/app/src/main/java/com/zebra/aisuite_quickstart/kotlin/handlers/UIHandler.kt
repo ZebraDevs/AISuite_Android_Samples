@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.text.TextUtils
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -132,16 +132,13 @@ class UIHandler(
                 selectedModel = adapterView.getItemAtPosition(pos).toString()
                 isEntityViewFinder = selectedModel == ENTITY_VIEW_FINDER
 
-                Log.e(TAG, "Selected option is $selectedModel")
                 activity.binding.trackerFilter.isVisible =
                     TextUtils.equals(selectedModel, ENTITY_ANALYZER) || TextUtils.equals(selectedModel, CUSTOM_DETECTOR)
                 // Lock orientation when Entity Viewfinder is selected
                 if (isEntityViewFinder) {
                     activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
-                    Log.d(TAG, "Orientation locked for Entity Viewfinder mode")
                 } else {
                     activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    Log.d(TAG, "Orientation unlocked for $selectedModel mode")
                 }
                 activity.isModelLoaded = false
 
@@ -237,13 +234,12 @@ class UIHandler(
 
     private fun performCapture() {
         if (imageCapture == null || isInCaptureMode) return
-        Log.d(TAG, "Performing capture")
+        AppLog.i(TAG, "Performing capture")
 
         imageCapture!!.takePicture(executors, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(imageProxy: ImageProxy) {
                 try {
-                    Log.e(TAG, "Image Dims w x h = ${imageProxy.width} x ${imageProxy.height}")
-                    Log.e(TAG, "Selected model: $selectedModel")
+                    AppLog.e(TAG, "Image Dims w x h = ${imageProxy.width} x ${imageProxy.height}")
                     currentCapture = CommonUtils.rotateBitmapIfNeeded(imageProxy)
                     activity.runOnUiThread {
                         switchToCaptureMode()
@@ -261,14 +257,13 @@ class UIHandler(
                         selectedModel.equals(PALLET_AND_BOX_LOCALIZER, ignoreCase = true) ->
                             activity.processCaptureWareHouseLocalizer(imageProxy)
                     }
-                    Log.d(TAG, "bitmap captured")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Exception occurred while capturing: ${e.message}")
+                    AppLog.e(TAG, "Exception occurred while capturing: ${e.message}")
                 }
             }
 
             override fun onError(exception: ImageCaptureException) {
-                Log.e(TAG, "Capture operation failed", exception)
+                AppLog.e(TAG, "Capture operation failed", exception)
             }
         })
     }

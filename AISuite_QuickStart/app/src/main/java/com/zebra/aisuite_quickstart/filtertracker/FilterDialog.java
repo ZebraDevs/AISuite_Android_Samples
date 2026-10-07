@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
@@ -87,10 +86,8 @@ public class FilterDialog extends Dialog {
         String className = mContext.getClass().getName();
         if (prefsName.equals(CommonUtils.PREFS_NAME)) {
             if (className.equals("com.zebra.aisuite_quickstart.java.CameraXLivePreviewActivity")) {
-                Log.d("ActivityCheck", "Instance is from Java CameraXLivePreviewActivity");
                 sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME, MODE_PRIVATE);
             } else if (className.equals("com.zebra.aisuite_quickstart.kotlin.CameraXLivePreviewActivity")) {
-                Log.d("ActivityCheck", "Instance is from kotlin CameraXLivePreviewActivity");
                 sharedPreferences = mContext.getSharedPreferences(CommonUtils.PREFS_NAME_KOTLIN, MODE_PRIVATE);
             }
         } else {

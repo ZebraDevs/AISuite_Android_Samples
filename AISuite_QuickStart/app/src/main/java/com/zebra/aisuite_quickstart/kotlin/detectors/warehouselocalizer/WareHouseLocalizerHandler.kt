@@ -1,7 +1,7 @@
 package com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.InferencerOptions
@@ -58,13 +58,12 @@ class WareHouseLocalizerHandler(
      */
     private fun initializeWareHouseLocalizer() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(TAG, " LivePreview Model Input Size: $modelInputSize")
         try {
             val liveLocalizerSettings = createLocalizerSettings(modelInputSize)
             createWareHouseLocalizer(liveLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(
+            AppLog.e(
                 TAG,
                 "Model Loading: Pallet and Box Localizer returned with exception ${ex.message}"
             )
@@ -80,7 +79,7 @@ class WareHouseLocalizerHandler(
             createCaptureLocalizer(captureLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture localizer initialization failed: ${ex.message}")
+            AppLog.e(TAG, "Capture localizer initialization failed: ${ex.message}")
         }
     }
 
@@ -99,15 +98,11 @@ class WareHouseLocalizerHandler(
                     attachAnalysisAfterModelLoading()
                 }
 
-                Log.d(
-                    TAG,
-                    "Pallet and Box Localizer() obj creation time = ${System.currentTimeMillis() - startTime} ms" +
-                            " and input size: ${localizerSettings.inferencerOptions.defaultDims.width}"
-                )
+                AppLog.i(TAG, "Pallet and Box Localizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${localizerSettings.inferencerOptions.defaultDims.width}")
             }
             .exceptionally { e ->
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Fatal error: Pallet and Box Localizer creation failed - ${e.message}")
+                AppLog.e(TAG, "Pallet and Box Localizer model loading failed - ${e.message}")
                 null
             }
     }
@@ -127,14 +122,11 @@ class WareHouseLocalizerHandler(
                     attachAnalysisAfterModelLoading()
                 }
 
-                Log.d(
-                    TAG,
-                    "Capture Pallet and Box Localizer created in ${System.currentTimeMillis() - startTime} ms"
-                )
+                AppLog.i(TAG, "Capture Pallet and Box Localizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${localizerSettings.inferencerOptions.defaultDims.width}")
             }
             .exceptionally { e ->
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Capture Pallet and Box Localizer creation failed: ${e.message}")
+                AppLog.e(TAG, "Capture Pallet and Box Localizer model loading failed: ${e.message}")
                 null
             }
     }
@@ -156,12 +148,12 @@ class WareHouseLocalizerHandler(
         captureExecutor.shutdownNow()
         wareHouseLocalizer?.let {
             it.dispose()
-            Log.d(TAG, "Live preview Pallet and Box Localizer disposed")
+            AppLog.i(TAG, "Live preview Pallet and Box Localizer disposed")
             wareHouseLocalizer = null
         }
         captureLocalizer?.let {
             it.dispose()
-            Log.d(TAG, "Capture Pallet and Box Localizer disposed")
+            AppLog.i(TAG, "Capture Pallet and Box Localizer disposed")
             captureLocalizer = null
         }
     }

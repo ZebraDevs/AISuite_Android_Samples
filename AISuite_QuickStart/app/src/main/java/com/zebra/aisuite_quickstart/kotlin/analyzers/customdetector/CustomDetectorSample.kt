@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.analyzer.tracking.EntityTrackerAnalyzer
@@ -99,7 +99,7 @@ class CustomDetectorSample(
                 initAllDetectors(selectedIds)
                 loadingCallback.onLoadingComplete(true)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialize custom detectors: ${e.message}", e)
+                AppLog.e(TAG, "Failed to initialize custom detectors: ${e.message}", e)
                 loadingCallback.onLoadingComplete(false)
             }
         }
@@ -108,7 +108,7 @@ class CustomDetectorSample(
     // ── Steps 1+2: Initialize and wrap (delegated to per-model Integration classes) ──────────
 
     private fun initAllDetectors(selectedIds: List<String>) {
-        Log.i(TAG, "initAllDetectors() — selectedIds=$selectedIds")
+        AppLog.i(TAG, "initAllDetectors() — selectedIds=$selectedIds")
         val t0 = System.currentTimeMillis()
 
         if (BarcodeIntegration.MODEL_ID      in selectedIds) barcodeDecoder    = BarcodeIntegration.create(executor)
@@ -116,7 +116,7 @@ class CustomDetectorSample(
         if (YoloIntegration.MODEL_ID         in selectedIds) yoloDetector      = YoloIntegration.create(context)
         if (TFLiteModelIntegration.MODEL_ID in selectedIds) mobileNetDetector = TFLiteModelIntegration.create(context)
 
-        Log.i(TAG, "Selected detectors initialized in ${System.currentTimeMillis() - t0} ms")
+        AppLog.i(TAG, "Selected detectors initialized in ${System.currentTimeMillis() - t0} ms")
         buildAndSetAnalyzer(selectedIds)
     }
 
@@ -136,7 +136,7 @@ class CustomDetectorSample(
         if (TFLiteModelIntegration.MODEL_ID in selectedIds) mobileNetDetector?.let { detectorList.add(it) }
 
         if (detectorList.isEmpty()) {
-            Log.w(TAG, "No detectors selected — analyzer cleared")
+            AppLog.w(TAG, "No detectors selected — analyzer cleared")
             callback.handleCustomDetectionEntities(emptyList(), emptyList(), emptyList(), emptyList())
             return
         }
@@ -151,7 +151,7 @@ class CustomDetectorSample(
             // analyzer from overwriting the overlay after a filter change.
             val currentGeneration = analyzerGeneration.get()
             if (currentGeneration != generation) {
-                Log.w(TAG, "Discarding stale result — analyzer generation=$generation current=$currentGeneration")
+                AppLog.w(TAG, "Discarding stale result — analyzer generation=$generation current=$currentGeneration")
                 return@EntityTrackerAnalyzer
             }
 
@@ -169,27 +169,27 @@ class CustomDetectorSample(
                 result.getValue(it)?.filterIsInstance<DetectionEntity>()
             } ?: emptyList()
 
-            Log.v(TAG, "Results — barcodes=${barcodes.size} ocr=${ocr.size} yolo=${yolo.size} mobileNet=${mobileNet.size}")
+            AppLog.v(TAG, "Results — barcodes=${barcodes.size} ocr=${ocr.size} yolo=${yolo.size} mobileNet=${mobileNet.size}")
             callback.handleCustomDetectionEntities(barcodes, ocr, yolo, mobileNet)
         }
 
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
-        Log.d(TAG, "EntityTrackerAnalyzer set — detectors=${detectorList.size} ids=$selectedIds")
+        AppLog.d(TAG, "EntityTrackerAnalyzer set — detectors=${detectorList.size} ids=$selectedIds")
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────────────────────
 
     fun startAnalyzing() {
-        Log.d(TAG, "startAnalyzing()")
+        AppLog.d(TAG, "startAnalyzing()")
     }
 
     fun stopAnalyzing() {
-        Log.d(TAG, "stopAnalyzing()")
+        AppLog.d(TAG, "stopAnalyzing()")
         executor.shutdownNow()
     }
 
     fun stop() {
-        Log.d(TAG, "stop() — disposing all detectors")
+        AppLog.d(TAG, "stop() — disposing all detectors")
 
         // Step 5: Release resources
         barcodeDecoder?.dispose();    barcodeDecoder    = null

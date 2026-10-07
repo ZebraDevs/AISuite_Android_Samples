@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.BarcodeDecoder
@@ -74,7 +74,6 @@ class BarcodeHandler(
      */
     fun initializeBarcodeDecoder() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(tag, " LivePreview Model Input Size: $modelInputSize")
         val liveDecoderSettings = createDecoderSettings(modelInputSize)
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
             createBarcodeDecoder(liveDecoderSettings, System.currentTimeMillis())
@@ -134,13 +133,10 @@ class BarcodeHandler(
                 loadingCallback?.invoke(true)
                 attachAnalysisAfterModelLoading()
             }
-            Log.d(
-                tag,
-                "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms, input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}"
-            )
+            AppLog.i(tag, "BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Fatal error: decoder creation failed - ${e.message}")
+            AppLog.e(tag, "BarcodeDecoder model loading failed - ${e.message}")
         }
     }
 
@@ -160,13 +156,10 @@ class BarcodeHandler(
                 loadingCallback?.invoke(true)
                 attachAnalysisAfterModelLoading()
             }
-            Log.d(
-                tag,
-                "Capture BarcodeDecoder created in ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(tag, "Capture BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Capture decoder creation failed: ${e.message}")
+            AppLog.e(tag, "Capture decoder model loading failed: ${e.message}")
         }
     }
 
@@ -186,12 +179,12 @@ class BarcodeHandler(
         captureExecutor.shutdownNow()
         barcodeDecoder?.let {
             it.dispose()
-            Log.d(tag, "Live preview barcode decoder disposed")
+            AppLog.i(tag, "Live preview barcode decoder disposed")
             barcodeDecoder = null
         }
         captureDecoder?.let {
             it.dispose()
-            Log.d(tag, "Capture barcode decoder disposed")
+            AppLog.i(tag, "Capture barcode decoder disposed")
             captureDecoder = null
         }
     }

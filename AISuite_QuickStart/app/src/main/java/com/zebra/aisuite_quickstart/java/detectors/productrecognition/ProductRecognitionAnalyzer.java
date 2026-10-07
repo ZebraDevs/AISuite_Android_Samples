@@ -1,8 +1,6 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.productrecognition;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -12,6 +10,7 @@ import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.detector.ModuleRecognizer;
 import com.zebra.ai.vision.entity.Entity;
 import com.zebra.ai.vision.entity.ShelfEntity;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import java.util.List;
 import java.util.Objects;
@@ -81,47 +80,37 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
      */
     @Override
     public void analyze(@NonNull ImageProxy image) {
-        Log.e(TAG, "analyze() called");
         if (!isAnalyzing.compareAndSet(true, false) || isStopped) {
             image.close();
             return;
         }
 
-        Log.d(TAG, "Converting ImageProxy to Bitmap...");
         ImageData imageData = ImageData.fromImageProxy(image);
 
-        Log.d(TAG, "Calling moduleRecognizer.process...");
         long start = System.currentTimeMillis();
+        AppLog.v(TAG, "Starting image analysis");
         executorService.execute(() -> {
             try {
                 productRecognizer.process(imageData)
                         .thenAccept(entityList -> {
                             long end = System.currentTimeMillis();
                             long inferenceTime = end - start;
-                            Log.d(TAG, "Inference Time: " + inferenceTime);
-                            int shelfCount = 0;
-                            if (entityList != null) {
-                                for (Entity entity : entityList) {
-                                    if (entity instanceof ShelfEntity) {
-                                        shelfCount++;
-                                    }
-                                }
-                            }
-                            Log.d(TAG, "process() completed. Shelves found: " + shelfCount);
+                            AppLog.d(TAG, "Inference Time: " + inferenceTime);
                             if (!isStopped && callback != null) {
-                                Log.d(TAG, "Invoking callback.onRecognitionResult");
                                 callback.onRecognitionResult(entityList);
                             }
-                            Log.d(TAG, "Image closed, ready for next frame.");
+                            image.close();
+                            isAnalyzing.set(true);
                         })
                         .exceptionally(ex -> {
-                            Log.e(TAG, "Error in shelf recognition: " + ex.getMessage(), ex);
+                            AppLog.e(TAG, "Error in shelf recognition: " + ex.getMessage());
+                            image.close();
+                            isAnalyzing.set(true);
                             return null;
                         });
-                image.close();
-                isAnalyzing.set(true);
+
             } catch (Exception e) {
-                Log.e(TAG, "Error running product recognition "+ e.getMessage());
+                AppLog.e(TAG, "Error running product recognition "+ e.getMessage());
                 isAnalyzing.set(true);
                 image.close();
             }
@@ -136,16 +125,18 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
      */
     public void processImage(ImageProxy image, ModuleRecognizer captureRecognizer) {
         try {
-            Log.d(TAG, "Starting image capture analysis");
+            AppLog.v(TAG, "Starting image capture analysis");
             captureRecognizer.process(ImageData.fromImageProxy(image))
-                    .thenAccept(callback::onCaptureRecognitionResult)
-                    .exceptionally(ex -> {
-                        Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                    .thenAccept(result -> {
+                        callback.onCaptureRecognitionResult(result);
+                        image.close();
+                    }).exceptionally(ex -> {
+                        AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
+                        image.close();
                         return null;
                     });
-        } catch (AIVisionSDKException e) {
-            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
-        } finally {
+        } catch (Exception e) {
+            AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
             image.close();
         }
     }
@@ -157,13 +148,13 @@ public class ProductRecognitionAnalyzer implements ImageAnalysis.Analyzer {
      */
 
     public void stopAnalyzing() {
-        Log.d(TAG, "stopAnalyzing() called. Shutting down executor.");
+        AppLog.i(TAG, "stopAnalyzing() called. Shutting down executor.");
         isStopped = true;
         executorService.shutdownNow();
     }
 
     public void startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called. ");
+        AppLog.i(TAG, "startAnalyzing() called. ");
         isStopped = false;
         isAnalyzing.set(true);
         executorService = Executors.newSingleThreadExecutor();

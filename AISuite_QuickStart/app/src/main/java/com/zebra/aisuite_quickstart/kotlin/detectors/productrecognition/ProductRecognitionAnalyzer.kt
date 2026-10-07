@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition
 
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.ImageData
@@ -34,7 +34,7 @@ class ProductRecognitionAnalyzer(
 
     override fun analyze(image: ImageProxy) {
         if (moduleRecognizer == null) {
-            Log.d(TAG, "moduleRecognizer is null")
+            AppLog.w(TAG, "moduleRecognizer is null")
             image.close()
             return
         }
@@ -43,27 +43,26 @@ class ProductRecognitionAnalyzer(
             return
         }
         isAnalyzing = false
-
+        AppLog.v(TAG, "Starting image analysis")
         scope.launch {
             try {
                 val imageData = ImageData.fromImageProxy(image)
                 val start = System.currentTimeMillis()
                 moduleRecognizer.process(imageData).thenAccept { entityList ->
                     val end = System.currentTimeMillis()
-                    Log.d(TAG, "Inference Time: ${end - start} ms")
                     if (!isStopped) {
                         callback.onRecognitionResult(entityList)
                     }
                     image.close()
                     isAnalyzing = true
                 }.exceptionally { ex ->
-                    Log.e(TAG, "Error in product recognition: ${ex.message}", ex)
+                    AppLog.e(TAG, "Error in product recognition: ${ex.message}")
                     image.close()
                     isAnalyzing = true
                     null
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Exception during analyze: ${ex.message}", ex)
+                AppLog.e(TAG, "Exception during analyze: ${ex.message}")
                 image.close()
                 isAnalyzing = true
             }
@@ -81,19 +80,25 @@ class ProductRecognitionAnalyzer(
         val captureScope = CoroutineScope(Dispatchers.IO + Job())
         captureScope.launch {
             try {
-                Log.d(TAG, "Starting image capture recognition analysis")
+                AppLog.v(TAG, "Starting image capture recognition analysis")
                 val result = suspendCancellableCoroutine<List<Entity>> { cont ->
                     try {
                         val imageData = ImageData.fromImageProxy(image)
                         captureRecognizer.process(imageData)
                             .thenAccept { entityList ->
+                                image.close()
+                                isAnalyzing = true
                                 cont.resume(entityList)
                             }
                             .exceptionally { ex ->
+                                image.close()
+                                isAnalyzing = true
                                 cont.resumeWithException(ex)
                                 null
                             }
                     } catch (e: Exception) {
+                        image.close()
+                        isAnalyzing = true
                         cont.resumeWithException(e)
                     }
                 }
@@ -101,8 +106,7 @@ class ProductRecognitionAnalyzer(
                     callback.onCaptureRecognitionResult(result)
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error in capture recognition processing: ${ex.message}", ex)
-            } finally {
+                AppLog.e(TAG, "Error in capture recognition processing: ${ex.message}")
                 image.close()
                 isAnalyzing = true
             }
@@ -122,7 +126,7 @@ class ProductRecognitionAnalyzer(
      * and creates a new coroutine scope for processing.
      */
     fun startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called.")
+        AppLog.i(TAG, "startAnalyzing() called.")
         isStopped = false
         isAnalyzing=true
         job = Job()

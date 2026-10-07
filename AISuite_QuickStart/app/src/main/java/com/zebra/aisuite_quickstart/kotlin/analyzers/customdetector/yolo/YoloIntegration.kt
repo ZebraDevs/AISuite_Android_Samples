@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.yolo
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import com.zebra.ai.vision.custommodels.CustomDetector
 import com.zebra.ai.vision.entity.DetectionEntity
 
@@ -19,7 +19,7 @@ object YoloIntegration {
     private const val TAG = "YoloIntegration"
 
     fun create(context: Context): CustomDetector<DetectionEntity> {
-        Log.d(TAG, "Initializing YOLOv8n ONNX…")
+        AppLog.d(TAG, "Initializing YOLOv8n ONNX…")
 
         // Step 1: Initialize
         val model = YoloOnnxModel(context)
@@ -28,11 +28,11 @@ object YoloIntegration {
         val detector = CustomDetector.create(model, MODEL_ID) { m, imageData ->
             val entities = m.detect(imageData.getBitmap())
                 .map { rect -> DetectionEntity(rect, emptyList()) }
-            Log.v(TAG, "  YOLO: ${entities.size} detection(s)")
+            AppLog.v(TAG, "  YOLO: ${entities.size} detection(s)")
             entities
         }
 
-        Log.d(TAG, "YOLOv8n ONNX detector ready")
+        AppLog.d(TAG, "YOLOv8n ONNX detector ready")
         return detector
     }
 }

@@ -1,8 +1,6 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -11,6 +9,7 @@ import com.zebra.ai.vision.detector.AIVisionSDKException;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.ImageData;
 import com.zebra.ai.vision.entity.BarcodeEntity;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import java.util.List;
 import java.util.Objects;
@@ -91,13 +90,13 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
         isAnalyzing = false; // Prevent re-entry
         Future<?> future = executorService.submit(() -> {
             try {
-                Log.d(TAG, "Starting image analysis");
+                AppLog.v(TAG, "Starting image analysis");
                 ImageData imageData = ImageData.fromImageProxy(image);
                 long start = System.currentTimeMillis();
                 barcodeDecoder.process(imageData)
                         .thenAccept(result -> {
                             long processingTime = System.currentTimeMillis() - start;
-                            Log.d(TAG, "processing time: " + processingTime + "ms");
+                            AppLog.d(TAG, "processing time: " + processingTime + "ms");
                             if (!isStopped) {
                                 callback.onDetectionResult(result, processingTime);
                             }
@@ -105,13 +104,13 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
                             image.close();
                         })
                         .exceptionally(ex -> {
-                            Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                            AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
                             isAnalyzing = true;
                             image.close();
                             return null;
                         });
-            } catch (AIVisionSDKException e) {
-                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            } catch (Exception e) {
+                AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
                 image.close();
                 isAnalyzing = true;
             }
@@ -125,18 +124,22 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
 
     public void processImage(ImageProxy image, BarcodeDecoder captureDecoder){
         try {
-            Log.d(TAG, "Starting image capture analysis");
+            AppLog.v(TAG, "Starting image capture analysis");
             captureDecoder.process(ImageData.fromImageProxy(image))
-                    .thenAccept(callback::onCaptureDetectionResult)
-                    .exceptionally(ex -> {
-                        Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                    .thenAccept(result -> {
+                        callback.onCaptureDetectionResult(result);
+                        isAnalyzing = true;
+                        image.close();
+                    }).exceptionally(ex -> {
+                        AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
+                        isAnalyzing = true;
+                        image.close();
                         return null;
                     });
-        } catch (AIVisionSDKException e) {
-            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
-        }finally {
-            image.close();
+        } catch (Exception e) {
+            AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
             isAnalyzing = true;
+            image.close();
         }
     }
 
@@ -151,7 +154,7 @@ public class BarcodeAnalyzer implements ImageAnalysis.Analyzer {
     }
 
     public void startAnalyzing(){
-        Log.d(TAG, "startAnalyzing() called. ");
+        AppLog.i(TAG, "startAnalyzing() called. ");
         isStopped = false;
         isAnalyzing=true;
         executorService = Executors.newSingleThreadExecutor();

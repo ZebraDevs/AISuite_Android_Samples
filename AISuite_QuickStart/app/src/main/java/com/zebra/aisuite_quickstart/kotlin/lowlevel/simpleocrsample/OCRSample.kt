@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.lowlevel.simpleocrsample
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
@@ -94,17 +94,17 @@ class OCRSample(
                 ocrAnalyzer = OCRAnalyzer(callback, ocrInstance)
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer!!)
 
-                Log.d(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
+                AppLog.i(TAG, "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} milli sec")
             }
             catch (e: AIVisionSDKLicenseException) {
                 // Notify failed loading
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
+                AppLog.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, ${e.message}")
             }
             catch (e: Exception) {
                 // Notify failed loading
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
+                AppLog.e(TAG, "Fatal error: TextOCR creation failed - ${e.message}")
             }
         }
     }
@@ -116,7 +116,7 @@ class OCRSample(
     fun stop() {
         textOCR?.let {
             it.dispose()
-            Log.d(TAG, "OCR is disposed")
+            AppLog.i(TAG, "OCR is disposed")
             textOCR = null
         }
     }
@@ -139,7 +139,7 @@ class OCRSample(
         for (word in list) {
             // Append each word's content followed by a newline
             if (word.decodes.isNotEmpty()) {
-                Log.d(TAG, "Detected word: ${word.decodes[0]}")
+                AppLog.d(TAG, "Detected word: ${word.decodes[0]}")
             }
         }
     }

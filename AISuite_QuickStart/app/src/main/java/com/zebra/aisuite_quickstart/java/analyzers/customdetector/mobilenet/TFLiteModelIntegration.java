@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.analyzers.customdetector.mobilenet;
 
 import android.content.Context;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.vision.common.InputImage;
@@ -30,7 +30,7 @@ public class TFLiteModelIntegration {
     private static final String TAG = "TFLiteModelIntegration";
 
     public static CustomDetector<DetectionEntity> create(Context context) throws IOException {
-        Log.d(TAG, "Initializing MobileNet SSD object detector…");
+        AppLog.d(TAG, "Initializing MobileNet SSD object detector…");
 
         // Step 1: Initialize
         TFLiteModel model = new TFLiteModel(context);
@@ -41,14 +41,14 @@ public class TFLiteModelIntegration {
                     try {
                         List<DetectionEntity> entities = Tasks.await(
                                 m.process(InputImage.fromBitmap(imageData.getBitmap(), 0)));
-                        Log.v(TAG, "  MobileNet SSD: " + entities.size() + " detection(s)");
+                        AppLog.v(TAG, "  MobileNet SSD: " + entities.size() + " detection(s)");
                         return entities;
                     } catch (Exception e) {
                         throw new RuntimeException("MobileNet SSD inference failed", e);
                     }
                 });
 
-        Log.d(TAG, "MobileNet SSD object detector ready");
+        AppLog.d(TAG, "MobileNet SSD object detector ready");
         return detector;
     }
 }

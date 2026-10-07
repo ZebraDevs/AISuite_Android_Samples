@@ -23,4 +23,5 @@
     <string name="input_size_2560">2560 x 2560</string>
     <string name="resolution_arrow_button">Resolution arrow button</string>
     <string name="expand_about">Expand About</string>
+    <string name="enable_text_ocr_picklist">TextOCR Picklist</string>
 </resources>

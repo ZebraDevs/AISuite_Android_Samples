@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.analyzers.tracker
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.core.content.ContextCompat
@@ -88,7 +88,7 @@ class Tracker(
             }
         } else {
             loadingCallback?.invoke(false)
-            Log.d(TAG, "None of the filter selected")
+            AppLog.e(TAG, "None of the filter selected")
         }
     }
 
@@ -158,13 +158,12 @@ class Tracker(
 
     fun initializeBarcodeDecoder() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(TAG, "Barcode LivePreview Model Input Size: $modelInputSize")
         try {
             val liveDecoderSettings = createBarcodeDecoderSettings(modelInputSize)
             createBarcodeDecoder(liveDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Model Loading: Barcode decoder returned with exception ${ex.message}")
+            AppLog.e(TAG, "Model Loading: Barcode decoder returned with exception ${ex.message}")
         }
     }
 
@@ -173,10 +172,7 @@ class Tracker(
         BarcodeDecoder.getBarcodeDecoder(settings, executor).thenAccept { decoder ->
             barcodeDecoder = decoder
             createAnalyzer(listOfNotNull(barcodeDecoder))
-            Log.d(
-                TAG,
-                "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(TAG, "BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.detectorSetting.inferencerOptions.defaultDims.width}")
         }.exceptionally { throwable ->
             loadingCallback?.invoke(false)
             handleException(throwable)
@@ -186,13 +182,12 @@ class Tracker(
 
     private fun initializeTextOCR() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(TAG, "OCR LivePreview Model Input Size: $modelInputSize")
         try {
             val liveOCRSettings = createTextOCRSettings(modelInputSize)
             createTextOCR(liveOCRSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Fatal error: load failed - ${e.message}")
+            AppLog.e(TAG, "Fatal error: load failed - ${e.message}")
         }
     }
 
@@ -201,10 +196,8 @@ class Tracker(
         TextOCR.getTextOCR(settings, executor).thenAccept { ocr ->
             textOCR = ocr
             createAnalyzer(listOfNotNull(textOCR))
-            Log.d(
-                TAG,
-                "TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(TAG, "TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.detectionInferencerOptions.defaultDims.width}")
+
         }.exceptionally { throwable ->
             loadingCallback?.invoke(false)
             handleException(throwable)
@@ -214,14 +207,12 @@ class Tracker(
 
     fun initializeModuleRecognizer() {
         val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        Log.d(TAG, "MR LivePreview Model Input Size: $modelInputSize")
         try {
-            Log.i(TAG, "Initializing ModuleRecognizer for Product Recognition")
             val liveRecognizerSettings = createModuleRecognizerSettings(modelInputSize)
             createModuleRecognizer(liveRecognizerSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Fatal error during initialization setup: ${e.message}")
+            AppLog.e(TAG, "Fatal error during initialization setup: ${e.message}")
         }
     }
 
@@ -229,20 +220,13 @@ class Tracker(
         val startTime = System.currentTimeMillis()
         ModuleRecognizer.getModuleRecognizer(settings, executor)
             .thenAccept { recognizerInstance ->
-                Log.i(TAG, "ModuleRecognizer instance created successfully for Product Recognition")
                 moduleRecognizer = recognizerInstance
                 createAnalyzer(listOfNotNull(moduleRecognizer))
-                Log.d(
-                    TAG,
-                    "Product Recognition creation time: ${System.currentTimeMillis() - startTime}ms"
-                )
+                AppLog.i(TAG, "ModuleRecognizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.inferencerOptions.defaultDims.width}")
             }
             .exceptionally { throwable ->
                 loadingCallback?.invoke(false)
-                Log.e(
-                    TAG,
-                    "Failed to create ModuleRecognizer for Product Recognition: ${throwable.message}"
-                )
+                AppLog.e(TAG, "ModuleRecognizer model loading failed ${throwable.message}")
                 null
             }
     }
@@ -260,7 +244,7 @@ class Tracker(
             createCaptureBarcodeDecoder(captureDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture barcode decoder initialization failed: ${ex.message}")
+            AppLog.e(TAG, "Capture barcode decoder initialization failed: ${ex.message}")
         }
     }
 
@@ -269,13 +253,11 @@ class Tracker(
         BarcodeDecoder.getBarcodeDecoder(settings, captureExecutor).thenAccept { decoderInstance ->
             captureBarcodeDecoder = decoderInstance
             createCaptureAnalyzer(listOfNotNull(captureBarcodeDecoder))
-            Log.d(
-                TAG,
-                "Capture BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(TAG, "Capture BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.detectorSetting.inferencerOptions.defaultDims.width}")
+
         }.exceptionally { e ->
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture barcode decoder creation failed: ${e.message}")
+            AppLog.e(TAG, "Capture BarcodeDecoder model loading failed: ${e.message}")
             null
         }
     }
@@ -289,7 +271,7 @@ class Tracker(
             createCaptureTextOCR(captureOcrSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture OCR scanner initialization failed: ${ex.message}")
+            AppLog.e(TAG, "Capture OCR scanner initialization failed: ${ex.message}")
         }
     }
 
@@ -298,13 +280,10 @@ class Tracker(
         TextOCR.getTextOCR(settings, captureExecutor).thenAccept { ocrInstance ->
             captureOcr = ocrInstance
             createCaptureAnalyzer(listOfNotNull(captureOcr))
-            Log.d(
-                TAG,
-                "Capture TextOCR() obj creation / model loading time = ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(TAG, "Capture TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.detectionInferencerOptions.defaultDims.width}")
         }.exceptionally { e ->
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture OCR scanner creation failed: ${e.message}")
+            AppLog.e(TAG, "Capture TextOCR model loading failed: ${e.message}")
             null
         }
     }
@@ -318,7 +297,7 @@ class Tracker(
             createCaptureModuleRecognizer(captureModuleSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(TAG, "Capture module recognizer initialization failed: ${ex.message}")
+            AppLog.e(TAG, "Capture module recognizer initialization failed: ${ex.message}")
         }
     }
 
@@ -328,13 +307,10 @@ class Tracker(
             .thenAccept { moduleInstance ->
                 captureModuleRecognizer = moduleInstance
                 createCaptureAnalyzer(listOfNotNull(captureModuleRecognizer))
-                Log.d(
-                    TAG,
-                    "Capture ModuleRecognizer Creation Time: ${System.currentTimeMillis() - startTime}ms"
-                )
+                AppLog.i(TAG, "Capture ModuleRecognizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.inferencerOptions.defaultDims.width}")
             }.exceptionally { e ->
                 loadingCallback?.invoke(false)
-                Log.e(TAG, "Capture module recognizer creation failed: ${e.message}")
+                AppLog.e(TAG, "Capture ModuleRecognizer model loading failed: ${e.message}")
                 null
             }
     }
@@ -445,11 +421,11 @@ class Tracker(
                     callback.handleCaptureFrameEntities(barcodeResult, ocrResult, moduleResult)
                 }
                 .exceptionally { e ->
-                    Log.e(TAG, "Error processing capture image: ${e.message}")
+                    AppLog.e(TAG, "Error processing capture image: ${e.message}")
                     null
                 }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in processImage: ${e.message}")
+            AppLog.e(TAG, "Error in processImage: ${e.message}")
         } finally {
             image.close()
         }
@@ -464,7 +440,7 @@ class Tracker(
      * Starts or restarts the analysis process. Recreates the executor and entity tracker analyzer.
      */
     fun startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called.")
+        AppLog.i(TAG, "startAnalyzing() called.")
         executor = Executors.newFixedThreadPool(3)
         entityTrackerAnalyzer = EntityTrackerAnalyzer(
             analyzerList,
@@ -483,34 +459,34 @@ class Tracker(
         // Dispose live preview instances
         barcodeDecoder?.let {
             it.dispose()
-            Log.d(TAG, "Barcode decoder is disposed")
+            AppLog.i(TAG, "Barcode decoder is disposed")
             barcodeDecoder = null
         }
         textOCR?.let {
             it.dispose()
-            Log.d(TAG, "TextOCR is disposed")
+            AppLog.i(TAG, "TextOCR is disposed")
             textOCR = null
         }
         moduleRecognizer?.let {
             it.dispose()
-            Log.d(TAG, "Module Recognizer is disposed")
+            AppLog.i(TAG, "Module Recognizer is disposed")
             moduleRecognizer = null
         }
 
         // Dispose capture instances
         captureBarcodeDecoder?.let {
             it.dispose()
-            Log.d(TAG, "Capture barcode decoder disposed")
+            AppLog.i(TAG, "Capture barcode decoder disposed")
             captureBarcodeDecoder = null
         }
         captureOcr?.let {
             it.dispose()
-            Log.d(TAG, "Capture OCR scanner disposed")
+            AppLog.i(TAG, "Capture OCR scanner disposed")
             captureOcr = null
         }
         captureModuleRecognizer?.let {
             it.dispose()
-            Log.d(TAG, "Capture module recognizer disposed")
+            AppLog.i(TAG, "Capture module recognizer disposed")
             captureModuleRecognizer = null
         }
     }
@@ -542,7 +518,7 @@ class Tracker(
                 }
             }
         } catch (e: IOException) {
-            Log.e(TAG, "Error in copy from assets: ${e.message}")
+            AppLog.e(TAG, "Error in copy from assets: ${e.message}")
         }
     }
 
@@ -551,7 +527,7 @@ class Tracker(
             "License error: ${e.message}"
         else
             "Fatal error: ${e.message}"
-        Log.e(TAG, message)
+        AppLog.e(TAG, message)
         return null
     }
 }

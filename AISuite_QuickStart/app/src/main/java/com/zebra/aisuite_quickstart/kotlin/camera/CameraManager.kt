@@ -3,7 +3,7 @@ package com.zebra.aisuite_quickstart.kotlin.camera
 
 import android.content.Context
 import android.hardware.camera2.CameraMetadata
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import android.util.Size
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
@@ -168,15 +168,15 @@ class CameraManager(
         val actualResolution = analysisUseCase?.resolutionInfo?.resolution
         if (actualResolution != null) {
             selectedSize = actualResolution
-            Log.d(TAG, "Actual bound ImageAnalysis size: $actualResolution")
+            AppLog.i(TAG, "Actual bound ImageAnalysis size: $actualResolution")
         } else {
-            Log.w(TAG, "ImageAnalysis resolution info is not available after binding")
+            AppLog.w(TAG, "ImageAnalysis resolution info is not available after binding")
         }
     }
 
     fun unbindAll() {
         cameraProvider?.unbindAll()
-        Log.v(TAG, "Camera Unbound")
+        AppLog.i(TAG, "Camera Unbound")
     }
 
     fun unbindImageAnalysis() {

@@ -2,6 +2,8 @@
 package com.zebra.aisuite_quickstart.java.handlers;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -9,7 +11,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -20,6 +22,7 @@ import androidx.annotation.NonNull;
 import com.zebra.ai.vision.detector.BBox;
 import com.zebra.ai.vision.detector.BarcodeDecoder;
 import com.zebra.ai.vision.detector.ComplexBBox;
+import com.zebra.ai.vision.detector.DecodedText;
 import com.zebra.ai.vision.detector.Recognizer;
 import com.zebra.ai.vision.detector.SKUInfo;
 import com.zebra.ai.vision.detector.Word;
@@ -38,6 +41,7 @@ import com.zebra.aisuite_quickstart.java.camera.CameraManager;
 import com.zebra.aisuite_quickstart.java.detectors.barcodedecodersample.BarcodeGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.productrecognition.ProductRecognitionGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.textocrsample.OCRGraphic;
+import com.zebra.aisuite_quickstart.java.detectors.textocrsample.PicklistCrosshairGraphic;
 import com.zebra.aisuite_quickstart.java.detectors.warehouselocalizer.WareHouseLocalizerGraphic;
 import com.zebra.aisuite_quickstart.java.viewfinder.EntityViewGraphic;
 import com.zebra.aisuite_quickstart.utils.CommonUtils;
@@ -56,6 +60,7 @@ public class DetectionResultHandler {
     private final CameraXLivePreviewActivity activity;
     private final BoundingBoxMapper boundingBoxMapper;
     private final float SIMILARITY_THRESHOLD = 0.65f;
+    private final float PALLET_BOX_THRESHOLD = 0.85f;
     private final CameraManager cameraManager;
     private final List<ShelfEntity> capturedShelves = new ArrayList<>();
     private final List<Rect> capturedShelfOverlayRects = new ArrayList<>();
@@ -84,14 +89,14 @@ public class DetectionResultHandler {
                 for (BarcodeEntity bb : result) {
                     Rect rect = bb.getBoundingBox();
                     if (rect != null) {
-                        Log.d(TAG, String.format("Original bbox: %s", rect));
+                        AppLog.d(TAG, String.format("Original bbox: %s", rect));
                         Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                        Log.d(TAG, String.format("Mapped bbox: %s", overlayRect));
+                        AppLog.d(TAG, String.format("Mapped bbox: %s", overlayRect));
                         rects.add(overlayRect);
                         decodedStrings.add(bb.getValue());
                     }
-                    Log.e(TAG, "Detected entity - Value: " + bb.getValue());
-                    Log.e(TAG, "Detected entity - Symbology: " + bb.getSymbology());
+                    AppLog.d(TAG, "Detected entity - Value: " + bb.getValue());
+                    AppLog.d(TAG, "Detected entity - Symbology: " + bb.getSymbology());
                 }
                 activity.getBinding().graphicOverlay.add(new BarcodeGraphic(activity.getBinding().graphicOverlay, rects, decodedStrings));
             }
@@ -112,9 +117,6 @@ public class DetectionResultHandler {
                 Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
                 rects.add(overlayRect);
                 decodedStrings.add(barcode.value);
-
-                Log.d(TAG, "Symbology Type " + barcode.symbologytype);
-                Log.d(TAG, "Decoded barcode: " + decodedString);
             }
             activity.getBinding().graphicOverlay.add(new BarcodeGraphic(activity.getBinding().graphicOverlay, rects, decodedStrings));
         });
@@ -124,9 +126,11 @@ public class DetectionResultHandler {
     public void handleTextOCRDetection(List<ParagraphEntity> list) {
         List<Rect> rects = new ArrayList<>();
         List<String> decodedStrings = new ArrayList<>();
+        List<Float> wordConfidences = new ArrayList<>();
 
         activity.runOnUiThread(() -> {
             activity.getBinding().graphicOverlay.clear();
+            boolean picklistEnabled = isPicklistEnabled();
             for (ParagraphEntity entity : list) {
                 List<LineEntity> lines = entity.getLines();
                 for (LineEntity line : lines) {
@@ -143,13 +147,32 @@ public class DetectionResultHandler {
                                 Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
                                 rects.add(overlayRect);
                                 decodedStrings.add(word.getText());
+
+                                if (picklistEnabled) {
+                                    DecodedText[] predicted = word.getAllPredictedText();
+                                    float topConfidence = predicted != null && predicted.length > 0 && predicted[0] != null
+                                            ? predicted[0].confidence : 0f;
+                                    wordConfidences.add(topConfidence);
+                                }
                             }
                         }
                     }
                 }
             }
-            activity.getBinding().graphicOverlay.add(new OCRGraphic(activity.getBinding().graphicOverlay, rects, decodedStrings));
+            activity.getBinding().graphicOverlay.add(new OCRGraphic(activity.getBinding().graphicOverlay, rects, decodedStrings,
+                    picklistEnabled ? wordConfidences : null));
+            if (picklistEnabled) {
+                // Fixed center-of-frame guide for picklist OCR - re-added every frame since
+                // graphicOverlay.clear() above wipes it along with the detection results.
+                activity.getBinding().graphicOverlay.add(new PicklistCrosshairGraphic(activity.getBinding().graphicOverlay));
+            }
         });
+    }
+
+    /** True if the picklist OCR setting is currently enabled in the Settings screen. */
+    private boolean isPicklistEnabled() {
+        SharedPreferences prefs = activity.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE);
+        return prefs.getBoolean(CommonUtils.PREF_TEXT_OCR_PICKLIST_ENABLED, false);
     }
 
     // Legacy OCR detection result handler
@@ -214,7 +237,6 @@ public class DetectionResultHandler {
                     decodedStrings.add("No products found");
                     recognizedRects.add(new Rect(250, 250, 0, 0));
                 } else {
-                    Log.v(TAG, "products length :" + products.length + " recognitions length: " + recognitions.length);
                     for (int i = 0; i < products.length; i++) {
                         if (recognitions[i].similarity[0] > SIMILARITY_THRESHOLD) {
                             BBox bBox = products[i];
@@ -233,7 +255,6 @@ public class DetectionResultHandler {
 
     // Product recognition detection result handler
     public void handleDetectionRecognitionResult(List<Entity> result) {
-        Log.d(TAG, "Inside On Shelf RecognitionResult (flat hierarchy)");
         activity.runOnUiThread(() -> {
             activity.getBinding().graphicOverlay.clear();
             if (result == null) return;
@@ -271,12 +292,12 @@ public class DetectionResultHandler {
                                 labelShelfRects.add(lsr);
 
                                 List<BarcodeEntity> barcodes = label.getBarcodes();
-                                Log.d(TAG, "Barcodes size: " + barcodes.size());
+                                AppLog.d(TAG, "Barcodes size: " + barcodes.size());
                                 if (!barcodes.isEmpty()) {
                                     for (BarcodeEntity barcode : barcodes) {
                                         Rect barcodeRect = barcode.getBoundingBox();
-                                        Log.d(TAG, "Detected entity - Value: " + barcode.getValue());
-                                        Log.d(TAG, "Detected entity - Symbology: " + barcode.getSymbology());
+                                        AppLog.d(TAG, "MR Detected entity - Value: " + barcode.getValue());
+                                        AppLog.d(TAG, "MR Detected entity - Symbology: " + barcode.getSymbology());
                                         Rect barRect = boundingBoxMapper.mapBoundingBoxToOverlay(barcodeRect);
                                         barcodeRects.add(barRect);
                                         barcodeTexts.add(barcode.getValue());
@@ -298,11 +319,7 @@ public class DetectionResultHandler {
                     }
                 }
                 productLabels.add(topSku);
-
-                Log.d(TAG, String.format(
-                        "SKU=%s, Product bbox=%s",
-                        topSku, prodRect
-                ));
+                AppLog.d(TAG, String.format("SKU=%s, Product bbox=%s", topSku, prodRect));
             }
 
             activity.getBinding().graphicOverlay.add(new ProductRecognitionGraphic(activity.getBinding().graphicOverlay, labelShelfRects, labelPegRects, shelfRects, productRects, productLabels, barcodeRects,
@@ -347,7 +364,7 @@ public class DetectionResultHandler {
                             else{
                                 barcodeStrings.add("");
                             }
-                            Log.d(TAG, "Tracker UUID: " + hashCode + " Tracker Detected entity - Value: " + bEntity.getValue());
+                            AppLog.d(TAG, "Tracker UUID: " + hashCode + " Tracker Detected entity - Value: " + bEntity.getValue());
                         }
                     }
                 }
@@ -356,9 +373,7 @@ public class DetectionResultHandler {
                 for (Entity entity : ocrEntities) {
                     if (entity instanceof ParagraphEntity) {
                         ParagraphEntity pEntity = (ParagraphEntity) entity;
-                        Log.i(TAG, "Paragraph Entity detected" + pEntity);
                         List<LineEntity> lineEntities = pEntity.getLines();
-                        Log.i(TAG, "Lines detected" + lineEntities.size());
                         for (LineEntity lineEntity : lineEntities) {
 
                             for (WordEntity wordEntity : lineEntity.getWords()) {
@@ -444,10 +459,9 @@ public class DetectionResultHandler {
                     BarcodeEntity bEntity = (BarcodeEntity) entity;
                     Rect rect = bEntity.getBoundingBox();
                     if (rect != null) {
-                        Log.d(TAG, "Adding entity to view - Value: " + bEntity.getValue() + ", BBox: " + rect);
                         entityViewGraphic.addEntity(bEntity);
                     } else {
-                        Log.w(TAG, "Entity has null bounding box - Value: " + bEntity.getValue());
+                        AppLog.w(TAG, "Entity has null bounding box - Value: " + bEntity.getValue());
                     }
                 }
             }
@@ -456,7 +470,7 @@ public class DetectionResultHandler {
     }
     public void handleImageCaptureBarcodeResult(List<BarcodeEntity> entities) {
         if (activity.getCapturedBitmap() == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: bitmap or entities null");
+            AppLog.w(TAG, "Cannot overlay: bitmap or entities null");
             return;
         }
 
@@ -517,24 +531,22 @@ public class DetectionResultHandler {
 
                 // Draw dark gray text
                 canvas.drawText(text, rect.left + contentPadding , rect.bottom + contentPadding * 2, textPaint);
-             //   CommonUtils.getTextSizeWithinBounds(canvas, text, rect.left, rect.top, rect.right, rect.bottom, textPaint);
             }
         }
 
         activity.runOnUiThread(() -> {
             activity.getBinding().capturedImageView.setImageBitmap(annotated);
-            Log.d(TAG, "Overlayed " + rects.size() + " barcode detections");
+            AppLog.d(TAG, "Overlayed " + rects.size() + " barcode detections");
         });
     }
     public void handleImageCaptureTextResult(List<ParagraphEntity> entities) {
         if (activity.getCapturedBitmap() == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: frozenFrame=" + cameraManager.getImageCapture());
+            AppLog.w(TAG, "Cannot overlay: frozenFrame=" + cameraManager.getImageCapture());
             return;
         }
 
         Bitmap annotated = activity.getCapturedBitmap().copy(Bitmap.Config.ARGB_8888, true);
         Canvas canvas = new Canvas(annotated);
-        Log.d(TAG, "Drawing detections on canvas");
         // Extract text and bounding boxes (same logic as handleTextOCRDetection)
         List<Rect> rects = new ArrayList<>();
         List<String> decodedStrings = new ArrayList<>();
@@ -585,14 +597,14 @@ public class DetectionResultHandler {
 
         activity.runOnUiThread(() -> {
             activity.getBinding().capturedImageView.setImageBitmap(annotated);
-            Log.d(TAG, "Overlayed " + rects.size() + " detections");
+            AppLog.d(TAG, "Overlayed " + rects.size() + " detections");
         });
     }
 
     public void handleImageCaptureRecognitionResult(List<Entity> entities) {
         Bitmap currentCapture = activity.getCapturedBitmap();
         if (currentCapture == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: frozenFrame=" + currentCapture);
+            AppLog.w(TAG, "Cannot overlay: frozenFrame=" + currentCapture);
             return;
         }
 
@@ -673,7 +685,7 @@ public class DetectionResultHandler {
 
         activity.runOnUiThread(() -> {
             activity.getBinding().capturedImageView.setImageBitmap(annotated);
-            Log.d(TAG, "Overlay recognition detections on captured bitmap");
+            AppLog.d(TAG, "Overlay recognition detections on captured bitmap");
         });
     }
 
@@ -681,7 +693,7 @@ public class DetectionResultHandler {
     public void overlayShelfAssociations(@NonNull ShelfEntity shelf) {
         Bitmap currentCapture = activity.getCapturedBitmap();
         if (currentCapture == null) {
-            Log.w(TAG, "overlayShelfAssociations: no captured bitmap");
+            AppLog.w(TAG, "overlayShelfAssociations: no captured bitmap");
             return;
         }
         Bitmap annotated = currentCapture.copy(Bitmap.Config.ARGB_8888, true);
@@ -783,17 +795,17 @@ public class DetectionResultHandler {
 
         activity.runOnUiThread(() -> {
             activity.getBinding().capturedImageView.setImageBitmap(annotated);
-            Log.d(TAG, "Overlayed tapped shelf associations on captured bitmap");
+            AppLog.d(TAG, "Overlayed tapped shelf associations on captured bitmap");
         });
     }
 
     @SuppressLint("ClickableViewAccessibility")
     public void enableShelfTapOnCapturedBitmap(List<Entity> result, Bitmap capturedBitmap, ImageView imageView) {
-        Log.d(TAG, "Enable shelf-tap on captured bitmap");
+        AppLog.v(TAG, "Enable shelf-tap on captured bitmap");
         activity.runOnUiThread(() -> {
 
             if (result == null || result.isEmpty() || capturedBitmap == null || imageView == null) {
-                Log.w(TAG, "Missing result/bitmap/imageView");
+                AppLog.w(TAG, "Missing result/bitmap/imageView");
                 return;
             }
 
@@ -809,10 +821,9 @@ public class DetectionResultHandler {
                 if (e instanceof LabelEntity) capturedLabels.add((LabelEntity) e);
             }
             capturedShelves.sort(java.util.Comparator.comparingInt(s -> s.getBoundingBox().top));
-            Log.d(TAG, "Shelves collected: " + capturedShelves.size());
-            Log.d(TAG, "Products collected: " + capturedProducts.size());
-            Log.d(TAG, "Labels collected: " + capturedLabels.size());
-
+            AppLog.d(TAG, "Shelves collected: " + capturedShelves.size());
+            AppLog.d(TAG, "Products collected: " + capturedProducts.size());
+            AppLog.d(TAG, "Labels collected: " + capturedLabels.size());
             // Precompute ImageView-space rects for hit-testing on the bitmap view
             capturedShelfViewRects.clear();
             for (int i = 0; i < capturedShelves.size(); i++) {
@@ -822,8 +833,6 @@ public class DetectionResultHandler {
                 Matrix im = new Matrix(imageView.getImageMatrix());
                 im.mapRect(vf);
                 capturedShelfViewRects.add(vf);
-                Log.d(TAG, "Shelf[" + i + "] imageRect=" + shelfImgRect.toShortString()
-                        + " | viewRect=(" + vf.left + "," + vf.top + "," + vf.right + "," + vf.bottom + ")");
             }
             capturedProductViewRects.clear();
             for (ProductEntity product : capturedProducts) {
@@ -844,7 +853,6 @@ public class DetectionResultHandler {
 
             // Initial full render (you can comment this out if you only want overlays on tap)
             handleDetectionRecognitionResult(result);
-            Log.d(TAG, "Initial full render done for captured bitmap");
 
             // Tap listener on the bitmap view (ImageView)
             imageView.setClickable(true);
@@ -860,7 +868,6 @@ public class DetectionResultHandler {
                         case MotionEvent.ACTION_DOWN:
                             downX = event.getX(); downY = event.getY();
                             downTime = System.currentTimeMillis(); movedOutside = false;
-                            Log.d(TAG, "ACTION_DOWN @ (" + downX + "," + downY + ")");
                             v.setPressed(true);
                             return true;
                         case MotionEvent.ACTION_MOVE: {
@@ -873,24 +880,18 @@ public class DetectionResultHandler {
                             long duration = System.currentTimeMillis() - downTime;
                             boolean isTap = !movedOutside && duration <= tapTimeout;
                             float upX = event.getX(), upY = event.getY();
-                            Log.d(TAG, "ACTION_UP @ (" + upX + "," + upY + "), isTap=" + isTap + ", movedOutside=" + movedOutside + ", duration=" + duration + "ms");
 
                             if (isTap) {
-                                Log.d(TAG, "Tap detected, checking shelves...");
                                 for (int i = 0; i < capturedShelfViewRects.size(); i++) {
                                     RectF viewRect = capturedShelfViewRects.get(i);
                                     if (viewRect != null && viewRect.contains(upX, upY)) {
                                         ShelfEntity tappedShelf = capturedShelves.get(i);
                                         Rect imgRect = tappedShelf.getBoundingBox();
-                                        Log.d(TAG, "Tap is on shelf[" + i + "] imageRect=" + imgRect.toShortString()
-                                                + " | viewRect=(" + viewRect.left + "," + viewRect.top + "," + viewRect.right + "," + viewRect.bottom + ")");
-//                                        logShelfAssociations(tappedShelf);
                                         overlayShelfAssociations(tappedShelf);
                                         v.performClick();
                                         return true;
                                     }
                                 }
-                                Log.d(TAG, "Tap detected but not on any shelf");
                                 handleDetectionRecognitionResult(result);
                                 activity.getBinding().graphicOverlay.clear();
                                 v.performClick();
@@ -900,7 +901,6 @@ public class DetectionResultHandler {
                         }
                         case MotionEvent.ACTION_CANCEL:
                             v.setPressed(false);
-                            Log.d(TAG, "ACTION_CANCEL");
                             return true;
                     }
                     return false;
@@ -920,7 +920,7 @@ public class DetectionResultHandler {
      */
     public void handleCaptureEntityTrackerDetection(List<? extends Entity> barcodeEntities, List<? extends Entity> ocrEntities, List<? extends Entity> moduleEntities) {
         if (activity.getCapturedBitmap() == null ) {
-            Log.w(TAG, "Cannot overlay: bitmap or entities null");
+            AppLog.w(TAG, "Cannot overlay: bitmap or entities null");
             return;
         }
 
@@ -1004,7 +1004,6 @@ public class DetectionResultHandler {
                     Rect rect = barcodeEntity.getBoundingBox();
 
                     if (rect != null) {
-                        Log.d(TAG, "Capture - Drawing barcode: " + barcodeEntity.getValue() + ", bbox: " + rect);
                         Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
 
                         // Draw bounding box
@@ -1062,7 +1061,6 @@ public class DetectionResultHandler {
                                     float minX = bbox.x[0], maxX = bbox.x[2], minY = bbox.y[0], maxY = bbox.y[2];
 
                                     Rect rect = new Rect((int) minX, (int) minY, (int) maxX, (int) maxY);
-                                    Log.d(TAG, "Capture - Drawing OCR: " + word.getText() + ", bbox: " + rect);
                                     Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
                                     rects.add(overlayRect);
                                     decodedStrings.add(word.getText());
@@ -1105,7 +1103,6 @@ public class DetectionResultHandler {
 
         // Draw shelves
         for (ShelfEntity shelf : shelves) {
-            Log.d(TAG, "Capture - Drawing shelf, bbox: " + shelf.getBoundingBox());
             Rect shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.getBoundingBox());
             canvas.drawRect(
                     shelfRect.left,
@@ -1119,7 +1116,6 @@ public class DetectionResultHandler {
         // Draw labels
         for (LabelEntity label : labels) {
             if (label.getClassId() == LabelEntity.ClassId.PEG_LABEL) {
-                Log.d(TAG, "Capture - Drawing peg label, bbox: " + label.getBoundingBox());
                 Rect labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.getBoundingBox());
                 canvas.drawRect(
                         labelRect.left,
@@ -1130,7 +1126,6 @@ public class DetectionResultHandler {
                 );
             }
             if (label.getClassId() == LabelEntity.ClassId.SHELF_LABEL) {
-                Log.d(TAG, "Capture - Drawing shelf label, bbox: " + label.getBoundingBox());
                 Rect labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.getBoundingBox());
                 canvas.drawRect(
                         labelRect.left,
@@ -1144,7 +1139,6 @@ public class DetectionResultHandler {
 
         // Draw products
         for (ProductEntity product : products) {
-            Log.d(TAG, "Capture - Drawing product, bbox: " + product.getBoundingBox());
             Rect prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.getBoundingBox());
 
             // Draw bounding box
@@ -1185,10 +1179,6 @@ public class DetectionResultHandler {
             }
         }
 
-        Log.d(TAG, "Capture - Entity tracker detection completed and drawn on canvas");
-        Log.d(TAG, "Capture - Statistics: barcodes=" + (barcodeEntities != null ? barcodeEntities.size() : 0) +
-                ", OCR entities=" + (ocrEntities != null ? ocrEntities.size() : 0) +
-                ", shelves=" + shelves.size() + ", labels=" + labels.size() + ", products=" + products.size());
         activity.runOnUiThread(() -> {
             activity.getBinding().capturedImageView.setImageBitmap(annotated);
 
@@ -1201,12 +1191,12 @@ public class DetectionResultHandler {
             activity.getBinding().graphicOverlay.clear();
             if (result != null) {
                 for (LocalizerEntity entity : result) {
-                    Rect rect = entity.getBoundingBox();
-                    if (rect != null) {
-                        Log.d(TAG, String.format("Original bbox: %s", rect));
-                        Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                        Log.d(TAG, String.format("Mapped bbox: %s", overlayRect));
-                        rects.add(overlayRect);
+                    if(entity.getAccuracy() > PALLET_BOX_THRESHOLD) {
+                        Rect rect = entity.getBoundingBox();
+                        if (rect != null) {
+                            Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
+                            rects.add(overlayRect);
+                        }
                     }
                 }
                 activity.getBinding().graphicOverlay.add(new WareHouseLocalizerGraphic(activity.getBinding().graphicOverlay, rects));
@@ -1216,7 +1206,7 @@ public class DetectionResultHandler {
 
     public void handleImageCaptureWareHouseResult(List<LocalizerEntity> entities) {
         if (activity.getCapturedBitmap() == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: bitmap or entities null");
+            AppLog.w(TAG, "Cannot overlay: bitmap or entities null");
             return;
         }
 
@@ -1230,12 +1220,12 @@ public class DetectionResultHandler {
         rectPaint.setStrokeWidth(16f);
 
         for (LocalizerEntity entity : entities) {
-            Rect rect = entity.getBoundingBox();
-            if (rect != null) {
-                Log.d(TAG, String.format("Original bbox: %s", rect));
-                Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
-                Log.d(TAG, String.format("Mapped bbox: %s", overlayRect));
-                canvas.drawRect(overlayRect, rectPaint);
+            if(entity.getAccuracy() > PALLET_BOX_THRESHOLD) {
+                Rect rect = entity.getBoundingBox();
+                if (rect != null) {
+                    Rect overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect);
+                    canvas.drawRect(overlayRect, rectPaint);
+                }
             }
         }
         activity.runOnUiThread(() -> {
@@ -1273,7 +1263,7 @@ public class DetectionResultHandler {
             List<com.zebra.aisuite_quickstart.java.analyzers.customdetector.ocr.OcrTextEntity> ocrEntities,
             List<com.zebra.ai.vision.entity.DetectionEntity> yoloEntities,
             List<com.zebra.ai.vision.entity.DetectionEntity> mobileNetEntities) {
-        Log.d(TAG, "handleCustomDetectionResult — barcodes=" + barcodeEntities.size()
+        AppLog.d(TAG, "handleCustomDetectionResult — barcodes=" + barcodeEntities.size()
                 + " ocr=" + ocrEntities.size()
                 + " yolo=" + yoloEntities.size()
                 + " mobileNet=" + mobileNetEntities.size());
@@ -1287,13 +1277,13 @@ public class DetectionResultHandler {
             android.graphics.Rect raw = e.getBoundingBox();
             if (raw != null) {
                 android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
-                Log.v(TAG, "  [bbox] barcode raw=" + raw.toShortString()
+                AppLog.v(TAG, "  [bbox] barcode raw=" + raw.toShortString()
                         + " → mapped=" + mapped.toShortString()
                         + " value=\"" + e.getValue() + "\"");
                 barcodeRects.add(mapped);
                 barcodeLabels.add(e.getValue() != null ? e.getValue() : "");
             } else {
-                Log.w(TAG, "  [bbox] barcode entity has null boundingBox — value=\"" + e.getValue() + "\"");
+                AppLog.w(TAG, "  [bbox] barcode entity has null boundingBox — value=\"" + e.getValue() + "\"");
             }
         }
 
@@ -1303,13 +1293,13 @@ public class DetectionResultHandler {
             android.graphics.Rect raw = e.getBoundingBox();
             if (raw != null) {
                 android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
-                Log.v(TAG, "  [bbox] ocr raw=" + raw.toShortString()
+                AppLog.v(TAG, "  [bbox] ocr raw=" + raw.toShortString()
                         + " → mapped=" + mapped.toShortString()
                         + " text=\"" + e.getText() + "\"");
                 ocrRects.add(mapped);
                 ocrLabels.add(e.getText() != null ? e.getText() : "");
             } else {
-                Log.w(TAG, "  [bbox] ocr entity has null boundingBox — text=\"" + e.getText() + "\"");
+                AppLog.w(TAG, "  [bbox] ocr entity has null boundingBox — text=\"" + e.getText() + "\"");
             }
         }
 
@@ -1318,10 +1308,10 @@ public class DetectionResultHandler {
             android.graphics.Rect raw = e.getBoundingBox();
             if (raw != null) {
                 android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
-                Log.v(TAG, "  [bbox] yolo raw=" + raw.toShortString() + " → mapped=" + mapped.toShortString());
+                AppLog.v(TAG, "  [bbox] yolo raw=" + raw.toShortString() + " → mapped=" + mapped.toShortString());
                 yoloRects.add(mapped);
             } else {
-                Log.w(TAG, "  [bbox] yolo entity has null boundingBox");
+                AppLog.w(TAG, "  [bbox] yolo entity has null boundingBox");
             }
         }
 
@@ -1330,14 +1320,14 @@ public class DetectionResultHandler {
             android.graphics.Rect raw = e.getBoundingBox();
             if (raw != null) {
                 android.graphics.Rect mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw);
-                Log.v(TAG, "  [bbox] mobileNet raw=" + raw.toShortString() + " → mapped=" + mapped.toShortString());
+                AppLog.v(TAG, "  [bbox] mobileNet raw=" + raw.toShortString() + " → mapped=" + mapped.toShortString());
                 mobileNetRects.add(mapped);
             } else {
-                Log.w(TAG, "  [bbox] mobileNet entity has null boundingBox");
+                AppLog.w(TAG, "  [bbox] mobileNet entity has null boundingBox");
             }
         }
 
-        Log.d(TAG, "  [bbox] mapped counts — barcodes=" + barcodeRects.size()
+        AppLog.d(TAG, "  [bbox] mapped counts — barcodes=" + barcodeRects.size()
                 + " ocr=" + ocrRects.size()
                 + " yolo=" + yoloRects.size()
                 + " mobileNet=" + mobileNetRects.size());

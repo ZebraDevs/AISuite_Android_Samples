@@ -4,7 +4,7 @@ package com.zebra.aisuite_quickstart.kotlin.analyzers.customdetector.mobilenet
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.FileUtil
 import java.nio.ByteBuffer
@@ -38,7 +38,7 @@ class TFLiteModel(context: Context) : AutoCloseable {
     private val numDetIdx: Int
 
     init {
-        Log.d(TAG, "Loading TFLite model from assets: $MODEL_FILE")
+        AppLog.d(TAG, "Loading TFLite model from assets: $MODEL_FILE")
         interpreter = Interpreter(FileUtil.loadMappedFile(context, MODEL_FILE))
 
         // Resolve input size dynamically (typically 300 for MobileNet SSD)
@@ -52,7 +52,7 @@ class TFLiteModel(context: Context) : AutoCloseable {
         repeat(interpreter.outputTensorCount) { i ->
             val sh  = interpreter.getOutputTensor(i).shape()
             val nm  = interpreter.getOutputTensor(i).name()
-            Log.i(TAG, "  output[$i] name=$nm shape=${sh.contentToString()}" +
+            AppLog.i(TAG, "  output[$i] name=$nm shape=${sh.contentToString()}" +
                     " dtype=${interpreter.getOutputTensor(i).dataType()}")
             if (sh.size == 3 && sh.last() == 4) { foundBoxes = i; foundMaxDet = sh[sh.size - 2] }
             if (sh.size == 1)                    { foundNumDet = i }
@@ -64,7 +64,7 @@ class TFLiteModel(context: Context) : AutoCloseable {
         numDetIdx     = foundNumDet
         maxDetections = foundMaxDet
 
-        Log.i(TAG, "MobileNet SSD ready — inputSize=$inputSize maxDetections=$maxDetections" +
+        AppLog.i(TAG, "MobileNet SSD ready — inputSize=$inputSize maxDetections=$maxDetections" +
                 " boxesIdx=$boxesIdx scoresIdx=$scoresIdx numDetIdx=$numDetIdx" +
                 " inputDtype=${interpreter.getInputTensor(0).dataType()}")
     }
@@ -96,7 +96,7 @@ class TFLiteModel(context: Context) : AutoCloseable {
                 Rect((xmin * bw).toInt(), (ymin * bh).toInt(),
                      (xmax * bw).toInt(), (ymax * bh).toInt())
             }
-        if (n > 0) Log.v(TAG, "  MobileNet SSD detections kept=${results.size}/$n top_score=${scores[0][0]}")
+        if (n > 0) AppLog.v(TAG, "  MobileNet SSD detections kept=${results.size}/$n top_score=${scores[0][0]}")
         return results
     }
 

@@ -3,7 +3,7 @@ package com.zebra.aisuite_quickstart.kotlin.lowlevel.productrecognitionsample
 
 
 import android.graphics.Bitmap
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.zebra.ai.vision.detector.AIVisionSDKException
@@ -91,16 +91,16 @@ class ProductRecognitionSampleAnalyzer(
             return
         }
 
-        isAnalyzing = false // Set to false to prevent re-entry
+        isAnalyzing = false // Set false to prevent re-entry
         scope.launch {
             try {
-                Log.d(TAG, "Starting image analysis")
+                AppLog.v(TAG, "Starting image analysis")
                 val bitmap: Bitmap = CommonUtils.rotateBitmapIfNeeded(image)
                 val futureResultBBox = localizer!!.detect(bitmap, executorService)
                 futureResultBBox?.thenCompose { bBoxes ->
                     detections = bBoxes
                     products = bBoxes?.filter { it.cls == 1 }?.toTypedArray()
-                    Log.d(TAG, "Products size = ${products?.size ?: 0}")
+                    AppLog.d(TAG, "Products size = ${products?.size ?: 0}")
 
                     if (detections != null && detections!!.isNotEmpty()) {
                         featureExtractor?.generateDescriptors(products!!, bitmap, executorService)
@@ -115,7 +115,7 @@ class ProductRecognitionSampleAnalyzer(
                     }
                 }?.thenAccept { recognitions ->
                     recognitions?.let {
-                        Log.d(TAG, "Products recognitions length" + recognitions.size)
+                        AppLog.d(TAG, "Products recognitions length" + recognitions.size)
                         if (!isStopped) callback.onDetectionRecognitionResult(
                             detections!!,
                             products!!,
@@ -127,13 +127,13 @@ class ProductRecognitionSampleAnalyzer(
                 }?.exceptionally { ex ->
                     isAnalyzing = true
                     image.close()
-                    Log.d(TAG, "Exception occurred: ${ex.message}")
+                    AppLog.e(TAG, "Exception occurred: ${ex.message}")
                     null
                 }
             } catch (ex: AIVisionSDKException) {
                 isAnalyzing = true
                 image.close()
-                Log.e(TAG, "Error during image processing: ${ex.message}")
+                AppLog.e(TAG, "Error during image processing: ${ex.message}")
             }
         }
 

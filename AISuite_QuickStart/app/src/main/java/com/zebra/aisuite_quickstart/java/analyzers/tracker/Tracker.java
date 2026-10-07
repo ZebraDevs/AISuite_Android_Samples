@@ -5,7 +5,7 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -93,18 +93,18 @@ public class Tracker {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                     .thenRun(() -> callback.handleCaptureFrameEntities(barcodeResult[0], ocrResult[0], moduleResult[0]))
                     .exceptionally(e -> {
-                        Log.e(TAG, "Error processing capture image: " + e.getMessage());
+                        AppLog.e(TAG, "Error processing capture image: " + e.getMessage());
                         return null;
                     });
         } catch (AIVisionSDKException e) {
-            Log.e(TAG, "Error in processImage: " + e.getMessage());
+            AppLog.e(TAG, "Error in processImage: " + e.getMessage());
         } finally {
             image.close();
         }
     }
 
     public void startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called. ");
+        AppLog.i(TAG, "startAnalyzing() called. ");
         executor = Executors.newFixedThreadPool(3);
         entityTrackerAnalyzer = new EntityTrackerAnalyzer(analyzerList, ImageAnalysis.COORDINATE_SYSTEM_ORIGINAL, executor, this::handleEntities);
     }
@@ -189,7 +189,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.d(TAG, "None of the filter selected");
+            AppLog.e(TAG, "None of the filter selected");
         }
 
     }
@@ -202,7 +202,6 @@ public class Tracker {
      */
     public void initializeBarcodeDecoder() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "Barcode Live Preview Model Input Size: " + modelInputSize);
         try {
             // Initialize live preview decoder with selected input size
             BarcodeDecoder.Settings liveDecoderSettings = createBarcodeDecoderSettings(modelInputSize);
@@ -214,7 +213,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.getMessage());
+            AppLog.e(TAG, "Model Loading: Barcode decoder returned with exception " + ex.getMessage());
         }
     }
 
@@ -223,20 +222,20 @@ public class Tracker {
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
             barcodeDecoder = decoderInstance;
             createAnalyzer(List.of(barcodeDecoder));
-            Log.d(TAG, "BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+            AppLog.i(TAG, "BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (e instanceof AIVisionSDKLicenseException) {
                 // Notify failed loading
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(false);
                 }
-                Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
+                AppLog.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, " + e.getMessage());
             } else {
                 // Notify failed loading
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(false);
                 }
-                Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+                AppLog.e(TAG, "Fatal error: Barcode Decoder model loading failed - " + e.getMessage());
             }
             return null;
         });
@@ -249,7 +248,6 @@ public class Tracker {
      */
     private void initializeTextOCR() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "OCR Live Preview Model Input Size: " + modelInputSize);
         try {
             // Initialize live preview OCR with selected input size
             TextOCR.Settings liveOCRSettings = createTextOCRSettings(modelInputSize);
@@ -261,7 +259,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
+            AppLog.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
     }
 
@@ -270,20 +268,20 @@ public class Tracker {
         TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
             textOCR = OCRInstance;
             createAnalyzer(List.of(textOCR));
-            Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
+            AppLog.i(TAG, "TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (e instanceof AIVisionSDKLicenseException) {
                 // Notify failed loading
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(false);
                 }
-                Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
+                AppLog.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
             } else {
                 // Notify failed loading
                 if (loadingCallback != null) {
                     loadingCallback.onLoadingComplete(false);
                 }
-                Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
+                AppLog.e(TAG, "Fatal error: TextOCR model loading failed - " + e.getMessage());
             }
             return null;
         });
@@ -291,7 +289,6 @@ public class Tracker {
 
     private void initializeModuleRecognizer() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "MR Live Preview Model Input Size: " + modelInputSize);
         try {
             // Create settings for live preview
             ModuleRecognizer.Settings liveRecognizerSettings = createModuleRecognizerSettings(modelInputSize);
@@ -303,7 +300,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error during initialization setup: " + e.getMessage());
+            AppLog.e(TAG, "Fatal error during initialization setup: " + e.getMessage());
         }
     }
 
@@ -311,7 +308,7 @@ public class Tracker {
         long startTime = System.currentTimeMillis();
         ModuleRecognizer.getModuleRecognizer(settings, executor).thenAccept(recognizerInstance -> {
             long creationTime = System.currentTimeMillis() - startTime;
-            Log.d(TAG, "ModuleRecognizer Creation Time: " + creationTime + "ms");
+            AppLog.i(TAG, "ModuleRecognizer model loading time: " + creationTime + " milli sec and input size: " + settings.inferencerOptions.defaultDims.width);
 
             moduleRecognizer = recognizerInstance;
             // Use EntityTrackerAnalyzer with moduleRecognizer as a Detector
@@ -320,7 +317,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Failed to initialize ModuleRecognizer: " + throwable.getMessage());
+            AppLog.e(TAG, "ModelRecognizer model loading failed: " + throwable.getMessage());
             return null;
         });
     }
@@ -405,7 +402,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture barcode decoder initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture BarcodeDecoder initialization failed: " + ex.getMessage());
         }
     }
 
@@ -414,12 +411,12 @@ public class Tracker {
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, captureExecutor).thenAccept(decoderInstance -> {
             captureBarcodeDecoder = decoderInstance;
             createCaptureAnalyzer(List.of(captureBarcodeDecoder));
-            Log.d(TAG, "Capture BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - startTime) + " milli sec");
+            AppLog.i(TAG, "Capture BarcodeDecoder model loading time: " + (System.currentTimeMillis() - startTime) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture barcode decoder creation failed: " + e.getMessage());
+            AppLog.e(TAG, "Capture BarcodeDecoder model loading failed: " + e.getMessage());
             return null;
         });
     }
@@ -435,7 +432,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture OCR scanner initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture OCR scanner initialization failed: " + ex.getMessage());
         }
     }
 
@@ -444,12 +441,12 @@ public class Tracker {
         TextOCR.getTextOCR(textOCRSettings, captureExecutor).thenAccept(ocrInstance -> {
             captureOcr = ocrInstance;
             createCaptureAnalyzer(List.of(captureOcr));
-            Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - startTime) + " milli sec");
+            AppLog.i(TAG, "Capture TextOCR model loading time: " + (System.currentTimeMillis() - startTime) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture OCR scanner creation failed: " + e.getMessage());
+            AppLog.e(TAG, "Capture TextOCR model loading failed: " + e.getMessage());
             return null;
         });
     }
@@ -465,7 +462,7 @@ public class Tracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture module recognizer initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture module recognizer initialization failed: " + ex.getMessage());
         }
     }
 
@@ -475,12 +472,12 @@ public class Tracker {
             captureModuleRecognizer = moduleInstance;
             long creationTime = System.currentTimeMillis() - startTime;
             createCaptureAnalyzer(List.of(captureModuleRecognizer));
-            Log.d(TAG, "Capture ModuleRecognizer Creation Time: " + creationTime + "ms");
+            AppLog.i(TAG, "Capture ModuleRecognizer model loading time: " + creationTime + " milli sec and input size: " + moduleSettings.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture module recognizer creation failed: " + e.getMessage());
+            AppLog.e(TAG, "Capture ModuleRecognizer model loading failed: " + e.getMessage());
             return null;
         });
     }
@@ -502,7 +499,7 @@ public class Tracker {
             }
             output.flush();
         } catch (IOException e) {
-            Log.e(TAG, "Error in copy from assets: " + e.getMessage());
+            AppLog.e(TAG, "Error in copy from assets: " + e.getMessage());
         }
     }
 
@@ -589,7 +586,7 @@ public class Tracker {
      */
     private Void handleException(Throwable e) {
         String message = e instanceof AIVisionSDKLicenseException ? "License error: " + e.getMessage() : "Fatal error: " + e.getMessage();
-        Log.e(TAG, message);
+        AppLog.e(TAG, message);
         return null;
     }
 
@@ -603,33 +600,33 @@ public class Tracker {
         }
         if (barcodeDecoder != null) {
             barcodeDecoder.dispose();
-            Log.d(TAG, "Barcode decoder is disposed");
+            AppLog.i(TAG, "Barcode decoder is disposed");
             barcodeDecoder = null;
         }
         if (textOCR != null) {
             textOCR.dispose();
-            Log.d(TAG, "TextOCR is disposed");
+            AppLog.i(TAG, "TextOCR is disposed");
             textOCR = null;
         }
         if (moduleRecognizer != null) {
             moduleRecognizer.dispose();
-            Log.d(TAG, "Module Recognizer is disposed");
+            AppLog.i(TAG, "Module Recognizer is disposed");
             moduleRecognizer = null;
         }
         // Dispose capture instances
         if (captureBarcodeDecoder != null) {
             captureBarcodeDecoder.dispose();
-            Log.d(TAG, "Capture barcode decoder disposed");
+            AppLog.i(TAG, "Capture barcode decoder disposed");
             captureBarcodeDecoder = null;
         }
         if (captureOcr != null) {
             captureOcr.dispose();
-            Log.d(TAG, "Capture OCR scanner disposed");
+            AppLog.i(TAG, "Capture OCR scanner disposed");
             captureOcr = null;
         }
         if (captureModuleRecognizer != null) {
             captureModuleRecognizer.dispose();
-            Log.d(TAG, "Capture module recognizer disposed");
+            AppLog.i(TAG, "Capture module recognizer disposed");
             captureModuleRecognizer = null;
         }
     }
@@ -642,7 +639,6 @@ public class Tracker {
         if (executor != null) {
             executor.shutdownNow();
         }
-
     }
 
     public boolean getCapturedTrackerAnalyzer() {

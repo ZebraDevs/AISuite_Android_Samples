@@ -2,13 +2,13 @@
 package com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition
 
 import android.content.Context
-import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.BarcodeDecoder
 import com.zebra.ai.vision.detector.EntityType
 import com.zebra.ai.vision.detector.InferencerOptions
 import com.zebra.ai.vision.detector.ModuleRecognizer
+import com.zebra.aisuite_quickstart.utils.AppLog
 import com.zebra.aisuite_quickstart.utils.CommonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -84,15 +84,42 @@ class ProductRecognitionHandler(
         }
     }
 
+    private fun createCaptureRecognizerSettings(
+    ): ModuleRecognizer.Settings {
+        return ModuleRecognizer.Settings(mavenModelName).apply {
+            inferencerOptions.apply {
+                runtimeProcessorOrder = arrayOf(
+                    InferencerOptions.DSP,
+                    InferencerOptions.CPU,
+                    InferencerOptions.GPU
+                )
+                defaultDims.height = CAPTURE_SIZE
+                defaultDims.width = CAPTURE_SIZE
+                val labelBarcodeSettings: BarcodeDecoder.Settings =
+                    BarcodeDecoder.Settings(barcodeMavenModelName)
+                labelBarcodeSettings.enableAIBarcodeDecode = true
+                labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.height = CAPTURE_SIZE
+                labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.width = CAPTURE_SIZE
+                val barcodeSettingsMap: MutableMap<EntityType?, BarcodeDecoder.Settings?> =
+                    HashMap()
+                barcodeSettingsMap[EntityType.LABEL] = labelBarcodeSettings
+                enableBarcodeRecognition(barcodeSettingsMap)
+            }
+
+            enableProductRecognition(
+                mavenModelName,
+                "$toPath$productIndexFilename"
+            )
+        }
+    }
+
     /**
      * Initialize ModuleRecognizer with product recognition enabled for live preview.
      */
     private fun initializeModuleRecognizer() {
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
             try {
-                Log.i(tag, "Initializing ModuleRecognizer")
                 val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-                Log.d(tag, "LivePreview Model Input Size: $modelInputSize")
                 // --- Settings Configuration ---
                 val liveRecognizerSettings = createRecognizerSettings(
                     modelInputSize
@@ -106,7 +133,7 @@ class ProductRecognitionHandler(
 
             } catch (e: Exception) {
                 loadingCallback?.invoke(false)
-                Log.e(tag, "Fatal error during initialization setup: ${e.message}")
+                AppLog.e(tag, "Fatal error during initialization setup: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -120,9 +147,7 @@ class ProductRecognitionHandler(
             try {
 
                 // Create settings for capture
-                val captureRecognizerSettings = createRecognizerSettings(
-                    CAPTURE_SIZE
-                )
+                val captureRecognizerSettings = createCaptureRecognizerSettings()
 
                 createCaptureRecognizer(
                     captureRecognizerSettings,
@@ -130,7 +155,7 @@ class ProductRecognitionHandler(
                 )
             } catch (ex: Exception) {
                 loadingCallback?.invoke(false)
-                Log.e(tag, "Capture recognizer initialization failed: ${ex.message}")
+                AppLog.e(tag, "Capture recognizer initialization failed: ${ex.message}")
             }
         }
     }
@@ -154,13 +179,10 @@ class ProductRecognitionHandler(
             }
 
             val creationTime = System.currentTimeMillis() - startTime
-            Log.d(
-                tag,
-                "ModuleRecognizer Creation Time: ${creationTime}ms and input size: ${settings.inferencerOptions.defaultDims.width}"
-            )
+            AppLog.i(tag, "ModuleRecognizer model loading time: $creationTime milli sec and input size: ${settings.inferencerOptions.defaultDims.width}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Failed to initialize ModuleRecognizer: ${e.message}")
+            AppLog.e(tag, "ModuleRecognizer model loading failed: ${e.message}")
         }
     }
 
@@ -182,13 +204,10 @@ class ProductRecognitionHandler(
                 attachAnalysisAfterModelLoading()
             }
 
-            Log.d(
-                tag,
-                "Capture ModuleRecognizer created in ${System.currentTimeMillis() - startTime} ms"
-            )
+            AppLog.i(tag, "Capture ModuleRecognizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.inferencerOptions.defaultDims.width}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
-            Log.e(tag, "Capture recognizer creation failed: ${e.message}")
+            AppLog.e(tag, "Capture ModuleRecognizer model loading failed: ${e.message}")
         }
     }
 
@@ -219,7 +238,7 @@ class ProductRecognitionHandler(
                 }
             }
         } catch (e: IOException) {
-            Log.e(tag, "Error copying from assets: ${e.message}")
+            AppLog.e(tag, "Error copying from assets: ${e.message}")
         }
     }
 
@@ -233,12 +252,12 @@ class ProductRecognitionHandler(
         productRecognitionAnalyzer?.stopAnalyzing()
         moduleRecognizer?.let {
             it.dispose()
-            Log.d(tag, "ModuleRecognizer disposed")
+            AppLog.i(tag, "ModuleRecognizer disposed")
             moduleRecognizer = null
         }
         captureRecognizer?.let {
             it.dispose()
-            Log.d(tag, "Capture module recognizer disposed")
+            AppLog.i(tag, "Capture module recognizer disposed")
             captureRecognizer = null
         }
     }

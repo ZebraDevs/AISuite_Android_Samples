@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.lowlevel.simplebarcodesample
 
 import android.content.Context
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
 import com.zebra.ai.vision.detector.AIVisionSDKLicenseException
@@ -75,7 +75,7 @@ class BarcodeSample(
                 val mStart = System.currentTimeMillis()
                 val locSettings = Localizer.Settings(mavenModelName)
                 val diff = System.currentTimeMillis() - mStart
-                Log.d(TAG, "Barcode Localizer.settings() obj creation time = $diff milli sec")
+                AppLog.i(TAG, "Barcode Localizer.settings() obj creation time = $diff milli sec")
 
                 val rpo = arrayOf(
                     InferencerOptions.DSP,
@@ -90,15 +90,15 @@ class BarcodeSample(
                 val start = System.currentTimeMillis()
                 try {
                     localizer = Localizer.getLocalizer(locSettings, executor).await()
-                    Log.d(TAG, "Barcode Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - start} milli sec")
+                    AppLog.i(TAG, "Barcode Localizer(locSettings) obj creation / model loading time = ${System.currentTimeMillis() - start} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
                     // Notify failed loading
                     loadingCallback?.invoke(false)
-                    Log.e(TAG, "AIVisionSDKLicenseException: Barcode Localizer object creation failed, ${e.message}")
+                    AppLog.e(TAG, "AIVisionSDKLicenseException: Barcode Localizer object creation failed, ${e.message}")
                 } catch (e: Exception) {
                     // Notify failed loading
                     loadingCallback?.invoke(false)
-                    Log.e(TAG, "Fatal error: load failed - ${e.message}")
+                    AppLog.e(TAG, "Fatal error: load failed - ${e.message}")
                 }
 
                 val decoderSettings = BarcodeDecoder.Settings(mavenModelName)
@@ -110,18 +110,18 @@ class BarcodeSample(
                     loadingCallback?.invoke(true)
                     barcodeAnalyzer = BarcodeSampleAnalyzer(callback, localizer!!, barcodeDecoder!!)
                     imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), barcodeAnalyzer!!)
-                    Log.d(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - mStartDecoder} milli sec")
+                    AppLog.i(TAG, "BarcodeDecoder() obj creation time = ${System.currentTimeMillis() - mStartDecoder} milli sec")
                 } catch (e: AIVisionSDKLicenseException) {
                     // Notify failed loading
                     loadingCallback?.invoke(false)
-                    Log.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
+                    AppLog.e(TAG, "AIVisionSDKLicenseException: Barcode Decoder object creation failed, ${e.message}")
                 } catch (e: Exception) {
                     // Notify failed loading
                     loadingCallback?.invoke(false)
-                    Log.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
+                    AppLog.e(TAG, "Fatal error: decoder creation failed - ${e.message}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Fatal error: load failed - ${e.message}")
+                AppLog.e(TAG, "Fatal error: load failed - ${e.message}")
             }
         }
     }
@@ -133,7 +133,7 @@ class BarcodeSample(
     fun stop() {
         barcodeDecoder?.let {
             it.dispose()
-            Log.v(TAG, "Barcode decoder is disposed")
+            AppLog.i(TAG, "Barcode decoder is disposed")
             barcodeDecoder = null
         }
     }

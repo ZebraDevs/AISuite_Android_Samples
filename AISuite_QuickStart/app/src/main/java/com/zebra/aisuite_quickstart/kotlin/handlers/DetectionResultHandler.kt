@@ -2,6 +2,7 @@
 package com.zebra.aisuite_quickstart.kotlin.handlers
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -9,7 +10,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -31,6 +32,7 @@ import com.zebra.aisuite_quickstart.kotlin.camera.CameraManager
 import com.zebra.aisuite_quickstart.kotlin.detectors.barcodedecodersample.BarcodeGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.productrecognition.ProductRecognitionGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.OCRGraphic
+import com.zebra.aisuite_quickstart.kotlin.detectors.textocrsample.PicklistCrosshairGraphic
 import com.zebra.aisuite_quickstart.kotlin.detectors.warehouselocalizer.WareHouseLocalizerGraphic
 import com.zebra.aisuite_quickstart.kotlin.viewfinder.EntityViewGraphic
 import com.zebra.aisuite_quickstart.utils.CommonUtils
@@ -43,6 +45,7 @@ class DetectionResultHandler(
     companion object {
         private const val TAG = "DetectionResultHandler"
         private const val SIMILARITY_THRESHOLD = 0.65f
+        private const val PALLET_BOX_THRESHOLD= 0.85f
     }
 
     private val capturedShelves = mutableListOf<ShelfEntity>()
@@ -64,13 +67,13 @@ class DetectionResultHandler(
             result?.forEach { bb ->
                 val rect = bb.boundingBox
                 rect?.let {
-                    Log.d(TAG, "Original bbox: $rect")
+                    AppLog.d(TAG, "Original bbox: $rect")
                     val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
-                    Log.d(TAG, "Mapped bbox: $overlayRect")
+                    AppLog.d(TAG, "Mapped bbox: $overlayRect")
                     rects.add(overlayRect)
                     decodedStrings.add(bb.value)
-                    Log.e(TAG, "Detected entity - Value: ${bb.value}")
-                    Log.e(TAG, "Detected entity - Symbology: ${bb.symbology}")
+                    AppLog.d(TAG, "Detected entity - Value: ${bb.value}")
+                    AppLog.d(TAG, "Detected entity - Symbology: ${bb.symbology}")
                 }
             }
             activity.binding.graphicOverlay.add(
@@ -95,8 +98,8 @@ class DetectionResultHandler(
                 val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
                 rects.add(overlayRect)
                 decodedStrings.add(barcode.value)
-                Log.d(TAG, "Symbology Type: ${barcode.symbologytype}")
-                Log.d(TAG, "Decoded barcode: ${barcode.value}")
+                AppLog.d(TAG, "Symbology Type: ${barcode.symbologytype}")
+                AppLog.d(TAG, "Decoded barcode: ${barcode.value}")
             }
             activity.binding.graphicOverlay.add(
                 BarcodeGraphic(activity.binding.graphicOverlay, rects, decodedStrings)
@@ -107,9 +110,11 @@ class DetectionResultHandler(
     fun handleTextOCRDetection(list: List<ParagraphEntity>?) {
         val rects = mutableListOf<Rect>()
         val decodedStrings = mutableListOf<String>()
+        val wordConfidences = mutableListOf<Float>()
 
         activity.runOnUiThread {
             activity.binding.graphicOverlay.clear()
+            val picklistEnabled = isPicklistEnabled()
             if (list != null) {
                 for (entity in list) {
                     val lines = entity.lines
@@ -128,16 +133,40 @@ class DetectionResultHandler(
                                         boundingBoxMapper.mapBoundingBoxToOverlay(rect)
                                     rects.add(overlayRect)
                                     decodedStrings.add(word.text)
+
+                                    if (picklistEnabled) {
+                                        val predicted = word.allPredictedText
+                                        val topConfidence = predicted?.firstOrNull()?.confidence ?: 0f
+                                        wordConfidences.add(topConfidence)
+                                    }
                                 }
                             }
                         }
                     }
                 }
                 activity.binding.graphicOverlay.add(
-                    OCRGraphic(activity.binding.graphicOverlay, rects, decodedStrings)
+                    OCRGraphic(
+                        activity.binding.graphicOverlay,
+                        rects,
+                        decodedStrings,
+                        if (picklistEnabled) wordConfidences else null
+                    )
                 )
+                if (picklistEnabled) {
+                    // Fixed center-of-frame guide for picklist OCR - re-added every frame since
+                    // graphicOverlay.clear() above wipes it along with the detection results.
+                    activity.binding.graphicOverlay.add(
+                        PicklistCrosshairGraphic(activity.binding.graphicOverlay)
+                    )
+                }
             }
         }
+    }
+
+    /** True if the picklist OCR setting is currently enabled in the Settings screen. */
+    private fun isPicklistEnabled(): Boolean {
+        val prefs = activity.getSharedPreferences(CommonUtils.SETTINGS_PREFS, Context.MODE_PRIVATE)
+        return prefs.getBoolean(CommonUtils.PREF_TEXT_OCR_PICKLIST_ENABLED, false)
     }
 
     // Legacy OCR detection result handler
@@ -224,10 +253,7 @@ class DetectionResultHandler(
                     decodedStrings.add("No products found")
                     recognizedRects.add(Rect(250, 250, 0, 0))
                 } else {
-                    Log.v(
-                        TAG,
-                        "products length: ${products.size} recognitions length: ${recognitions.size}"
-                    )
+                    AppLog.d(TAG, "products length: ${products.size} recognitions length: ${recognitions.size}")
                     for (i in products.indices) {
                         if (recognitions[i].similarity[0] > SIMILARITY_THRESHOLD) {
                             val bBox = products[i]
@@ -262,7 +288,6 @@ class DetectionResultHandler(
 
     // Product recognition detection result handler
     fun handleDetectionRecognitionResult(result: List<Entity>?) {
-        Log.d(TAG, "Inside On Shelf RecognitionResult (flat hierarchy)")
         activity.runOnUiThread {
             activity.binding.graphicOverlay.clear()
             if (result == null) return@runOnUiThread
@@ -306,22 +331,16 @@ class DetectionResultHandler(
                         boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
                     labelShelfRects.add(labelRect)
                 }
-                val barcodes = label.getBarcodes()
-                Log.d(TAG, "Barcodes size: " + barcodes.size)
+                val barcodes = label.barcodes
+                AppLog.d(TAG, "Barcodes size: " + barcodes.size)
                 if (!barcodes.isEmpty()) {
                     for (barcode in barcodes) {
-                        val barcodeRect = barcode.getBoundingBox()
-                        Log.d(
-                            TAG,
-                            "Detected entity - Value: " + barcode.getValue()
-                        )
-                        Log.d(
-                            TAG,
-                            "Detected entity - Symbology: " + barcode.getSymbology()
-                        )
+                        val barcodeRect = barcode.boundingBox
+                        AppLog.d(TAG, "MR Detected entity - Value: " + barcode.getValue())
+                        AppLog.d(TAG, "MR Detected entity - Symbology: " + barcode.getSymbology())
                         val barRect = boundingBoxMapper.mapBoundingBoxToOverlay(barcodeRect)
                         barcodeRects.add(barRect)
-                        barcodeTexts.add(barcode.getValue())
+                        barcodeTexts.add(barcode.value)
                     }
                 }
             }
@@ -336,7 +355,7 @@ class DetectionResultHandler(
                     } ?: ""
                 } else ""
                 productLabels.add(topSku)
-                Log.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
+                AppLog.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
             }
 
             activity.binding.graphicOverlay.add(
@@ -389,11 +408,7 @@ class DetectionResultHandler(
                         } else {
                             barcodeStrings.add("")
                         }
-                        Log.d(
-                            TAG,
-                            "Tracker UUID: $hashCode Detected entity - Value: ${entity.value}"
-                        )
-
+                        AppLog.d(TAG, "Tracker UUID: $hashCode Detected entity - Value: ${entity.value}")
                     }
                 }
             }
@@ -419,7 +434,7 @@ class DetectionResultHandler(
                             }
                         }
                     }
-                    Log.d(TAG, "Detected OCR entity - Text: ${entity.text}")
+                    AppLog.d(TAG, "Detected OCR entity - Text: ${entity.text}")
                 }
 
             }
@@ -461,7 +476,6 @@ class DetectionResultHandler(
                         } ?: ""
                     } else ""
                     productLabels.add(topSku)
-                    Log.d(TAG, "SKU=$topSku, Product bbox=$prodRect")
                 }
             }
 
@@ -509,9 +523,9 @@ class DetectionResultHandler(
                 if (entity is BarcodeEntity) {
                     val rect = entity.boundingBox
                     rect?.let {
-                        Log.d(TAG, "Adding entity to view - Value: ${entity.value}, BBox: $rect")
+                        AppLog.d(TAG, "Adding entity to view - Value: ${entity.value}, BBox: $rect")
                         entityViewGraphic.addEntity(entity)
-                    } ?: Log.w(TAG, "Entity has null bounding box - Value: ${entity.value}")
+                    } ?: AppLog.w(TAG, "Entity has null bounding box - Value: ${entity.value}")
                 }
             }
             entityViewGraphic.render()
@@ -524,12 +538,12 @@ class DetectionResultHandler(
         activity.runOnUiThread {
             activity.binding.graphicOverlay.clear()
             result.forEach { bb ->
-                val rect = bb.boundingBox
-                rect?.let {
-                    Log.d(TAG, "Original bbox: $rect")
-                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
-                    Log.d(TAG, "Mapped bbox: $overlayRect")
-                    rects.add(overlayRect)
+                if(bb.accuracy > PALLET_BOX_THRESHOLD) {
+                    val rect = bb.boundingBox
+                    rect?.let {
+                        val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                        rects.add(overlayRect)
+                    }
                 }
             }
             activity.binding.graphicOverlay.add(
@@ -543,7 +557,7 @@ class DetectionResultHandler(
 
     fun handleImageCaptureBarcodeResult(entities: List<BarcodeEntity>?) {
         if (activity.capturedBitmap == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: bitmap or entities null")
+            AppLog.w(TAG, "Cannot overlay: bitmap or entities null")
             return
         }
 
@@ -617,19 +631,18 @@ class DetectionResultHandler(
 
         activity.runOnUiThread {
             activity.binding.capturedImageView.setImageBitmap(annotated)
-            Log.d(TAG, "Overlayed ${rects.size} barcode detections")
+            AppLog.d(TAG, "Overlayed ${rects.size} barcode detections")
         }
     }
 
     fun handleImageCaptureTextResult(entities: List<ParagraphEntity>?) {
         if (activity.capturedBitmap == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: frozenFrame=${cameraManager.imageCapture}")
+            AppLog.w(TAG, "Cannot overlay: frozenFrame=${cameraManager.imageCapture}")
             return
         }
 
         val annotated = activity.capturedBitmap!!.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(annotated)
-        Log.d(TAG, "Drawing detections on canvas")
 
         // Extract text and bounding boxes
         val rects = mutableListOf<Rect>()
@@ -687,14 +700,14 @@ class DetectionResultHandler(
 
         activity.runOnUiThread {
             activity.binding.capturedImageView.setImageBitmap(annotated)
-            Log.d(TAG, "Overlayed ${rects.size} detections")
+            AppLog.d(TAG, "Overlayed ${rects.size} detections")
         }
     }
 
     fun handleImageCaptureRecognitionResult(entities: List<Entity>?) {
         val currentCapture = activity.capturedBitmap
         if (currentCapture == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: frozenFrame=$currentCapture")
+            AppLog.w(TAG, "Cannot overlay: frozenFrame=$currentCapture")
             return
         }
 
@@ -730,8 +743,8 @@ class DetectionResultHandler(
 
         val barcodePaint = Paint(Paint.ANTI_ALIAS_FLAG)
         barcodePaint.setColor(Color.RED)
-        barcodePaint.setStyle(Paint.Style.STROKE)
-        barcodePaint.setStrokeWidth(6f)
+        barcodePaint.style = Paint.Style.STROKE
+        barcodePaint.strokeWidth = 6f
         barcodePaint.setAlpha(255)
 
 
@@ -761,10 +774,10 @@ class DetectionResultHandler(
             if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
                 canvas.drawRect(label.boundingBox, labelShelfPaint)
             }
-            val barcodes = label.getBarcodes()
+            val barcodes = label.barcodes
             if (barcodes != null) {
                 for (barcode in barcodes) {
-                    val barcodeBBox = barcode.getBoundingBox()
+                    val barcodeBBox = barcode.boundingBox
                     if (barcodeBBox != null) {
                         canvas.drawRect(barcodeBBox, barcodePaint)
                     }
@@ -779,14 +792,13 @@ class DetectionResultHandler(
 
         activity.runOnUiThread {
             activity.binding.capturedImageView.setImageBitmap(annotated)
-            Log.d(TAG, "Overlayed recognition detections on captured bitmap")
         }
     }
 
     fun overlayShelfAssociations(shelf: ShelfEntity) {
         val currentCapture = activity.capturedBitmap
         if (currentCapture == null) {
-            Log.w(TAG, "overlayShelfAssociations: no captured bitmap")
+            AppLog.w(TAG, "overlayShelfAssociations: no captured bitmap")
             return
         }
         val annotated = currentCapture.copy(Bitmap.Config.ARGB_8888, true)
@@ -907,7 +919,6 @@ class DetectionResultHandler(
 
         activity.runOnUiThread {
             activity.binding.capturedImageView.setImageBitmap(annotated)
-            Log.d(TAG, "Overlayed tapped shelf associations on captured bitmap")
         }
     }
 
@@ -917,10 +928,9 @@ class DetectionResultHandler(
         capturedBitmap: Bitmap?,
         imageView: ImageView?
     ) {
-        Log.d(TAG, "Enable shelf-tap on captured bitmap")
         activity.runOnUiThread {
-            if (result == null || result.isEmpty() || capturedBitmap == null || imageView == null) {
-                Log.w(TAG, "Missing result/bitmap/imageView")
+            if (result.isNullOrEmpty() || capturedBitmap == null || imageView == null) {
+                AppLog.w(TAG, "Missing result/bitmap/imageView")
                 return@runOnUiThread
             }
 
@@ -938,9 +948,9 @@ class DetectionResultHandler(
                 }
             }
             capturedShelves.sortBy { it.boundingBox.top }
-            Log.d(TAG, "Shelves collected: ${capturedShelves.size}")
-            Log.d(TAG, "Products collected: ${capturedProducts.size}")
-            Log.d(TAG, "Labels collected: ${capturedLabels.size}")
+            AppLog.d(TAG, "Shelves collected: ${capturedShelves.size}")
+            AppLog.d(TAG, "Products collected: ${capturedProducts.size}")
+            AppLog.d(TAG, "Labels collected: ${capturedLabels.size}")
 
             // Precompute ImageView-space rects for hit-testing on the bitmap view
             capturedShelfViewRects.clear()
@@ -951,10 +961,6 @@ class DetectionResultHandler(
                 val im = Matrix(imageView.imageMatrix)
                 im.mapRect(vf)
                 capturedShelfViewRects.add(vf)
-                Log.d(
-                    TAG, "Shelf[$i] imageRect=${shelfImgRect.toShortString()}" +
-                            " | viewRect=(${vf.left},${vf.top},${vf.right},${vf.bottom})"
-                )
             }
             capturedProductViewRects.clear()
             for (product in capturedProducts) {
@@ -975,7 +981,6 @@ class DetectionResultHandler(
 
             // Initial full render
             handleDetectionRecognitionResult(result)
-            Log.d(TAG, "Initial full render done for captured bitmap")
 
             // Tap listener on the bitmap view (ImageView)
             imageView.isClickable = true
@@ -995,7 +1000,6 @@ class DetectionResultHandler(
                             downY = event.y
                             downTime = System.currentTimeMillis()
                             movedOutside = false
-                            Log.d(TAG, "ACTION_DOWN @ ($downX,$downY)")
                             v.isPressed = true
                             return true
                         }
@@ -1014,29 +1018,18 @@ class DetectionResultHandler(
                             val isTap = !movedOutside && duration <= tapTimeout
                             val upX = event.x
                             val upY = event.y
-                            Log.d(
-                                TAG,
-                                "ACTION_UP @ ($upX,$upY), isTap=$isTap, movedOutside=$movedOutside, duration=${duration}ms"
-                            )
 
                             if (isTap) {
-                                Log.d(TAG, "Tap detected, checking shelves...")
                                 for (i in capturedShelfViewRects.indices) {
                                     val viewRect = capturedShelfViewRects[i]
                                     if (viewRect.contains(upX, upY)) {
                                         val tappedShelf = capturedShelves[i]
                                         val imgRect = tappedShelf.boundingBox
-                                        Log.d(
-                                            TAG,
-                                            "Tap is on shelf[$i] imageRect=${imgRect.toShortString()}" +
-                                                    " | viewRect=(${viewRect.left},${viewRect.top},${viewRect.right},${viewRect.bottom})"
-                                        )
                                         overlayShelfAssociations(tappedShelf)
                                         v.performClick()
                                         return true
                                     }
                                 }
-                                Log.d(TAG, "Tap detected but not on any shelf")
                                 handleDetectionRecognitionResult(result)
                                 activity.binding.graphicOverlay.clear()
                                 v.performClick()
@@ -1047,7 +1040,6 @@ class DetectionResultHandler(
 
                         MotionEvent.ACTION_CANCEL -> {
                             v.isPressed = false
-                            Log.d(TAG, "ACTION_CANCEL")
                             return true
                         }
                     }
@@ -1070,7 +1062,7 @@ class DetectionResultHandler(
         moduleEntities: List<Entity>?
     ) {
         if (activity.capturedBitmap == null) {
-            Log.w(TAG, "Cannot overlay: bitmap or entities null")
+            AppLog.w(TAG, "Cannot overlay: bitmap or entities null")
             return
         }
 
@@ -1165,7 +1157,6 @@ class DetectionResultHandler(
                     val rect = entity.boundingBox
 
                     if (rect != null) {
-                        Log.d(TAG, "Capture - Drawing barcode: ${entity.value}, bbox: $rect")
                         val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
 
                         // Draw bounding box
@@ -1226,7 +1217,6 @@ class DetectionResultHandler(
 
                                     val rect =
                                         Rect(minX.toInt(), minY.toInt(), maxX.toInt(), maxY.toInt())
-                                    Log.d(TAG, "Capture - Drawing OCR: ${word.text}, bbox: $rect")
                                     val overlayRect =
                                         boundingBoxMapper.mapBoundingBoxToOverlay(rect)
                                     rects.add(overlayRect)
@@ -1270,7 +1260,6 @@ class DetectionResultHandler(
 
         // Draw shelves
         for (shelf in shelves) {
-            Log.d(TAG, "Capture - Drawing shelf, bbox: ${shelf.boundingBox}")
             val shelfRect = boundingBoxMapper.mapBoundingBoxToOverlay(shelf.boundingBox)
             canvas.drawRect(
                 shelfRect.left.toFloat(),
@@ -1284,7 +1273,6 @@ class DetectionResultHandler(
         // Draw labels
         for (label in labels) {
             if (label.classId == LabelEntity.ClassId.PEG_LABEL) {
-                Log.d(TAG, "Capture - Drawing peg label, bbox: ${label.boundingBox}")
                 val labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
                 canvas.drawRect(
                     labelRect.left.toFloat(),
@@ -1295,7 +1283,6 @@ class DetectionResultHandler(
                 )
             }
             if (label.classId == LabelEntity.ClassId.SHELF_LABEL) {
-                Log.d(TAG, "Capture - Drawing shelf label, bbox: ${label.boundingBox}")
                 val labelRect = boundingBoxMapper.mapBoundingBoxToOverlay(label.boundingBox)
                 canvas.drawRect(
                     labelRect.left.toFloat(),
@@ -1309,7 +1296,6 @@ class DetectionResultHandler(
 
         // Draw products
         for (product in products) {
-            Log.d(TAG, "Capture - Drawing product, bbox: ${product.boundingBox}")
             val prodRect = boundingBoxMapper.mapBoundingBoxToOverlay(product.boundingBox)
 
             // Draw bounding box
@@ -1349,12 +1335,6 @@ class DetectionResultHandler(
             }
         }
 
-        Log.d(TAG, "Capture - Entity tracker detection completed and drawn on canvas")
-        Log.d(
-            TAG, "Capture - Statistics: barcodes=${barcodeEntities?.size ?: 0}" +
-                    ", OCR entities=${ocrEntities?.size ?: 0}" +
-                    ", shelves=${shelves.size}, labels=${labels.size}, products=${products.size}"
-        )
         activity.runOnUiThread {
             activity.binding.capturedImageView.setImageBitmap(annotated)
         }
@@ -1362,7 +1342,7 @@ class DetectionResultHandler(
 
     fun handleImageCaptureWareHouseResult(entities: List<LocalizerEntity>?) {
         if (activity.capturedBitmap == null || entities == null) {
-            Log.w(TAG, "Cannot overlay: bitmap or entities null")
+            AppLog.w(TAG, "Cannot overlay: bitmap or entities null")
             return
         }
 
@@ -1377,12 +1357,12 @@ class DetectionResultHandler(
         }
 
         for (entity in entities) {
-            val rect = entity.boundingBox
-            if (rect != null) {
-                Log.d(TAG, "Original bbox: $rect")
-                val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
-                Log.d(TAG, "Mapped bbox: $overlayRect")
-                canvas.drawRect(overlayRect, rectPaint)
+            if(entity.accuracy > PALLET_BOX_THRESHOLD) {
+                val rect = entity.boundingBox
+                if (rect != null) {
+                    val overlayRect = boundingBoxMapper.mapBoundingBoxToOverlay(rect)
+                    canvas.drawRect(overlayRect, rectPaint)
+                }
             }
         }
         activity.runOnUiThread {
@@ -1394,7 +1374,7 @@ class DetectionResultHandler(
         activity.runOnUiThread(Runnable {
             // Remove tap listener from capturedImageView
             activity.binding.capturedImageView.setOnTouchListener(null)
-            activity.binding.capturedImageView.setClickable(false)
+            activity.binding.capturedImageView.isClickable = false
 
             // Clear cached data
             capturedEntities.clear()
@@ -1417,7 +1397,7 @@ class DetectionResultHandler(
         yoloEntities      : List<com.zebra.ai.vision.entity.DetectionEntity>,
         mobileNetEntities : List<com.zebra.ai.vision.entity.DetectionEntity>
     ) {
-        Log.d(TAG, "handleCustomDetectionResult — barcodes=${barcodeEntities.size}" +
+        AppLog.d(TAG, "handleCustomDetectionResult — barcodes=${barcodeEntities.size}" +
                 " ocr=${ocrEntities.size} yolo=${yoloEntities.size} mobileNet=${mobileNetEntities.size}")
 
         // Map all bounding boxes from image-pixel space to overlay/screen space before
@@ -1429,11 +1409,11 @@ class DetectionResultHandler(
             val raw = e.boundingBox
             if (raw != null) {
                 val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
-                Log.v(TAG, "  [bbox] barcode raw=${raw.toShortString()} → mapped=${mapped.toShortString()} value=\"${e.value}\"")
+                AppLog.v(TAG, "  [bbox] barcode raw=${raw.toShortString()} → mapped=${mapped.toShortString()} value=\"${e.value}\"")
                 barcodeRects.add(mapped)
                 barcodeLabels.add(e.value ?: "")
             } else {
-                Log.w(TAG, "  [bbox] barcode entity has null boundingBox — value=\"${e.value}\"")
+                AppLog.w(TAG, "  [bbox] barcode entity has null boundingBox — value=\"${e.value}\"")
             }
         }
 
@@ -1443,11 +1423,11 @@ class DetectionResultHandler(
             val raw = e.boundingBox
             if (raw != null) {
                 val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
-                Log.v(TAG, "  [bbox] ocr raw=${raw.toShortString()} → mapped=${mapped.toShortString()} text=\"${e.text}\"")
+                AppLog.v(TAG, "  [bbox] ocr raw=${raw.toShortString()} → mapped=${mapped.toShortString()} text=\"${e.text}\"")
                 ocrRects.add(mapped)
                 ocrLabels.add(e.text)
             } else {
-                Log.w(TAG, "  [bbox] ocr entity has null boundingBox — text=\"${e.text}\"")
+                AppLog.w(TAG, "  [bbox] ocr entity has null boundingBox — text=\"${e.text}\"")
             }
         }
 
@@ -1456,10 +1436,10 @@ class DetectionResultHandler(
             val raw = e.boundingBox
             if (raw != null) {
                 val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
-                Log.v(TAG, "  [bbox] yolo raw=${raw.toShortString()} → mapped=${mapped.toShortString()}")
+                AppLog.v(TAG, "  [bbox] yolo raw=${raw.toShortString()} → mapped=${mapped.toShortString()}")
                 yoloRects.add(mapped)
             } else {
-                Log.w(TAG, "  [bbox] yolo entity has null boundingBox")
+                AppLog.w(TAG, "  [bbox] yolo entity has null boundingBox")
             }
         }
 
@@ -1468,14 +1448,14 @@ class DetectionResultHandler(
             val raw = e.boundingBox
             if (raw != null) {
                 val mapped = boundingBoxMapper.mapBoundingBoxToOverlay(raw)
-                Log.v(TAG, "  [bbox] mobileNet raw=${raw.toShortString()} → mapped=${mapped.toShortString()}")
+                AppLog.v(TAG, "  [bbox] mobileNet raw=${raw.toShortString()} → mapped=${mapped.toShortString()}")
                 mobileNetRects.add(mapped)
             } else {
-                Log.w(TAG, "  [bbox] mobileNet entity has null boundingBox")
+                AppLog.w(TAG, "  [bbox] mobileNet entity has null boundingBox")
             }
         }
 
-        Log.d(TAG, "  [bbox] mapped counts — barcodes=${barcodeRects.size}" +
+        AppLog.d(TAG, "  [bbox] mapped counts — barcodes=${barcodeRects.size}" +
                 " ocr=${ocrRects.size} yolo=${yoloRects.size} mobileNet=${mobileNetRects.size}")
 
         activity.runOnUiThread {

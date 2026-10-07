@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.analyzers.customdetector.ocr;
 
 import android.graphics.Bitmap;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.vision.common.InputImage;
@@ -28,7 +28,7 @@ public class OcrIntegration {
     private static final String TAG = "OcrIntegration";
 
     public static CustomDetector<OcrTextEntity> create() {
-        Log.d(TAG, "Initializing ML Kit OCR…");
+        AppLog.d(TAG, "Initializing ML Kit OCR…");
 
         // Step 1: Initialize
         TextRecognizer recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
@@ -56,11 +56,11 @@ public class OcrIntegration {
                                 block.getText()
                         ));
                     }
-                    Log.v(TAG, "  ML Kit OCR: " + result.size() + " text block(s)");
+                    AppLog.v(TAG, "  ML Kit OCR: " + result.size() + " text block(s)");
                     return result;
                 });
 
-        Log.d(TAG, "ML Kit OCR detector ready");
+        AppLog.d(TAG, "ML Kit OCR detector ready");
         return detector;
     }
 }

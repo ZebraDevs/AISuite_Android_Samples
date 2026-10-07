@@ -6,7 +6,7 @@ import static android.content.Context.MODE_PRIVATE;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.hardware.camera2.CameraMetadata;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import android.util.Size;
 import android.view.Display;
 
@@ -177,16 +177,16 @@ public class CameraManager {
         if (analysisUseCase != null && analysisUseCase.getResolutionInfo() != null) {
             Size actualResolution = analysisUseCase.getResolutionInfo().getResolution();
             selectedSize = actualResolution;
-            Log.d(TAG, "Actual bound ImageAnalysis size: " + actualResolution);
+            AppLog.i(TAG, "Actual bound ImageAnalysis size: " + actualResolution);
         } else {
-            Log.w(TAG, "ImageAnalysis resolution info is not available after binding");
+            AppLog.w(TAG, "ImageAnalysis resolution info is not available after binding");
         }
     }
 
     public void unbindAll() {
         if (cameraProvider != null) {
             cameraProvider.unbindAll();
-            Log.v(TAG, "Camera Unbound");
+            AppLog.i(TAG, "Camera Unbound");
         }
     }
 

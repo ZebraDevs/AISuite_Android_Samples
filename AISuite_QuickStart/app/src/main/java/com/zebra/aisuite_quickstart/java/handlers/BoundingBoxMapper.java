@@ -6,7 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import android.view.Display;
 import android.view.WindowManager;
 
@@ -62,7 +62,6 @@ public class BoundingBoxMapper {
         int currentRotation = display.getRotation();
 
         int relativeRotation = ((currentRotation - initialRotation + 4) % 4);
-        Log.d(TAG, "current rotation :"+currentRotation+" initial rotation "+initialRotation+" relative "+relativeRotation);
 
         // This would need to be passed from the activity or calculated
         int overlayWidth = activity.getBinding().previewView.getWidth(); // Need to get from GraphicOverlay
@@ -85,7 +84,6 @@ public class BoundingBoxMapper {
                 effectiveImageHeight = imageWidth;
             }
         }
-        Log.d(TAG,"overlay width and height"+overlayWidth+" "+ overlayHeight+ "effective width n height"+effectiveImageWidth+" "+ effectiveImageHeight);
 
         float scaleX = (float) overlayWidth / effectiveImageWidth;
         float scaleY = (float) overlayHeight / effectiveImageHeight;
@@ -136,7 +134,7 @@ public class BoundingBoxMapper {
                         bbox.right
                 );
             default:
-                Log.w(TAG, "Unknown relative rotation: " + relativeRotation + ", using original bbox");
+                AppLog.w(TAG, "Unknown relative rotation: " + relativeRotation + ", using original bbox");
                 return new Rect(bbox);
         }
     }
@@ -167,13 +165,13 @@ private void detectCameraOrientation() {
             // Detect horizontal camera tablets (you may need to adjust this logic)
             isHorizontalCameraTablet = isTablet && (cameraOrientation == 0 || cameraOrientation == 180);
 
-            Log.d(TAG, "Camera orientation: "+cameraOrientation+", isHorizontalCameraTablet: " + isHorizontalCameraTablet);
+            AppLog.i(TAG, "Camera orientation: "+cameraOrientation+", isHorizontalCameraTablet: " + isHorizontalCameraTablet);
         } else {
-            Log.e(TAG, "No suitable camera found for the requested facing direction.");
+            AppLog.e(TAG, "No suitable camera found for the requested facing direction.");
         }
 
     } catch (Exception e) {
-        Log.e(TAG, "Failed to get camera orientation", e);
+        AppLog.e(TAG, "Failed to get camera orientation", e);
     }
 }
 }

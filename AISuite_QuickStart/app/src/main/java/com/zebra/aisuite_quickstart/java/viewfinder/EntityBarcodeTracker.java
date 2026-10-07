@@ -5,7 +5,7 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -107,7 +107,6 @@ public class EntityBarcodeTracker {
      */
     public void initializeBarcodeDecoder() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
             Integer[] rpo = new Integer[3];
@@ -138,7 +137,7 @@ public class EntityBarcodeTracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Model Loading: Entity Tracker Barcode decoder returned with exception " + ex.getMessage());
+            AppLog.e(TAG, "Model Loading: Entity Tracker Barcode decoder returned with exception " + ex.getMessage());
         }
     }
 
@@ -157,7 +156,7 @@ public class EntityBarcodeTracker {
                     this::handleEntities
             );
             imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
-            Log.d(TAG, "Entity Tracker BarcodeDecoder() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+            AppLog.i(TAG, "Entity Tracker BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
             // Notify that the tracker is ready
             if (callback != null) {
                 callback.onEntityBarcodeTrackerReady();
@@ -167,7 +166,7 @@ public class EntityBarcodeTracker {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: decoder creation failed - " + e.getMessage());
+            AppLog.e(TAG, "Entity Tracker BarcodeDecoder model loading failed - " + e.getMessage());
 
             return null;
         });
@@ -207,7 +206,7 @@ public class EntityBarcodeTracker {
     public void stop() {
         if (barcodeDecoder != null) {
             barcodeDecoder.dispose();
-            Log.d(TAG, "Barcode decoder is disposed");
+            AppLog.i(TAG, "Barcode decoder is disposed");
             barcodeDecoder = null;
         }
     }

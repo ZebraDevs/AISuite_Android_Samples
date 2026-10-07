@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.simpleocrsample;
 
 import android.content.Context;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -97,7 +97,7 @@ public class OCRSample {
             long m_Start = System.currentTimeMillis();
             TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
                 textOCR = OCRInstance;
-                Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
+                AppLog.i(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec");
 
                 // Notify successful loading
                 if (loadingCallback != null) {
@@ -107,9 +107,9 @@ public class OCRSample {
                 imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), ocrAnalyzer);
             }).exceptionally(e -> {
                 if (e instanceof AIVisionSDKLicenseException) {
-                    Log.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
+                    AppLog.e(TAG, "AIVisionSDKLicenseException: TextOCR object creation failed, " + e.getMessage());
                 } else {
-                    Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
+                    AppLog.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
                 }
                 // Notify failed loading
                 if (loadingCallback != null) {
@@ -122,7 +122,7 @@ public class OCRSample {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
+            AppLog.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
     }
 
@@ -133,7 +133,7 @@ public class OCRSample {
     public void stop() {
         if (textOCR != null) {
             textOCR.dispose();
-            Log.d(TAG, "OCR is disposed");
+            AppLog.i(TAG, "OCR is disposed");
             textOCR = null;
         }
     }

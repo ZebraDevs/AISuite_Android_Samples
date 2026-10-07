@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.lowlevel.productrecognitionsample;
 
 import android.content.Context;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -96,15 +96,15 @@ public class ProductRecognitionSample {
 
             CompletableFuture<Void> localizerFuture = Localizer.getLocalizer(locSettings, executor)
                     .thenAccept(localizerInstance -> {
-                        Log.d(TAG, "Shelf Localizer(locSettings) obj creation / model loading time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
+                        AppLog.i(TAG, "Shelf Localizer(locSettings) obj creation / model loading time =" + (System.currentTimeMillis() - m_Start) + " milli sec");
                         localizerInitialized = true;
                         localizer = localizerInstance;
                         tryInitializeProductRecognition(callback);
                     }).exceptionally(e -> {
                         if (e instanceof AIVisionSDKLicenseException) {
-                            Log.e(TAG, "AIVisionSDKLicenseException: Shelf Localizer object creation failed, " + e.getMessage());
+                            AppLog.e(TAG, "AIVisionSDKLicenseException: Shelf Localizer object creation failed, " + e.getMessage());
                         } else {
-                            Log.e(TAG, "Localizer load failed: " + e.getMessage());
+                            AppLog.e(TAG, "Localizer load failed: " + e.getMessage());
                         }
                         // Notify failed loading
                         if (loadingCallback != null) {
@@ -116,15 +116,15 @@ public class ProductRecognitionSample {
             long mstart = System.currentTimeMillis();
             CompletableFuture<Void> extractorFuture = FeatureExtractor.getFeatureExtractor(feSettings, executor)
                     .thenAccept(featureExtractorInstance -> {
-                        Log.d(TAG, "FeatureExtractor() obj creation time =" + (System.currentTimeMillis() - mstart) + " milli sec");
+                        AppLog.i(TAG, "FeatureExtractor() obj creation time =" + (System.currentTimeMillis() - mstart) + " milli sec");
                         featureExtractorInitialized = true;
                         featureExtractor = featureExtractorInstance;
                         tryInitializeProductRecognition(callback);
                     }).exceptionally(e -> {
                         if (e instanceof AIVisionSDKLicenseException) {
-                            Log.e(TAG, "AIVisionSDKLicenseException: Feature Extractor object creation failed, " + e.getMessage());
+                            AppLog.e(TAG, "AIVisionSDKLicenseException: Feature Extractor object creation failed, " + e.getMessage());
                         } else {
-                            Log.e(TAG, "FeatureExtractor creation failed: " + e.getMessage());
+                            AppLog.e(TAG, "FeatureExtractor creation failed: " + e.getMessage());
                         }
                         // Notify failed loading
                         if (loadingCallback != null) {
@@ -136,7 +136,7 @@ public class ProductRecognitionSample {
             long mStartRecognizer = System.currentTimeMillis();
             CompletableFuture<Void> recognizerFuture = Recognizer.getRecognizer(reSettings, executor)
                     .thenAccept(recognizerInstance -> {
-                        Log.d(TAG, "Recognizer(reSettings) obj creation time =" + (System.currentTimeMillis() - mStartRecognizer) + " milli sec");
+                        AppLog.i(TAG, "Recognizer(reSettings) obj creation time =" + (System.currentTimeMillis() - mStartRecognizer) + " milli sec");
                         recognizerInitialized = true;
                         recognizer = recognizerInstance;
                         tryInitializeProductRecognition(callback);
@@ -145,7 +145,7 @@ public class ProductRecognitionSample {
                         if (loadingCallback != null) {
                             loadingCallback.onLoadingComplete(false);
                         }
-                        Log.e(TAG, "Recognizer creation failed: " + e.getMessage());
+                        AppLog.e(TAG, "Recognizer creation failed: " + e.getMessage());
                         return null;
                     });
 
@@ -156,7 +156,7 @@ public class ProductRecognitionSample {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error during initialization: " + e.getMessage());
+            AppLog.e(TAG, "Fatal error during initialization: " + e.getMessage());
         }
     }
 
@@ -194,7 +194,7 @@ public class ProductRecognitionSample {
             }
             output.flush();
         } catch (IOException e) {
-            Log.e(TAG, "Error in copy from assets: " + e.getMessage());
+            AppLog.e(TAG, "Error in copy from assets: " + e.getMessage());
         }
     }
 
@@ -206,17 +206,17 @@ public class ProductRecognitionSample {
         executor.shutdownNow();
         if (localizer != null) {
             localizer.dispose();
-            Log.d(TAG, "Localizer is disposed");
+            AppLog.i(TAG, "Localizer is disposed");
             localizer = null;
         }
         if (featureExtractor != null) {
             featureExtractor.dispose();
-            Log.d(TAG, "Feature extractor is disposed");
+            AppLog.i(TAG, "Feature extractor is disposed");
             featureExtractor = null;
         }
         if (recognizer != null) {
             recognizer.dispose();
-            Log.d(TAG, "Recognizer is disposed");
+            AppLog.i(TAG, "Recognizer is disposed");
             recognizer = null;
         }
     }

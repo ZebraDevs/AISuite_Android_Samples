@@ -2,7 +2,7 @@
 package com.zebra.aisuite_quickstart.java.analyzers.customdetector;
 
 import android.content.Context;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -111,7 +111,7 @@ public class CustomDetectorSample {
                 initAllDetectors(selectedIds);
                 loadingCallback.onLoadingComplete(true);
             } catch (Exception e) {
-                Log.e(TAG, "Failed to initialize custom detectors: " + e.getMessage(), e);
+                AppLog.e(TAG, "Failed to initialize custom detectors: " + e.getMessage(), e);
                 loadingCallback.onLoadingComplete(false);
             }
         });
@@ -120,7 +120,7 @@ public class CustomDetectorSample {
     // ── Steps 1+2: Initialize and wrap (delegated to per-model Integration classes) ──────────
 
     private void initAllDetectors(List<String> selectedIds) throws Exception {
-        Log.i(TAG, "initAllDetectors() — selectedIds=" + selectedIds);
+        AppLog.i(TAG, "initAllDetectors() — selectedIds=" + selectedIds);
         long t0 = System.currentTimeMillis();
 
         if (selectedIds.contains(BarcodeIntegration.MODEL_ID))      barcodeDecoder    = BarcodeIntegration.create(executor);
@@ -128,7 +128,7 @@ public class CustomDetectorSample {
         if (selectedIds.contains(YoloIntegration.MODEL_ID))         yoloDetector      = YoloIntegration.create(context);
         if (selectedIds.contains(TFLiteModelIntegration.MODEL_ID)) mobileNetDetector = TFLiteModelIntegration.create(context);
 
-        Log.i(TAG, "Selected detectors initialized in " + (System.currentTimeMillis() - t0) + " ms");
+        AppLog.i(TAG, "Selected detectors initialized in " + (System.currentTimeMillis() - t0) + " ms");
         buildAndSetAnalyzer(selectedIds);
     }
 
@@ -145,7 +145,7 @@ public class CustomDetectorSample {
         if (selectedIds.contains(TFLiteModelIntegration.MODEL_ID) && mobileNetDetector != null) detectorList.add(mobileNetDetector);
 
         if (detectorList.isEmpty()) {
-            Log.w(TAG, "No detectors selected — analyzer cleared");
+            AppLog.w(TAG, "No detectors selected — analyzer cleared");
             callback.handleCustomDetectionEntities(
                     Collections.emptyList(), Collections.emptyList(),
                     Collections.emptyList(), Collections.emptyList());
@@ -165,7 +165,7 @@ public class CustomDetectorSample {
         );
 
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), analyzer);
-        Log.d(TAG, "EntityTrackerAnalyzer set — detectors=" + detectorList.size() + " ids=" + selectedIds);
+        AppLog.d(TAG, "EntityTrackerAnalyzer set — detectors=" + detectorList.size() + " ids=" + selectedIds);
     }
 
     // ── Step 4: Handle results ────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ public class CustomDetectorSample {
             if (r != null) for (Entity e : r) if (e instanceof DetectionEntity && !(e instanceof OcrTextEntity)) mobileNet.add((DetectionEntity) e);
         }
 
-        Log.v(TAG, "Results — barcodes=" + barcodes.size() +
+        AppLog.v(TAG, "Results — barcodes=" + barcodes.size() +
                 " ocr=" + ocr.size() + " yolo=" + yolo.size() + " mobileNet=" + mobileNet.size());
         callback.handleCustomDetectionEntities(barcodes, ocr, yolo, mobileNet);
     }
@@ -207,16 +207,16 @@ public class CustomDetectorSample {
     // ── Lifecycle ─────────────────────────────────────────────────────────────────────────────
 
     public void startAnalyzing() {
-        Log.d(TAG, "startAnalyzing()");
+        AppLog.d(TAG, "startAnalyzing()");
     }
 
     public void stopAnalyzing() {
-        Log.d(TAG, "stopAnalyzing()");
+        AppLog.d(TAG, "stopAnalyzing()");
         executor.shutdownNow();
     }
 
     public void stop() {
-        Log.d(TAG, "stop() — disposing all detectors");
+        AppLog.d(TAG, "stop() — disposing all detectors");
 
         // Step 5: Release resources
         if (barcodeDecoder    != null) { barcodeDecoder.dispose();    barcodeDecoder    = null; }

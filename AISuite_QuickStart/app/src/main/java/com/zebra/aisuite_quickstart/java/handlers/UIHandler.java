@@ -11,7 +11,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.text.TextUtils;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -103,8 +103,7 @@ public class UIHandler {
             public void onItemSelected(AdapterView<?> adapterView, View view, int pos, long l) {
                 selectedModel = adapterView.getItemAtPosition(pos).toString();
                 isEntityViewFinder = selectedModel.equals(ENTITY_VIEW_FINDER);
-
-                Log.e(TAG, "selected option is " + selectedModel);
+                
                 boolean showFilter = TextUtils.equals(selectedModel, ENTITY_ANALYZER)
                         || TextUtils.equals(selectedModel, CUSTOM_DETECTOR);
                 activity.getBinding().trackerFilter.setVisibility(showFilter ? VISIBLE : GONE);
@@ -112,10 +111,8 @@ public class UIHandler {
                 // Lock orientation when Entity Viewfinder is selected
                 if (isEntityViewFinder) {
                     activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
-                    Log.d(TAG, "Orientation locked for Entity Viewfinder mode");
                 } else {
                     activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-                    Log.d(TAG, "Orientation unlocked for " + selectedModel + " mode");
                 }
                 activity.setModelLoaded(false);
                 if (selectedModel.equalsIgnoreCase(BARCODE_DETECTION) || selectedModel.equalsIgnoreCase(TEXT_OCR_DETECTION) || selectedModel.equalsIgnoreCase(PRODUCT_RECOGNITION) || selectedModel.equalsIgnoreCase(ENTITY_ANALYZER) || selectedModel.equalsIgnoreCase(PALLET_AND_BOX_LOCALIZER)) {
@@ -273,13 +270,12 @@ public class UIHandler {
 
     private void performCapture() {
         if (imageCapture == null || isInCaptureMode) return;
-        Log.d(TAG, "Performing capture");
+        AppLog.i(TAG, "Performing capture");
         imageCapture.takePicture(executors, new ImageCapture.OnImageCapturedCallback() {
             @Override
             public void onCaptureSuccess(@NonNull ImageProxy imageProxy) {
                 try {
-                    Log.e(TAG, "Image DIms w x h="+ imageProxy.getWidth() + " x " + imageProxy.getHeight());
-                    Log.e(TAG, "Selected model" + selectedModel);
+                    AppLog.e(TAG, "Image Dims w x h="+ imageProxy.getWidth() + " x " + imageProxy.getHeight());
                     currentCapture = CommonUtils.rotateBitmapIfNeeded(imageProxy);
                     activity.runOnUiThread(() -> {
                         switchToCaptureMode();
@@ -297,15 +293,14 @@ public class UIHandler {
                         activity.processCaptureWareHouseLocalizer(imageProxy);
                     }
 
-                    Log.d(TAG, "bitmap captured");
                 } catch (Exception e) {
-                    Log.e(TAG,"Exception occurred while capturing "+e.getMessage());
+                    AppLog.e(TAG,"Exception occurred while capturing "+e.getMessage());
                 }
             }
 
             @Override
             public void onError(@NonNull ImageCaptureException exception) {
-                Log.e(TAG, "Capture operation failed", exception);
+                AppLog.e(TAG, "Capture operation failed", exception);
             }
         });
     }

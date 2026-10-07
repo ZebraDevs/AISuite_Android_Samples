@@ -1,7 +1,7 @@
 // Copyright 2025 Zebra Technologies Corporation and/or its affiliates. All rights reserved.
 package com.zebra.aisuite_quickstart.java.detectors.textocrsample;
 
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
@@ -91,16 +91,15 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
         }
 
         isAnalyzing = false; // Prevent re-entry
-
+        AppLog.v(TAG, "Starting image analysis");
         Future<?> future = executorService.submit(() -> {
             try {
-                Log.d(TAG, "Starting image analysis");
                 ImageData imageData = ImageData.fromImageProxy(image);
                 long start = System.currentTimeMillis();
                 textOCR.process(imageData)
                         .thenAccept(result -> {
                             long processingTime = System.currentTimeMillis() - start;
-                            Log.d(TAG, "processing time: " + processingTime + "ms");
+                            AppLog.d(TAG, "processing time: " + processingTime + "ms");
                             if (!isStopped) {
                                 callback.onDetectionTextResult(result, processingTime);
                             }
@@ -108,14 +107,14 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
                             image.close();
                         })
                         .exceptionally(ex -> {
-                            Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                            AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
                             isAnalyzing = true;
                             image.close();
                             return null;
                         });
 
-            } catch (AIVisionSDKException e) {
-                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            } catch (Exception e) {
+                AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
                 isAnalyzing = true;
                 image.close();
             }
@@ -129,16 +128,19 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
 
     public void processImageWithCaptureOCR(ImageProxy image, TextOCR captureOCR) {
         try {
-            Log.d(TAG, "Starting image capture OCR analysis");
+            AppLog.v(TAG, "Starting image capture OCR analysis");
             captureOCR.process(ImageData.fromImageProxy(image))
-                    .thenAccept(callback::onCaptureDetectionTextResult)
+                    .thenAccept(result -> {
+                        callback.onCaptureDetectionTextResult(result);
+                        image.close();
+                    })
                     .exceptionally(ex -> {
-                        Log.e(TAG, "Error in capture OCR processing: " + ex.getMessage());
+                        AppLog.e(TAG, "Error in capture OCR processing: " + ex.getMessage());
+                        image.close();
                         return null;
                     });
         } catch (Exception e) {
-            Log.e(TAG, "Exception in capture OCR processing: " + e.getMessage());
-        } finally {
+            AppLog.e(TAG, "Exception in capture OCR processing: " + e.getMessage());
             image.close();
         }
     }
@@ -153,7 +155,7 @@ public class TextOCRAnalyzer implements ImageAnalysis.Analyzer {
     }
 
     public void startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called. ");
+        AppLog.i(TAG, "startAnalyzing() called. ");
         isStopped = false;
         isAnalyzing=true;
         executorService = Executors.newSingleThreadExecutor();

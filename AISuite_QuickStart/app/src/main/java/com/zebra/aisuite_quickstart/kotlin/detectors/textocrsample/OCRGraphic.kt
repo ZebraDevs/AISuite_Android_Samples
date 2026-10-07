@@ -32,8 +32,17 @@ import com.zebra.aisuite_quickstart.GraphicOverlay
 class OCRGraphic(
     overlay: GraphicOverlay,
     boxes: List<Rect>?,
-    decodedStrings: List<String>?
+    decodedStrings: List<String>?,
+    // A word's top predicted-text confidence, parallel to decodedStrings - picklist OCR only.
+    // Null keeps the box always green (non-picklist behavior).
+    wordConfidences: List<Float>? = null
 ) : GraphicOverlay.Graphic(overlay) {
+
+    companion object {
+        // For picklist OCR: a word's box is green once its top predicted-text confidence
+        // clears this bar, red otherwise.
+        private const val PICKLIST_CONFIDENCE_THRESHOLD = 0.99f
+    }
 
     private val boxPaint: Paint = Paint().apply {
         color = Color.GREEN
@@ -49,11 +58,14 @@ class OCRGraphic(
 
     private val boundingBoxes: MutableList<Rect> = mutableListOf()
     private val decodedValues: MutableList<String> = mutableListOf()
+    private val wordConfidences: MutableList<Float> = mutableListOf()
+    private val colorByConfidence: Boolean = wordConfidences != null
 
     init {
 
         boxes?.let { boundingBoxes.addAll(it) }
         decodedStrings?.let { decodedValues.addAll(it) }
+        wordConfidences?.let { this.wordConfidences.addAll(it) }
     }
 
     /**
@@ -62,8 +74,12 @@ class OCRGraphic(
      * @param canvas The canvas on which to draw the graphic.
      */
     override fun draw(canvas: Canvas) {
-        for (rect in boundingBoxes) {
-            canvas.drawRect(rect, boxPaint)
+        for (i in boundingBoxes.indices) {
+            if (colorByConfidence) {
+                val confidence = wordConfidences.getOrElse(i) { 0f }
+                boxPaint.color = if (confidence > PICKLIST_CONFIDENCE_THRESHOLD) Color.GREEN else Color.RED
+            }
+            canvas.drawRect(boundingBoxes[i], boxPaint)
         }
 
         for (i in decodedValues.indices) {

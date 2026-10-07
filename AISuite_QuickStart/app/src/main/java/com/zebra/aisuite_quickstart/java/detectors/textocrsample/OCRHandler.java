@@ -5,7 +5,7 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -33,6 +33,7 @@ public class OCRHandler {
     // Model input sizes
     private static final int CAPTURE_SIZE = 1280; // Higher resolution for capture
     private final SharedPreferences sharedPreferences;
+    private boolean isPickListEnabled = false;
 
     /**
      * Callback interface for model loading completion
@@ -48,13 +49,13 @@ public class OCRHandler {
         this.imageAnalysis = imageAnalysis;
         this.loadingCallback = loadingCallback;
         this.sharedPreferences = context.getSharedPreferences(CommonUtils.SETTINGS_PREFS, MODE_PRIVATE);
+        isPickListEnabled = sharedPreferences.getBoolean(CommonUtils.PREF_TEXT_OCR_PICKLIST_ENABLED, false);
         initializeTextOCR();
         initializeCaptureOCR();
     }
 
     private void initializeTextOCR() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
             // Initialize live preview OCR with selected input size
             TextOCR.Settings liveOCRSettings = createOCRSettings(modelInputSize);
@@ -63,7 +64,7 @@ public class OCRHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: load failed - " + e.getMessage());
+            AppLog.e(TAG, "Fatal error: load failed - " + e.getMessage());
         }
     }
 
@@ -78,7 +79,7 @@ public class OCRHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture OCR initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture OCR initialization failed: " + ex.getMessage());
         }
     }
 
@@ -98,6 +99,7 @@ public class OCRHandler {
         textOCRSettings.detectionInferencerOptions.defaultDims.height = inputSize;
         textOCRSettings.detectionInferencerOptions.defaultDims.width = inputSize;
         textOCRSettings.unclipRatio = 0.6f;
+        textOCRSettings.picklistConfig.setOCRPicklist(isPickListEnabled);
 
         return textOCRSettings;
     }
@@ -113,12 +115,12 @@ public class OCRHandler {
                 attachAnalysisAfterModelLoading();
             }
 
-            Log.d(TAG, "TextOCR() obj creation / model loading time = " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: TextOCR creation failed - " + e.getMessage());
+            AppLog.e(TAG, "TextOCR model loading failed - " + e.getMessage());
             return null;
         });
     }
@@ -133,12 +135,12 @@ public class OCRHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Capture TextOCR created in " + (System.currentTimeMillis() - m_Start) + " ms");
+            AppLog.i(TAG, "Capture TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: "+ textOCRSettings.detectionInferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture OCR creation failed: " + e.getMessage());
+            AppLog.e(TAG, "Capture TextOCR model loading failed: " + e.getMessage());
             return null;
         });
     }
@@ -152,12 +154,12 @@ public class OCRHandler {
         captureExecutor.shutdownNow();
         if (textOCR != null) {
             textOCR.dispose();
-            Log.v(TAG, "Live preview OCR is disposed");
+            AppLog.i(TAG, "Live preview OCR is disposed");
             textOCR = null;
         }
         if (captureOCR != null) {
             captureOCR.dispose();
-            Log.v(TAG, "Capture OCR is disposed");
+            AppLog.i(TAG, "Capture OCR is disposed");
             captureOCR = null;
         }
     }

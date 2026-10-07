@@ -7,7 +7,7 @@ import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
-import android.util.Log
+import com.zebra.aisuite_quickstart.utils.AppLog
 import java.io.FileInputStream
 import java.nio.FloatBuffer
 import java.nio.channels.FileChannel
@@ -35,13 +35,13 @@ class YoloOnnxModel(context: Context) : AutoCloseable {
     private val session: OrtSession
 
     init {
-        Log.d(TAG, "Loading ONNX session from assets: $MODEL_FILE")
+        AppLog.d(TAG, "Loading ONNX session from assets: $MODEL_FILE")
         val fd     = context.assets.openFd(MODEL_FILE)
         val buffer = FileInputStream(fd.fileDescriptor).channel.map(
             FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength
         )
         session = env.createSession(buffer)
-        Log.i(TAG, "ONNX session ready — inputs=${session.inputNames} outputs=${session.outputNames}")
+        AppLog.i(TAG, "ONNX session ready — inputs=${session.inputNames} outputs=${session.outputNames}")
     }
 
     fun detect(bitmap: Bitmap): List<Rect> {

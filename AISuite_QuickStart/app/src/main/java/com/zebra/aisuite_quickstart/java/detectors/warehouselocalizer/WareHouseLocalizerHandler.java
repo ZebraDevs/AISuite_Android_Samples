@@ -4,7 +4,7 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.camera.core.ImageAnalysis;
 import androidx.core.content.ContextCompat;
@@ -53,7 +53,6 @@ public class WareHouseLocalizerHandler {
 
     public void initializeWareHouseLocalizer() {
         int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        Log.d(TAG, "Live Preview Model Input Size: " + modelInputSize);
         try {
             // Initialize live preview localizer with selected input size
             Localizer.Settings liveLocalizerSettings = createLocalizerSettings(modelInputSize);
@@ -62,7 +61,7 @@ public class WareHouseLocalizerHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Model Loading: Pallet and Box Localizer returned with exception " + ex.getMessage());
+            AppLog.e(TAG, "Model Loading: Pallet and Box Localizer returned with exception " + ex.getMessage());
         }
     }
 
@@ -77,7 +76,7 @@ public class WareHouseLocalizerHandler {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture Pallet and Box Localizer initialization failed: " + ex.getMessage());
+            AppLog.e(TAG, "Capture Pallet and Box Localizer initialization failed: " + ex.getMessage());
         }
     }
 
@@ -108,12 +107,12 @@ public class WareHouseLocalizerHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Pallet and Box Localizer() obj creation time =" + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + localizerSettings.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "Pallet and Box Localizer model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + localizerSettings.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Fatal error: Pallet and Box Localizer creation failed - " + e.getMessage());
+            AppLog.e(TAG, "Pallet and Box Localizer model loading failed - " + e.getMessage());
             return null;
         });
     }
@@ -128,12 +127,12 @@ public class WareHouseLocalizerHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            Log.d(TAG, "Capture Pallet and Box Localizer created in " + (System.currentTimeMillis() - m_Start) + " ms");
+            AppLog.i(TAG, "Capture Pallet and Box Localizer model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + localizerSettings.inferencerOptions.defaultDims.width);
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
             }
-            Log.e(TAG, "Capture Pallet and Box Localizer creation failed: " + e.getMessage());
+            AppLog.e(TAG, "Capture Pallet and Box Localizer model loading failed: " + e.getMessage());
             return null;
         });
     }
@@ -146,12 +145,12 @@ public class WareHouseLocalizerHandler {
         captureExecutor.shutdownNow();
         if (wareHouseLocalizer != null) {
             wareHouseLocalizer.dispose();
-            Log.d(TAG, "Live preview Pallet and Box Localizer disposed");
+            AppLog.i(TAG, "Live preview Pallet and Box Localizer disposed");
             wareHouseLocalizer = null;
         }
         if (captureLocalizer != null) {
             captureLocalizer.dispose();
-            Log.d(TAG, "Capture Pallet and Box Localizer disposed");
+            AppLog.i(TAG, "Capture Pallet and Box Localizer disposed");
             captureLocalizer = null;
         }
     }

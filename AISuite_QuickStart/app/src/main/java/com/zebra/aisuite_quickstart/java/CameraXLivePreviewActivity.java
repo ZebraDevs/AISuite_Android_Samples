@@ -10,7 +10,7 @@ import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 import android.util.Size;
 import android.view.Display;
 import android.view.Surface;
@@ -198,7 +198,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 .getProcessCameraProvider()
                 .observe(this, provider -> {
                     cameraManager.setCameraProvider(provider);
-                    Log.v(TAG, "Binding all camera use cases");
+                    AppLog.v(TAG, "Binding all camera use cases");
                     bindAllCameraUseCases();
                 });
     }
@@ -219,16 +219,16 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 // Clear any pending data
                 pendingTransformMatrix = null;
                 pendingCropRegion = null;
-                Log.d(TAG, "Applied viewfinder resize specs immediately");
+                AppLog.d(TAG, "Applied viewfinder resize specs immediately");
             } else {
                 // Analyzer not ready yet, extract and store the actual VALUES
 
                 try {
                     pendingTransformMatrix = new android.graphics.Matrix(entityViewResizeSpecs.getSensorToViewMatrix());
                     pendingCropRegion = new android.graphics.RectF(entityViewResizeSpecs.getViewfinderFOVCropRegion());
-                    Log.d(TAG, "Stored pending viewfinder resize data for later application");
+                    AppLog.d(TAG, "Stored pending viewfinder resize data for later application");
                 } catch (Exception e) {
-                    Log.e(TAG, "Failed to extract resize spec values", e);
+                    AppLog.e(TAG, "Failed to extract resize spec values", e);
                     pendingTransformMatrix = null;
                     pendingCropRegion = null;
                 }
@@ -249,9 +249,9 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                 // Use our safely stored copies of the values
                 entityBarcodeTracker.getEntityTrackerAnalyzer().updateTransform(pendingTransformMatrix);
                 entityBarcodeTracker.getEntityTrackerAnalyzer().setCropRect(pendingCropRegion);
-                Log.d(TAG, "Applied pending viewfinder resize data from stored values");
+                AppLog.d(TAG, "Applied pending viewfinder resize data from stored values");
             } catch (Exception e) {
-                Log.e(TAG, "Failed to apply pending resize data", e);
+                AppLog.e(TAG, "Failed to apply pending resize data", e);
             } finally {
                 // Clear the stored values
                 pendingTransformMatrix = null;
@@ -265,7 +265,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
      * This ensures proper setup of the analyzer with any pending configurations
      */
     public void onEntityBarcodeTrackerReady() {
-        Log.d(TAG, "EntityBarcodeTracker is ready, applying pending configurations");
+        AppLog.d(TAG, "EntityBarcodeTracker is ready, applying pending configurations");
         applyPendingResizeSpecs();
     }
 
@@ -286,71 +286,71 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             switch (previousSelectedModel) {
                 case BARCODE_DETECTION:
                     if (barcodeHandler != null && barcodeHandler.getBarcodeAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the barcode analyzer");
+                        AppLog.i(TAG, "Stopping the barcode analyzer");
                         barcodeHandler.getBarcodeAnalyzer().stopAnalyzing();
                     }
                     break;
                 case TEXT_OCR_DETECTION:
                     if (ocrHandler != null && ocrHandler.getOCRAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the ocr analyzer");
+                        AppLog.i(TAG, "Stopping the ocr analyzer");
                         ocrHandler.getOCRAnalyzer().stopAnalyzing();
                     }
                     break;
                 case ENTITY_VIEW_FINDER:
                     if (entityBarcodeTracker != null) {
-                        Log.i(TAG, "Stopping the entity view tracker analyzer");
+                        AppLog.i(TAG, "Stopping the entity view tracker analyzer");
                         entityBarcodeTracker.stopAnalyzing();
                     }
                     break;
                 case ENTITY_ANALYZER:
                     if (tracker != null) {
-                        Log.i(TAG, "Stopping the entity tracker analyzer");
+                        AppLog.i(TAG, "Stopping the entity tracker analyzer");
                         tracker.stopAnalyzing();
                     }
                     break;
 
                 case PRODUCT_RECOGNITION:
                     if (productRecognitionHandler != null && productRecognitionHandler.getProductRecognitionAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the recognition analyzer");
+                        AppLog.i(TAG, "Stopping the recognition analyzer");
                         productRecognitionHandler.getProductRecognitionAnalyzer().stopAnalyzing();
                     }
                     break;
                 case LEGACY_BARCODE_DETECTION:
                     if (barcodeLegacySample != null && barcodeLegacySample.getBarcodeAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the barcode legacy analyzer");
+                        AppLog.i(TAG, "Stopping the barcode legacy analyzer");
                         barcodeLegacySample.getBarcodeAnalyzer().stopAnalyzing();
                     }
                     break;
                 case LEGACY_OCR_DETECTION:
                     if (ocrSample != null && ocrSample.getOCRAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the legacy ocr analyzer");
+                        AppLog.i(TAG, "Stopping the legacy ocr analyzer");
                         ocrSample.getOCRAnalyzer().stopAnalyzing();
                     }
                     break;
                 case LEGACY_PRODUCT_RECOGNITION:
                     if (productRecognitionSample != null && productRecognitionSample.getProductRecognitionSampleAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the legacy product recognition analyzer");
+                        AppLog.i(TAG, "Stopping the legacy product recognition analyzer");
                         productRecognitionSample.getProductRecognitionSampleAnalyzer().stopAnalyzing();
                     }
                     break;
                 case PALLET_AND_BOX_LOCALIZER:
                     if (wareHouseLocalizerHandler != null && wareHouseLocalizerHandler.getWareHouseAnalyzer() != null) {
-                        Log.i(TAG, "Stopping the Pallet and Box Localizer");
+                        AppLog.i(TAG, "Stopping the Pallet and Box Localizer");
                         wareHouseLocalizerHandler.getWareHouseAnalyzer().stopAnalyzing();
                     }
                     break;
                 case CUSTOM_DETECTOR:
                     if (customDetectorSample != null) {
-                        Log.i(TAG, "Stopping the Custom Detector");
+                        AppLog.i(TAG, "Stopping the Custom Detector");
                         customDetectorSample.stopAnalyzing();
                     }
                     break;
                 default:
-                    Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
+                    AppLog.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "Can not stop the analyzer: " + previousSelectedModel, e);
+            AppLog.e(TAG, "Can not stop the analyzer: " + previousSelectedModel, e);
         }
         binding.inferenceTimeTextView.setVisibility(View.GONE);
     }
@@ -360,72 +360,72 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
             switch (previousSelectedModel) {
                 case BARCODE_DETECTION:
                     if (barcodeHandler != null) {
-                        Log.i(TAG, "Disposing the barcode analyzer");
+                        AppLog.i(TAG, "Disposing the barcode analyzer");
                         barcodeHandler.stop();
                     }
                     break;
                 case TEXT_OCR_DETECTION:
                     if (ocrHandler != null) {
-                        Log.i(TAG, "Disposing the ocr analyzer");
+                        AppLog.i(TAG, "Disposing the ocr analyzer");
                         ocrHandler.stop();
                     }
                     break;
                 case ENTITY_VIEW_FINDER:
                     if (entityBarcodeTracker != null) {
-                        Log.i(TAG, "Disposing the entity view tracker analyzer");
+                        AppLog.i(TAG, "Disposing the entity view tracker analyzer");
                         entityBarcodeTracker.stop();
                         entityBarcodeTracker = null;
                     }
                     break;
                 case ENTITY_ANALYZER:
                     if (tracker != null) {
-                        Log.i(TAG, "Disposing the entity tracker analyzer");
+                        AppLog.i(TAG, "Disposing the entity tracker analyzer");
                         tracker.stop();
                     }
                     break;
 
                 case PRODUCT_RECOGNITION:
                     if (productRecognitionHandler != null) {
-                        Log.i(TAG, "Disposing the recognition analyzer");
+                        AppLog.i(TAG, "Disposing the recognition analyzer");
                         productRecognitionHandler.stop();
                     }
                     break;
                 case LEGACY_BARCODE_DETECTION:
                     if (barcodeLegacySample != null) {
-                        Log.i(TAG, "Disposing the barcode legacy analyzer");
+                        AppLog.i(TAG, "Disposing the barcode legacy analyzer");
                         barcodeLegacySample.stop();
                     }
                     break;
                 case LEGACY_OCR_DETECTION:
                     if (ocrSample != null) {
-                        Log.i(TAG, "Disposing the legacy ocr analyzer");
+                        AppLog.i(TAG, "Disposing the legacy ocr analyzer");
                         ocrSample.stop();
                     }
                     break;
                 case LEGACY_PRODUCT_RECOGNITION:
                     if (productRecognitionSample != null) {
-                        Log.i(TAG, "Disposing the legacy product recognition analyzer");
+                        AppLog.i(TAG, "Disposing the legacy product recognition analyzer");
                         productRecognitionSample.stop();
                     }
                     break;
                 case PALLET_AND_BOX_LOCALIZER:
                     if (wareHouseLocalizerHandler != null) {
-                        Log.i(TAG, "Disposing the Pallet and Box Localizer");
+                        AppLog.i(TAG, "Disposing the Pallet and Box Localizer");
                         wareHouseLocalizerHandler.stop();
                     }
                     break;
                 case CUSTOM_DETECTOR:
                     if (customDetectorSample != null) {
-                        Log.i(TAG, "Disposing the Custom Detector");
+                        AppLog.i(TAG, "Disposing the Custom Detector");
                         customDetectorSample.stop();
                         customDetectorSample = null;
                     }
                     break;
                 default:
-                    Log.e(TAG, "Invalid selected option: " + previousSelectedModel);
+                    AppLog.e(TAG, "Invalid selected option: " + previousSelectedModel);
             }
         } catch (Exception e) {
-            Log.e(TAG, "Can not dispose the analyzer: " + previousSelectedModel, e);
+            AppLog.e(TAG, "Can not dispose the analyzer: " + previousSelectedModel, e);
         }
     }
 
@@ -497,7 +497,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
     // Handles entities for the entity view tracker and updates the graphical overlay
     @Override
     public void handleEntitiesForEntityView(EntityTrackerAnalyzer.Result result) {
-        Log.d(TAG, "Handle View Entity - Result received");
+        AppLog.d(TAG, "Handle View Entity - Result received");
 
         // Apply any pending resize specs now that the analyzer is ready
         applyPendingResizeSpecs();
@@ -505,23 +505,23 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         List<? extends Entity> entities = null;
         if (entityBarcodeTracker != null && entityBarcodeTracker.getBarcodeDecoder() != null) {
             entities = result.getValue(entityBarcodeTracker.getBarcodeDecoder());
-            Log.d(TAG, "EntityBarcodeTracker decoder available, entities count: " + (entities != null ? entities.size() : "null"));
+            AppLog.d(TAG, "EntityBarcodeTracker decoder available, entities count: " + (entities != null ? entities.size() : "null"));
         } else {
-            Log.w(TAG, "EntityBarcodeTracker or decoder is null - tracker: " + (entityBarcodeTracker != null) + ", decoder: " + (entityBarcodeTracker != null && entityBarcodeTracker.getBarcodeDecoder() != null));
+            AppLog.w(TAG, "EntityBarcodeTracker or decoder is null - tracker: " + (entityBarcodeTracker != null) + ", decoder: " + (entityBarcodeTracker != null && entityBarcodeTracker.getBarcodeDecoder() != null));
         }
 
         if (entityViewGraphic != null) {
             entityViewGraphic.clear();
         } else {
-            Log.w(TAG, "EntityViewGraphic is null");
+            AppLog.w(TAG, "EntityViewGraphic is null");
         }
 
         if (entities != null && entityViewGraphic != null) {
-            Log.d(TAG, "Processing " + entities.size() + " entities for entity view");
+            AppLog.d(TAG, "Processing " + entities.size() + " entities for entity view");
             detectionHandler.handleEntityViewFinderDetection((List<Entity>) entities, entityViewGraphic);
-            Log.d(TAG, "Rendered entities on entity view");
+            AppLog.d(TAG, "Rendered entities on entity view");
         } else {
-            Log.w(TAG, "No entities to process for entity view");
+            AppLog.w(TAG, "No entities to process for entity view");
         }
     }
 
@@ -646,7 +646,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         try {
             switch (selectedModel) {
                 case BARCODE_DETECTION:
-                    Log.i(TAG, "Using Barcode Decoder");
+                    AppLog.i(TAG, "Using Barcode Decoder");
                     executors.execute(() -> {
                         BarcodeHandler bh = new BarcodeHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
                         if (loadGeneration != modelLoadGeneration.get()) { bh.stop(); return; }
@@ -654,7 +654,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case TEXT_OCR_DETECTION:
-                    Log.i(TAG, "Using Text OCR");
+                    AppLog.i(TAG, "Using Text OCR");
                     executors.execute(() -> {
                         OCRHandler oh = new OCRHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
                         if (loadGeneration != modelLoadGeneration.get()) { oh.stop(); return; }
@@ -662,7 +662,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case ENTITY_VIEW_FINDER:
-                    Log.i(TAG, "Using Entity View Analyzer");
+                    AppLog.i(TAG, "Using Entity View Analyzer");
                     executors.execute(() -> {
                         EntityBarcodeTracker ebt = new EntityBarcodeTracker(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
                         if (loadGeneration != modelLoadGeneration.get()) { ebt.stop(); return; }
@@ -670,7 +670,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case ENTITY_ANALYZER:
-                    Log.i(TAG, "Using Entity Analyzer");
+                    AppLog.i(TAG, "Using Entity Analyzer");
                     executors.execute(() -> {
                         try {
                             Tracker t = new Tracker(this, this, analysisUseCase, selectedFilterItems, success -> handleModelLoadResult(loadGeneration, success));
@@ -683,7 +683,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case PRODUCT_RECOGNITION:
-                    Log.i(TAG, "Using Product Recognition");
+                    AppLog.i(TAG, "Using Product Recognition");
                     executors.execute(() -> {
                         ProductRecognitionHandler prh = new ProductRecognitionHandler(CameraXLivePreviewActivity.this, CameraXLivePreviewActivity.this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
                         if (loadGeneration != modelLoadGeneration.get()) { prh.stop(); return; }
@@ -691,7 +691,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case LEGACY_BARCODE_DETECTION:
-                    Log.i(TAG, "Using Legacy Barcode Detection");
+                    AppLog.i(TAG, "Using Legacy Barcode Detection");
                     executors.execute(() -> {
                         BarcodeSample bs = new BarcodeSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
                         if (loadGeneration != modelLoadGeneration.get()) { bs.stop(); return; }
@@ -699,7 +699,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case LEGACY_OCR_DETECTION:
-                    Log.i(TAG, "Using Legacy Text OCR");
+                    AppLog.i(TAG, "Using Legacy Text OCR");
                     executors.execute(() -> {
                         OCRSample os = new OCRSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
                         if (loadGeneration != modelLoadGeneration.get()) { os.stop(); return; }
@@ -707,7 +707,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case LEGACY_PRODUCT_RECOGNITION:
-                    Log.i(TAG, "Using Legacy Product Recognition");
+                    AppLog.i(TAG, "Using Legacy Product Recognition");
                     executors.execute(() -> {
                         ProductRecognitionSample prs = new ProductRecognitionSample(this, this, analysisUseCase, success -> showModelLoadingProgress(false));
                         if (loadGeneration != modelLoadGeneration.get()) { prs.stop(); return; }
@@ -715,7 +715,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case PALLET_AND_BOX_LOCALIZER:
-                    Log.i(TAG, "Using Pallet and Box Localizer");
+                    AppLog.i(TAG, "Using Pallet and Box Localizer");
                     executors.execute(() -> {
                         WareHouseLocalizerHandler wh = new WareHouseLocalizerHandler(this, this, analysisUseCase, success -> handleModelLoadResult(loadGeneration, success));
                         if (loadGeneration != modelLoadGeneration.get()) { wh.stop(); return; }
@@ -723,7 +723,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     });
                     break;
                 case CUSTOM_DETECTOR: {
-                    Log.i(TAG, "Using Custom Detector");
+                    AppLog.i(TAG, "Using Custom Detector");
                     SharedPreferences customPrefs = getSharedPreferences(CommonUtils.PREFS_NAME_CUSTOM_DETECTOR, MODE_PRIVATE);
                     List<String> selectedCustomIds = new ArrayList<>();
                     for (String id : CustomDetectorSample.MODEL_IDS) {
@@ -744,7 +744,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     throw new IllegalStateException("Invalid model name");
             }
         } catch (Exception e) {
-            Log.e(TAG, "Can not create model for : " + selectedModel, e);
+            AppLog.e(TAG, "Can not create model for : " + selectedModel, e);
             handleModelLoadResult(loadGeneration, false);
             showModelLoadingProgress(false);
         }
@@ -782,19 +782,19 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
     public void onResume() {
         super.onResume();
-        Log.v(TAG, "OnResume called");
+        AppLog.v(TAG, "OnResume called");
         isActivityVisible = true;
         // Recreate executor if it was shut down during onPause
         if (executors == null || executors.isShutdown()) {
             executors = Executors.newSingleThreadExecutor();
-            Log.d(TAG, "ExecutorService recreated");
+            AppLog.d(TAG, "ExecutorService recreated");
         }
         clearGraphicOverlay();
         restoreLiveUiState();
 
         int currentRotation = getWindowManager().getDefaultDisplay().getRotation();
         if (currentRotation != initialRotation) {
-            Log.d(TAG, "Rotation changed during pause, updating initialRotation from " + initialRotation + " to " + currentRotation);
+            AppLog.d(TAG, "Rotation changed during pause, updating initialRotation from " + initialRotation + " to " + currentRotation);
             initialRotation = currentRotation;
             if (boundingBoxMapper != null) {
                 boundingBoxMapper.setInitialRotation(initialRotation);
@@ -803,14 +803,12 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
 
             updateImageDimensionsFromCameraManager();
 
-            Log.i(TAG, "Display changed, updated targetRotation and dimensions: rotation=" + currentRotation
-                    + ", imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
         }
         if (uiHandler.isSpinnerInitialized) bindAllCameraUseCases();
     }
 
     public void onPause() {
-        Log.v(TAG, "onPause called");
+        AppLog.v(TAG, "onPause called");
         isActivityVisible = false;
         modelLoadGeneration.incrementAndGet();
         setModelLoaded(false);
@@ -859,9 +857,6 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
                     }
 
                     updateImageDimensionsFromCameraManager();
-
-                    Log.i(TAG, "Display changed, updated targetRotation and dimensions: rotation=" + newRotation
-                            + ", imageWidth=" + imageWidth + ", imageHeight=" + imageHeight);
                 });
             }
         };
@@ -886,7 +881,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         boundingBoxMapper.setImageDimensions(imageWidth, imageHeight);
         boundingBoxMapper.setFrontCamera(cameraManager.isFrontCamera());
 
-        Log.d(TAG, "Updated mapper dimensions from actual CameraX size: "
+        AppLog.d(TAG, "Updated mapper dimensions from actual CameraX size: "
                 + actualAnalysisSize + ", imageWidth=" + imageWidth
                 + ", imageHeight=" + imageHeight);
     }
@@ -1104,7 +1099,7 @@ public class CameraXLivePreviewActivity extends AppCompatActivity implements Bar
         runOnUiThread(() -> {
             if (!isActivityVisible || isFinishing() || isDestroyed()
                     || loadGeneration != modelLoadGeneration.get()) {
-                Log.d(TAG, "Ignoring stale model-load callback. generation=" + loadGeneration
+                AppLog.d(TAG, "Ignoring stale model-load callback. generation=" + loadGeneration
                         + ", current=" + modelLoadGeneration.get());
                 return;
             }

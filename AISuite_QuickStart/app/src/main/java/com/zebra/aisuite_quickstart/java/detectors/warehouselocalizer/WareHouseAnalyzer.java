@@ -1,6 +1,6 @@
 package com.zebra.aisuite_quickstart.java.detectors.warehouselocalizer;
 
-import android.util.Log;
+import com.zebra.aisuite_quickstart.utils.AppLog;
 
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
@@ -48,10 +48,9 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
         }
 
         isAnalyzing = false; // Prevent re-entry
-
+        AppLog.v(TAG, "Starting image analysis");
         Future<?> future = executorService.submit(() -> {
             try {
-                Log.d(TAG, "Starting image analysis");
                 localizer.process(ImageData.fromImageProxy(image))
                         .thenAccept(result -> {
                             if (!isStopped) {
@@ -61,13 +60,13 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
                             isAnalyzing = true;
                         })
                         .exceptionally(ex -> {
-                            Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                            AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
                             image.close();
                             isAnalyzing = true;
                             return null;
                         });
-            } catch (AIVisionSDKException e) {
-                Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            } catch (Exception e) {
+                AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
                 image.close();
                 isAnalyzing = true;
             }
@@ -80,16 +79,21 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
 
     public void processImage(ImageProxy image, Localizer localizer){
         try {
-            Log.d(TAG, "Starting image capture analysis");
+            AppLog.v(TAG, "Starting image capture analysis");
             localizer.process(ImageData.fromImageProxy(image))
-                    .thenAccept(callback::onCaptureWareHouseDetectionResult)
+                    .thenAccept(result -> {
+                        callback.onCaptureWareHouseDetectionResult(result);
+                        image.close();
+                        isAnalyzing = true;
+                    })
                     .exceptionally(ex -> {
-                        Log.e(TAG, "Error in completable future result " + ex.getMessage());
+                        AppLog.e(TAG, "Error in completable future result " + ex.getMessage());
+                        image.close();
+                        isAnalyzing = true;
                         return null;
                     });
-        } catch (AIVisionSDKException e) {
-            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
-        }finally {
+        } catch (Exception e) {
+            AppLog.e(TAG, Objects.requireNonNull(e.getMessage()));
             image.close();
             isAnalyzing = true;
         }
@@ -104,7 +108,7 @@ public class WareHouseAnalyzer implements ImageAnalysis.Analyzer{
     }
 
     public void startAnalyzing() {
-        Log.d(TAG, "startAnalyzing() called. ");
+        AppLog.i(TAG, "startAnalyzing() called. ");
         isStopped = false;
         executorService = Executors.newSingleThreadExecutor();
     }
