@@ -19,7 +19,7 @@ android {
         applicationId = "com.zebra.aidatacapturedemo"
         minSdk = 33
         targetSdk = 36
-        versionCode = 39
+        versionCode = 38
         versionName = appVersion
 
         buildConfigField("String", "AI_DataCaptureDemo_Version", "\"$appVersion\"")
