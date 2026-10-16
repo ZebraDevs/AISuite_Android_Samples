@@ -223,8 +223,8 @@ fun AIDataCaptureUsecaseList(viewModel: AIDataCaptureDemoViewModel, navControlle
             Variables.mainIcon1,
             Variables.secondaryIcon1,
             onItemClick = { selectedUsecase ->
-                viewModel.updateAppBarTitle(getString(context, R.string.ocr_barcode_find))
                 viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.updateCaptureOrLiveEnabled(0)
                 viewModel.initModel()
                 navController.navigate(route = Screen.DemoStart.route)
             })
@@ -235,13 +235,8 @@ fun AIDataCaptureUsecaseList(viewModel: AIDataCaptureDemoViewModel, navControlle
             Variables.mainIcon1,
             Variables.secondaryIcon1,
             onItemClick = { selectedUsecase ->
-                viewModel.updateAppBarTitle(
-                    getString(
-                        context,
-                        R.string.product_enrollment_recognition_demo
-                    )
-                )
                 viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.updateCaptureOrLiveEnabled(1)
                 viewModel.initModel()
                 navController.navigate(route = Screen.DemoStart.route)
             })
@@ -270,8 +265,8 @@ fun AIDataCaptureTechnologyList(
             Variables.mainIcon2,
             Variables.secondaryIcon2,
             onItemClick = { selectedUsecase ->
-                viewModel.updateAppBarTitle(getString(context, R.string.ocr_demo))
                 viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.updateCaptureOrLiveEnabled(1)
                 viewModel.initModel()
                 navController.navigate(route = Screen.DemoStart.route)
             })
@@ -282,8 +277,8 @@ fun AIDataCaptureTechnologyList(
             Variables.mainIcon2,
             Variables.secondaryIcon2,
             onItemClick = { selectedUsecase ->
-                viewModel.updateAppBarTitle(getString(context, R.string.barcode_demo))
                 viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.updateCaptureOrLiveEnabled(1)
                 viewModel.initModel()
                 navController.navigate(route = Screen.DemoStart.route)
             })
@@ -294,8 +289,8 @@ fun AIDataCaptureTechnologyList(
             Variables.mainIcon2,
             Variables.secondaryIcon2,
             onItemClick = { selectedUsecase ->
-                viewModel.updateAppBarTitle(getString(context, R.string.retail_shelf_demo))
                 viewModel.updateSelectedUsecase(selectedUsecase)
+                viewModel.updateCaptureOrLiveEnabled(1)
                 viewModel.initModel()
                 navController.navigate(route = Screen.DemoStart.route)
             })

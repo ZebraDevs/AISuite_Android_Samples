@@ -2,7 +2,6 @@
 
 package com.zebra.aidatacapturedemo.model
 
-import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import com.zebra.ai.vision.detector.AIVisionSDKException
@@ -15,10 +14,22 @@ import com.zebra.aidatacapturedemo.data.PROFILING
 import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
+import java.util.Collections.synchronizedList
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 
 /**
@@ -29,13 +40,37 @@ import java.util.concurrent.Executors
  */
 class BarcodeAnalyzer(
     val uiState: StateFlow<AIDataCaptureDemoUiState>,
-    val viewModel: AIDataCaptureDemoViewModel) {
+    val viewModel: AIDataCaptureDemoViewModel
+) {
 
     private lateinit var mActivityLifecycle: Lifecycle
     private val TAG = "BarcodeAnalyzer"
     private var barcodeDecoder: BarcodeDecoder? = null
-    private val decoderSettings = BarcodeDecoder.Settings("barcode-localizer")
+
+    //    private val decoderSettings = BarcodeDecoder.Settings("barcode-localizer")
+    private val decoderSettings = BarcodeDecoder.Settings("barcode-decoder")
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
+
+    private val job = Job()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
+
+    /** Guards barcodeDecoder so initialize()/deinitialize()/executeHighRes() never touch the
+     * native object concurrently — doing so crashes natively with no Java stack trace, same
+     * risk ProductEnrollmentRecognition/RetailShelfRecognizer already guard against. */
+    private val pipelineLock = Mutex()
+
+    private var isRetiring = false
+    private var disposeJob: Job? = null
+
+    // Incremented on every initialize()/deinitialize() call. Async init callbacks compare
+    // their captured generation against the current one before assigning a native instance,
+    // so a stale callback from a superseded init disposes its instance instead of leaking it.
+    private val initGeneration = AtomicInteger(0)
+
+    // Futures for native inits still in flight when deinitialize() runs. Awaited by
+    // awaitPendingInit() before a new initialize() call starts, so we never have two full
+    // native BarcodeDecoder instances allocated at once.
+    private val pendingFutures = synchronizedList(mutableListOf<CompletableFuture<*>>())
 
     /**
      * initialize function is used to initialize the BarcodeDecoder for Barcode Analyzer
@@ -44,15 +79,39 @@ class BarcodeAnalyzer(
      * it updates the UI with appropriate messages and takes corrective actions.
      */
     fun initialize() {
-        barcodeDecoder?.dispose()
-        barcodeDecoder = null
+        deinitialize()
+        isRetiring = false
         updateBarcodeModelDemoReady(false)
+
+        val myGeneration = initGeneration.get()
+        attemptInit(myGeneration, allowFallbackRetry = true)
+    }
+
+    /**
+     * Attempts to create the native BarcodeDecoder instance for [myGeneration]. If creation
+     * fails because the selected inference type (e.g. GPU) isn't supported on this device,
+     * switches the setting to Auto-select and — when [allowFallbackRetry] is true — immediately
+     * retries once with that corrected setting, instead of only persisting it for the next app
+     * launch and leaving this session's init (and whatever is awaiting
+     * isBarcodeModelDemoReady) stalled until it times out (MCAIS-2846). [allowFallbackRetry] is
+     * false on that retry, so a second failure under Auto-select surfaces as a real init error
+     * rather than looping.
+     */
+    private fun attemptInit(myGeneration: Int, allowFallbackRetry: Boolean) {
         try {
             configure()
 
             val mStart = System.currentTimeMillis()
-            BarcodeDecoder.getBarcodeDecoder(decoderSettings, executorService)
+            val future = BarcodeDecoder.getBarcodeDecoder(decoderSettings, executorService)
                 .thenAccept { barcodeDecoderInstance: BarcodeDecoder ->
+                    if (myGeneration != initGeneration.get()) {
+                        Log.w(
+                            TAG,
+                            "BarcodeAnalyzer was deinitialized before init completed – disposing leaked decoder"
+                        )
+                        barcodeDecoderInstance.dispose()
+                        return@thenAccept
+                    }
                     barcodeDecoder = barcodeDecoderInstance
                     updateBarcodeModelDemoReady(true)
                     Log.e(
@@ -61,30 +120,83 @@ class BarcodeAnalyzer(
                     )
                     Log.i(TAG, "BarcodeAnalyzer init Success")
                 }.exceptionally { e: Throwable ->
+                    if (myGeneration != initGeneration.get()) return@exceptionally null
                     Log.e(TAG, "BarcodeAnalyzer init Failed -> " + e.message)
-                    if (e.message?.contains("Given runtimes are not available") == true ||
-                        e.message?.contains("Initialize barcodeDecoder due to SNPE exception") == true
-                    ) {
-                        viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
-                        viewModel.updateSelectedProcessor(0) //Auto-Select
-                        viewModel.saveSettings()
-                        initialize()
+                    val isUnsupportedRuntime = e.message?.contains("Given runtimes are not available") == true ||
+                            e.message?.contains("Initialize barcodeDecoder due to SNPE exception") == true
+                    when {
+                        isUnsupportedRuntime && allowFallbackRetry -> {
+                            viewModel.updateToastMessage(message = "Selected inference type is not supported on this device. Switching to Auto-select for optimal performance.")
+                            viewModel.updateSelectedProcessor(0) //Auto-Select
+                            viewModel.saveSettings()
+                            attemptInit(myGeneration, allowFallbackRetry = false)
+                        }
+                        isUnsupportedRuntime -> viewModel.updateRecognizerInitError(
+                            "Barcode could not be initialized on this device, even with Auto-select."
+                        )
                     }
                     null
                 }
+            pendingFutures.add(future)
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "initialize() ran out of memory loading BarcodeDecoder: ${e.message}")
+            viewModel.updateRecognizerInitError(
+                "Not enough memory to load the model at the current settings. Close other apps and try again, or lower resolution/model input size."
+            )
+            viewModel.handleMemoryPressureDetected("model init")
         } catch (ex: IOException) {
             Log.e(TAG, "getBarcodeDecoder init Failed -> " + ex.message)
         }
     }
 
-    /**
-     * To deinitialize the BarcodeAnalyzer, we need to dispose the localizer
-     */
+    /** Native dispose is deferred to [disposeJob], which waits for any in-flight
+     * executeHighRes() call on this instance to finish first — disposing while a call is
+     * still inside native process() crashes natively with no Java stack trace. */
     fun deinitialize() {
-        barcodeDecoder?.dispose()
-        barcodeDecoder = null
+        initGeneration.incrementAndGet()
+        isRetiring = true
+        disposeJob = scope.launch {
+            pipelineLock.withLock {
+                barcodeDecoder?.dispose()
+                barcodeDecoder = null
+            }
+        }
     }
-    fun getDetector() : BarcodeDecoder? {
+
+    /**
+     * Blocks until any native inits still in flight from a superseded initialize() call have
+     * settled, and until this instance's deferred dispose from deinitialize() has settled.
+     * Must be called off the main thread, before starting a new initialize() call on this
+     * (now-retired) instance, to avoid two full native BarcodeDecoder instances being allocated
+     * at once.
+     */
+    fun awaitPendingInit() {
+        val toAwait: List<CompletableFuture<*>>
+        synchronized(pendingFutures) {
+            toAwait = pendingFutures.toList()
+            pendingFutures.clear()
+        }
+        toAwait.forEach { future ->
+            try {
+                future.get(10, TimeUnit.SECONDS)
+            } catch (e: Exception) {
+                Log.w(TAG, "Timed out waiting for a superseded init to settle:${e.message}")
+            }
+        }
+        disposeJob?.let { pendingDispose ->
+            try {
+                runBlocking {
+                    withTimeoutOrNull(10_000) { pendingDispose.join() }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Timed out waiting for deferred dispose to settle:${e.message}")
+            }
+        }
+        executorService.shutdown()
+        job.cancel()
+    }
+
+    fun getDetector(): BarcodeDecoder? {
         return barcodeDecoder
     }
 
@@ -93,23 +205,28 @@ class BarcodeAnalyzer(
      * The function handles exceptions that may occur during processing and logs appropriate messages.
      * Upon successful processing, it calls the onDetectionBarcodeResult function with the results.
      */
-    fun executeHighRes(highResBitmap: Bitmap) {
+    fun executeHighRes(imageData: ImageData) {
         executorService.submit {
-            try {
-                Log.d(TAG, "Starting image analysis")
-                val highResImageData: ImageData = ImageData.fromBitmap(highResBitmap, 0)
-                barcodeDecoder?.process(highResImageData)
-                    ?.thenAccept { result ->
-                        onDetectionBarcodeResult(result)
+            runBlocking {
+                pipelineLock.withLock {
+                    try {
+                        if (isRetiring) return@withLock
+                        barcodeDecoder?.process(imageData)?.thenAccept { result ->
+                            onDetectionBarcodeResult(result)
+                        }
+                    } catch (e: OutOfMemoryError) {
+                        Log.e(TAG, "executeHighRes ran out of memory: ${e.message}")
+                        viewModel.handleMemoryPressureDetected("capture")
+                    } catch (e: InvalidInputException) {
+                        Log.e(TAG, e.message ?: "InvalidInputException occurred")
+                    } catch (e: AIVisionSDKException) {
+                        Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
                     }
-            } catch (e: InvalidInputException) {
-                Log.e(TAG, e.message ?: "InvalidInputException occurred")
-            } catch (e: AIVisionSDKException) {
-                Log.e(TAG, e.message ?: "AIVisionSDKException occurred")
-            } finally {
+                }
             }
         }
     }
+
     private fun configure() {
         try {
             if (uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
@@ -131,6 +248,16 @@ class BarcodeAnalyzer(
                     uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
                 decoderSettings.detectorSetting.inferencerOptions.defaultDims.height =
                     uiState.value.ocrBarcodeFindSettings.commonSettings.inputSizeSelected
+
+                decoderSettings.enableAIBarcodeDecode =
+                    uiState.value.ocrBarcodeFindSettings.commonSettings.enableAIBarcodeDecode
+
+                decoderSettings.dpmSettings.mode =
+                    when (uiState.value.ocrBarcodeFindSettings.commonSettings.dpmModeSelectedIndex) {
+                        1 -> BarcodeDecoder.Settings.DpmSettings.DpmMode.SMALL
+                        2 -> BarcodeDecoder.Settings.DpmSettings.DpmMode.LARGE
+                        else -> BarcodeDecoder.Settings.DpmSettings.DpmMode.DISABLED
+                    }
 
                 decoderSettings.Symbology.AUSTRALIAN_POSTAL.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.australian_postal)
                 decoderSettings.Symbology.AZTEC.enable(uiState.value.ocrBarcodeFindSettings.barcodeSymbology.aztec)
@@ -198,6 +325,16 @@ class BarcodeAnalyzer(
                 decoderSettings.detectorSetting.inferencerOptions.defaultDims.height =
                     uiState.value.barcodeSettings.commonSettings.inputSizeSelected
 
+                decoderSettings.enableAIBarcodeDecode =
+                    uiState.value.barcodeSettings.commonSettings.enableAIBarcodeDecode
+
+                decoderSettings.dpmSettings.mode =
+                    when (uiState.value.barcodeSettings.commonSettings.dpmModeSelectedIndex) {
+                        1 -> BarcodeDecoder.Settings.DpmSettings.DpmMode.SMALL
+                        2 -> BarcodeDecoder.Settings.DpmSettings.DpmMode.LARGE
+                        else -> BarcodeDecoder.Settings.DpmSettings.DpmMode.DISABLED
+                    }
+
                 decoderSettings.Symbology.AUSTRALIAN_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.australian_postal)
                 decoderSettings.Symbology.AZTEC.enable(uiState.value.barcodeSettings.barcodeSymbology.aztec)
                 decoderSettings.Symbology.CANADIAN_POSTAL.enable(uiState.value.barcodeSettings.barcodeSymbology.canadian_postal)
@@ -246,7 +383,7 @@ class BarcodeAnalyzer(
                 decoderSettings.Symbology.US4STATE_FICS.enable(uiState.value.barcodeSettings.barcodeSymbology.us4state_fics)
             }
         } catch (e: Exception) {
-                Log.e(TAG, "Fatal error: configure failed - ${e.message}")
+            Log.e(TAG, "Fatal error: configure failed - ${e.message}")
         }
     }
 
@@ -264,9 +401,14 @@ class BarcodeAnalyzer(
             }
         }
 
-        // If feedbackSettings.showDetectedBarcode is false -> then don't show the undecoded barcodes on the display
-        if (!uiState.value.ocrBarcodeFindSettings.feedbackSettings.showDetectedBarcode){
-            rectList.retainAll { it.text.isNotBlank() }
+        // In OCR+Barcode Find mode, hide undecoded barcode boxes when "Show detected barcodes" is off.
+        val hideUndecoded =
+            uiState.value.usecaseSelected == UsecaseState.OCRBarcodeFind.value &&
+                    !uiState.value.ocrBarcodeFindSettings.feedbackSettings.showDetectedBarcode
+
+        if (hideUndecoded) {
+            // Keep only decoded barcodes (non-empty text payload).
+            rectList = rectList.filter { it.text.isNotBlank() }.toMutableList()
         }
 
         viewModel.updateBarcodeResultData(

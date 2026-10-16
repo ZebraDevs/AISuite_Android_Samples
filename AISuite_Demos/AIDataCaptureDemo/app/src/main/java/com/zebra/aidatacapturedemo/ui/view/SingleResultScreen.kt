@@ -1,6 +1,8 @@
 package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.util.Base64
 import android.view.WindowManager
 import android.view.WindowMetrics
 import androidx.activity.compose.BackHandler
@@ -22,23 +24,23 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.NavHostController
-import coil.compose.rememberAsyncImagePainter
-import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.loadOcrBarcodeCaptureSessionDataFromPrefs
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
@@ -59,113 +61,127 @@ fun SingleResultScreen(
     navController: NavHostController,
     innerPadding: PaddingValues,
     context: Context,
-    resultRowData: ResultRowData
+    resultRowData: FieldMatchedValue
 ) {
     val uiState = viewModel.uiState.collectAsState().value
 
-    BackHandler(enabled = true) {
-        viewModel.handleBackButton(navController)
-    }
-    viewModel.updateAppBarTitle(stringResource(R.string.back_to_all_results))
-    val sessionData = loadOcrBarcodeCaptureSessionDataFromPrefs(
-        context,
-        uiState.ocrBarcodeCaptureSessionIndex.toString()
-    )
-    val capturedBitmap = sessionData?.captureImage?.let { base64String ->
-        if (base64String.isNotEmpty()) {
-            val bytes = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
-            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        } else null
-    }
-    if (capturedBitmap == null) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            CircularProgressIndicator()
-        }
-    } else {
-        // GET DEVICE RESOLUTION:
-        val displayMetrics = LocalContext.current.resources.displayMetrics
-        val displayMetricsDensity = displayMetrics.density
-
-        val windowManager = getSystemService(context, WindowManager::class.java)
-        val windowMetrics: WindowMetrics = windowManager.currentWindowMetrics
-
-        val displayTotalWidthInPx = windowMetrics.bounds.width()
-        val displayTotalHeightInPx = windowMetrics.bounds.height()
-
-        // TOP STATUS BAR
-        val displayStatusBarPaddingValues = WindowInsets.statusBars.asPaddingValues()
-        val displayStatusBarHeightInDp = displayStatusBarPaddingValues.calculateTopPadding()
-        val displayStatusBarHeightInPx = displayStatusBarHeightInDp.value * displayMetricsDensity
-
-        // BOTTOM NAVIGATION BAR
-        val displayNavigationBarPaddingValues = WindowInsets.navigationBars.asPaddingValues()
-        val displayNavigationBarHeightInDp =
-            displayNavigationBarPaddingValues.calculateBottomPadding()
-        val displayNavigationBarHeightInPx =
-            displayNavigationBarHeightInDp.value * displayMetricsDensity
-
-        val availableHeightInPx =
-            displayTotalHeightInPx.toFloat() - displayStatusBarHeightInPx - displayNavigationBarHeightInPx
-
-        // The following computed values are used for drawing Bbox overlay on the preview
-        val scaler = min(
-            displayTotalWidthInPx.toFloat() / capturedBitmap.width.toFloat(),
-            availableHeightInPx / capturedBitmap.height.toFloat()
+    BackHandler(enabled = true) { viewModel.handleBackButton(navController) }
+    val sessionData = remember(uiState.ocrBarcodeCaptureSessionIndex) {
+        loadOcrBarcodeCaptureSessionDataFromPrefs(
+            context,
+            uiState.ocrBarcodeCaptureSessionIndex.toString()
         )
-        val scaledWidth = scaler * capturedBitmap.width.toFloat()
-        val scaledHeight = scaler * capturedBitmap.height.toFloat()
-        val gapX = (displayTotalWidthInPx - scaledWidth) / 2f
-        val gapY = (availableHeightInPx - scaledHeight) / 2f
+    }
+    val capturedBitmap = remember(sessionData) {
+        sessionData?.captureImage?.let { base64String ->
+            if (base64String.isNotEmpty()) {
+                val bytes = Base64.decode(base64String, Base64.DEFAULT)
+                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } else null
+        }
+    }
+    if (capturedBitmap == null) Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) { CircularProgressIndicator() }
+    else RenderCapturedImage(
+        capturedBitmap = capturedBitmap,
+        resultRowData = resultRowData,
+        uiState = uiState,
+        context = context
+    )
+}
 
+@Composable
+fun RenderCapturedImage(
+    capturedBitmap: Bitmap,
+    resultRowData: FieldMatchedValue,
+    uiState: AIDataCaptureDemoUiState,
+    context: Context
+) {
+    // GET DEVICE RESOLUTION:
+    val displayMetrics = LocalContext.current.resources.displayMetrics
+    val displayMetricsDensity = remember { displayMetrics.density }
 
-        Box( // Bottom layer
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = displayStatusBarHeightInDp,
-                    bottom = displayNavigationBarHeightInDp
-                )
-                .background(color = Color.Black)
+    val windowManager = getSystemService(context, WindowManager::class.java)
+    val windowMetrics: WindowMetrics = windowManager.currentWindowMetrics
+
+    val displayTotalWidthInPx = windowMetrics.bounds.width()
+    val displayTotalHeightInPx = windowMetrics.bounds.height()
+
+    // TOP STATUS BAR
+    val displayStatusBarPaddingValues = WindowInsets.statusBars.asPaddingValues()
+    val displayStatusBarHeightInDp = displayStatusBarPaddingValues.calculateTopPadding()
+    val displayStatusBarHeightInPx = displayStatusBarHeightInDp.value * displayMetricsDensity
+
+    // BOTTOM NAVIGATION BAR
+    val displayNavigationBarPaddingValues = WindowInsets.navigationBars.asPaddingValues()
+    val displayNavigationBarHeightInDp =
+        displayNavigationBarPaddingValues.calculateBottomPadding()
+    val displayNavigationBarHeightInPx =
+        displayNavigationBarHeightInDp.value * displayMetricsDensity
+
+    val availableHeightInPx =
+        displayTotalHeightInPx.toFloat() - displayStatusBarHeightInPx - displayNavigationBarHeightInPx
+
+    // The following computed values are used for drawing Bbox overlay on the preview
+    val scaler = min(
+        displayTotalWidthInPx.toFloat() / capturedBitmap.width.toFloat(),
+        availableHeightInPx / capturedBitmap.height.toFloat()
+    )
+
+    val scaledWidth = scaler * capturedBitmap.width.toFloat()
+    val scaledHeight = scaler * capturedBitmap.height.toFloat()
+    val gapX = (displayTotalWidthInPx - scaledWidth) / 2f
+    val gapY = (availableHeightInPx - scaledHeight) / 2f
+
+    Box( // Bottom layer
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = displayStatusBarHeightInDp,
+                bottom = displayNavigationBarHeightInDp
+            )
+            .background(color = Color.Black)
+    ) {
+
+        // CAPTURED IMAGE
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
+            // Use BitmapPainter for a preloaded Bitmap
+            val imagePainter = BitmapPainter(capturedBitmap.asImageBitmap())
 
-            // CAPTURED IMAGE
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(capturedBitmap),
-                    contentDescription = "Captured Image",
-                    contentScale = ContentScale.Fit
-                )
-            }
-            if (resultRowData.isBarcode) {
-                // Draw Barcode results
-                DrawSingleBarcodeResult(
-                    uiState = uiState,
-                    scaler = scaler,
-                    gapX = gapX,
-                    gapY = gapY,
-                    displayMetricsDensity = displayMetricsDensity,
-                    resultRowData
-                )
+            Image(
+                painter = imagePainter,
+                contentDescription = "Captured Image",
+                contentScale = ContentScale.Fit
+            )
+        }
+        if (resultRowData.isBarcode) {
+            // Draw Barcode results
+            DrawSingleBarcodeResult(
+                uiState = uiState,
+                scaler = scaler,
+                gapX = gapX,
+                gapY = gapY,
+                displayMetricsDensity = displayMetricsDensity,
+                resultRowData
+            )
 
-            } else {
-                // Draw OCR results
-                DrawSingleOCRResultWithTextSizeScaling(
-                    scaler = scaler,
-                    gapX = gapX,
-                    gapY = gapY,
-                    displayMetricsDensity = displayMetricsDensity,
-                    displayTotalHeightInPx = displayTotalHeightInPx,
-                    displayTotalWidthInPx = displayTotalWidthInPx,
-                    resultRowData
-                )
-            }
+        } else {
+            // Draw OCR results
+            DrawSingleOCRResultWithTextSizeScaling(
+                scaler = scaler,
+                gapX = gapX,
+                gapY = gapY,
+                displayMetricsDensity = displayMetricsDensity,
+                displayTotalHeightInPx = displayTotalHeightInPx,
+                displayTotalWidthInPx = displayTotalWidthInPx,
+                resultRowData
+            )
         }
     }
 }
@@ -178,16 +194,20 @@ fun DrawSingleOCRResultWithTextSizeScaling(
     displayMetricsDensity: Float,
     displayTotalHeightInPx: Int,
     displayTotalWidthInPx: Int,
-    resultRowData: ResultRowData
+    resultRowData: FieldMatchedValue
 ) {
+    // return early if bounding box is null, as we cannot draw anything without it
+    val bBox = resultRowData.boundingBox ?: return
+
+    val bBoxTop = bBox.top.toFloat()
+    val bBoxLeft = bBox.left.toFloat()
+    val bBoxBottom = bBox.bottom.toFloat()
+    val bBoxRight = bBox.right.toFloat()
+
     Canvas( // Layer 3
         modifier = Modifier
             .fillMaxSize()
     ) {
-        val bBoxTop = resultRowData.boundingBox.top.toFloat()
-        val bBoxLeft = resultRowData.boundingBox.left.toFloat()
-        val bBoxBottom = resultRowData.boundingBox.bottom.toFloat()
-        val bBoxRight = resultRowData.boundingBox.right.toFloat()
 
         var scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
         var scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
@@ -285,7 +305,7 @@ fun DrawSingleOCRResultWithTextSizeScaling(
 
         // Draw the text using nativeCanvas
         drawContext.canvas.nativeCanvas.drawText(
-            resultRowData.text,
+            resultRowData.text ?: "",
             textOffsetX,
             textOffsetY,
             paint
@@ -300,27 +320,33 @@ fun DrawSingleBarcodeResult(
     gapX: Float,
     gapY: Float,
     displayMetricsDensity: Float,
-    resultRowData: ResultRowData
+    resultRowData: FieldMatchedValue
 ) {
+    // return early if bounding box is null, as we cannot draw anything without it
+    val bBox = resultRowData.boundingBox ?: return
+
+    val bBoxTop = bBox.top.toFloat()
+    val bBoxLeft = bBox.left.toFloat()
+    val bBoxBottom = bBox.bottom.toFloat()
+    val bBoxRight = bBox.right.toFloat()
+
+    val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
+    val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
+    val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
+    val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
+
+    // Define the size and position of the rectangle
+    val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
+    val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
+    val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
+
+    val scaledBBoxLeftInDp = (((scaler * bBoxLeft) + gapX) / displayMetricsDensity).dp
+    val scaledBBoxBottomInDp = (((scaler * bBoxBottom) + gapY) / displayMetricsDensity).dp
+
     Canvas(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        val bBoxTop = resultRowData.boundingBox.top.toFloat()
-        val bBoxLeft = resultRowData.boundingBox.left.toFloat()
-        val bBoxBottom = resultRowData.boundingBox.bottom.toFloat()
-        val bBoxRight = resultRowData.boundingBox.right.toFloat()
-
-        val scaledBBoxLeftInPx = (scaler * bBoxLeft) + gapX
-        val scaledBBoxTopInPx = (scaler * bBoxTop) + gapY
-        val scaledBBoxRightInPx = (scaler * bBoxRight) + gapX
-        val scaledBBoxBottomInPx = (scaler * bBoxBottom) + gapY
-
-        // Define the size and position of the rectangle
-        val rectangleWidth = scaledBBoxRightInPx - scaledBBoxLeftInPx
-        val rectangleHeight = scaledBBoxBottomInPx - scaledBBoxTopInPx
-        val topLeftOffset = Offset(scaledBBoxLeftInPx, scaledBBoxTopInPx)
-
         drawRect(
             color = Color.Green,
             topLeft = topLeftOffset,
@@ -329,27 +355,18 @@ fun DrawSingleBarcodeResult(
         )
     }
 
-    // Draw Decoded Text if found
-    val bBoxLeft = resultRowData.boundingBox.left.toFloat()
-    val bBoxBottom = resultRowData.boundingBox.bottom.toFloat()
-
-    val scaledBBoxLeftInDp = (((scaler * bBoxLeft) + gapX) / displayMetricsDensity).dp
-    val scaledBBoxBottomInDp = (((scaler * bBoxBottom) + gapY) / displayMetricsDensity).dp
-
-    if (resultRowData.text != "") {
-        Text(
-            text = resultRowData.text,
-            fontSize = 10.sp,
-            color = Color.White,
-            style = TextStyle(
-                platformStyle = PlatformTextStyle(
-                    includeFontPadding = false
-                )
-            ),
-            modifier = Modifier
-                .offset(x = scaledBBoxLeftInDp, y = scaledBBoxBottomInDp + 2.dp)
-                .background(Color(0xBF000000))
-                .padding(2.dp)
-        )
-    }
+    if (resultRowData.text != "") Text(
+        text = resultRowData.text ?: "",
+        fontSize = 10.sp,
+        color = Color.White,
+        style = TextStyle(
+            platformStyle = PlatformTextStyle(
+                includeFontPadding = false
+            )
+        ),
+        modifier = Modifier
+            .offset(x = scaledBBoxLeftInDp, y = scaledBBoxBottomInDp + 2.dp)
+            .background(Color(0xBF000000))
+            .padding(2.dp)
+    )
 }

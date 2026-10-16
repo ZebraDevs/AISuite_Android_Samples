@@ -1,7 +1,6 @@
 package com.zebra.aidatacapturedemo.ui.view.filters
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -23,10 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,13 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -73,27 +64,31 @@ fun RegexFilterScreen(
 ) {
     val uiState = viewModel.uiState.collectAsState().value
 
-    var regexDetectionLevel by remember { mutableStateOf(uiState.ocrFilterData.selectedRegexFilterData.detectionLevel) }
-    var regexDefaultString by remember { mutableStateOf(uiState.ocrFilterData.selectedRegexFilterData.regexDefaultString) }
-    var regexAdditionalStringList by remember { mutableStateOf(uiState.ocrFilterData.selectedRegexFilterData.regexAdditionalStringList) }
+    val fieldId = uiState.selectedFilterFieldId ?: ""
+    val fieldTitle = uiState.selectedFilterFieldTitle ?: ""
+    val existing = uiState.ocrFilterData.fieldFilterConfigs
+        .firstOrNull { it.fieldId == fieldId }
+
+    val regexData = existing?.regexData
+    val regexDefString = regexData?.regexDefaultString ?: ""
+    val regexDetectionLvl = regexData?.detectionLevel ?: DetectionLevel.WORD
+    val regexAddPatternList = regexData?.regexAdditionalStringList ?: emptyList()
+
+    var regexPattern by remember { mutableStateOf(regexDefString) }
+    var detectionLevel by remember { mutableStateOf(regexDetectionLvl) }
+    val additionalPatterns = remember {
+        mutableStateListOf<String>().apply { addAll(regexAddPatternList) }
+    }
 
     //  Create a Compose-observable state that preserves local changes across recompositions
-    val localRegexAdditionalStringListCopy = remember(regexAdditionalStringList) {
+    val localRegexAdditionalStringListCopy = remember(additionalPatterns) {
         mutableStateListOf<String>().apply {
-            addAll(regexAdditionalStringList)
+            addAll(additionalPatterns)
         }
     }
 
-    BackHandler(enabled = true) {
-        viewModel.handleBackButton(navController)
-    }
-
-    uiState.toastMessage?.let {
-        viewModel.toast(it)
-        viewModel.updateToastMessage(message = null)
-    }
-
-    viewModel.updateAppBarTitle(stringResource(R.string.ocr_filter_regex_title))
+    InitToast(uiState, viewModel)
+    BackHandler(enabled = true) { viewModel.handleBackButton(navController) }
 
     Column(
         modifier = Modifier
@@ -121,11 +116,10 @@ fun RegexFilterScreen(
                     modifier = Modifier
                         .padding(4.dp)
                         .clickable {
-                            regexDetectionLevel =
-                                DetectionLevel.WORD
+                            detectionLevel = DetectionLevel.WORD
                         }
                         .then(
-                            if (regexDetectionLevel == DetectionLevel.WORD) {
+                            if (detectionLevel == DetectionLevel.WORD) {
                                 Modifier.background(
                                     color = Variables.surfaceDefault,
                                     shape = RoundedCornerShape(size = Variables.radiusMinimal)
@@ -141,12 +135,12 @@ fun RegexFilterScreen(
                             fontSize = Variables.TypefaceFontSize14,
                             lineHeight = Variables.TypefaceLineHeight20,
                             fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                            fontWeight = if (regexDetectionLevel == DetectionLevel.WORD) {
+                            fontWeight = if (detectionLevel == DetectionLevel.WORD) {
                                 FontWeight(700)
                             } else {
                                 FontWeight(500)
                             },
-                            color = if (regexDetectionLevel == DetectionLevel.WORD) {
+                            color = if (detectionLevel == DetectionLevel.WORD) {
                                 Variables.colorsTextDefault
                             } else {
                                 Variables.mainSubtle
@@ -167,11 +161,10 @@ fun RegexFilterScreen(
                     modifier = Modifier
                         .padding(4.dp)
                         .clickable {
-                            regexDetectionLevel =
-                                DetectionLevel.LINE
+                            detectionLevel = DetectionLevel.LINE
                         }
                         .then(
-                            if (regexDetectionLevel == DetectionLevel.LINE) {
+                            if (detectionLevel == DetectionLevel.LINE) {
                                 Modifier.background(
                                     color = Variables.surfaceDefault,
                                     shape = RoundedCornerShape(size = Variables.radiusMinimal)
@@ -187,12 +180,12 @@ fun RegexFilterScreen(
                             fontSize = Variables.TypefaceFontSize14,
                             lineHeight = Variables.TypefaceLineHeight20,
                             fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                            fontWeight = if (regexDetectionLevel == DetectionLevel.LINE) {
+                            fontWeight = if (detectionLevel == DetectionLevel.LINE) {
                                 FontWeight(700)
                             } else {
                                 FontWeight(500)
                             },
-                            color = if (regexDetectionLevel == DetectionLevel.LINE) {
+                            color = if (detectionLevel == DetectionLevel.LINE) {
                                 Variables.colorsTextDefault
                             } else {
                                 Variables.mainSubtle
@@ -219,8 +212,8 @@ fun RegexFilterScreen(
                     .fillMaxWidth()
             ) {
                 InputTextFieldDefaultRegex(
-                    stringValue = regexDefaultString,
-                    onStringValueChange = { regexDefaultString = it }
+                    stringValue = regexPattern,
+                    onStringValueChange = { regexPattern = it }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
             }
@@ -233,7 +226,6 @@ fun RegexFilterScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
-
                     InputTextFieldAdditionalRegex(
                         stringValue = value,
                         onStringValueChange = { newValue ->
@@ -254,18 +246,14 @@ fun RegexFilterScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 20.dp)
-                    .clickable {
-                        localRegexAdditionalStringListCopy.add("")
-                    }
+                    .clickable { localRegexAdditionalStringListCopy.add("") }
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_plus),
                     contentDescription = "image description",
                     contentScale = ContentScale.None
                 )
-
                 Spacer(modifier = Modifier.width(width = Variables.spacingMinimum))
-
                 Text(
                     text = "Add Value",
                     style = TextStyle(
@@ -278,118 +266,46 @@ fun RegexFilterScreen(
                     )
                 )
             }
-
         }
 
+        FilterBottomBar(
+            onSave = {
+                if (regexPattern.isBlank()) {
+                    viewModel.updateToastMessage("RegEx field cannot be empty")
+                    return@FilterBottomBar
+                }
 
-        // Bottom Action Buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Spacer(modifier = Modifier.width(16.dp))
-            // Cancel Button
-            Button(
-                onClick = {
-                    viewModel.handleBackButton(navController)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                border = BorderStroke(1.dp, Variables.mainLight),
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(500),
-                        color = Variables.mainDefault,
-                        textAlign = TextAlign.Center,
-                    )
+                if (FilterUtils.validateRegexSyntax(regexPattern) == null) {
+                    viewModel.updateToastMessage("Check RegEx for errors.")
+                    return@FilterBottomBar
+                }
+
+                val baseConfig = FilterUtils.getOrCreateOcrFieldConfig(uiState, fieldId, fieldTitle)
+
+                val updatedRegexData = RegexData(
+                    detectionLevel = detectionLevel,
+                    regexAdditionalStringList = localRegexAdditionalStringListCopy
+                        .filter { it.isNotBlank() }
+                        .toMutableList(),
+                    regexDefaultString = regexPattern
                 )
-            }
 
-            // Save Button
-            Button(
-                onClick = {
-
-                    if (regexDefaultString.isBlank()) {
-                        viewModel.updateToastMessage(message = "RegEx field cannot be empty")
-                        return@Button
-                    }
-
-                    if (FilterUtils.validateRegexSyntax(regexDefaultString) == null) {
-                        viewModel.updateToastMessage(message = "Check RegEx for errors.")
-                        return@Button
-                    }
-
-                    var isAdditionalRegexStringInvalid = false
-                    run loop@{
-                        localRegexAdditionalStringListCopy.forEachIndexed { index, regexString ->
-                            if (regexDefaultString.isBlank() || FilterUtils.validateRegexSyntax(
-                                    regexString
-                                ) == null
-                            ) {
-                                viewModel.updateToastMessage(message = "Check RegEx for errors.")
-                                isAdditionalRegexStringInvalid = true
-                                return@loop
-                            }
-                        }
-                    }
-
-                    if (isAdditionalRegexStringInvalid) {
-                        return@Button
-                    }
-
-                    viewModel.updateToastMessage("Save was successful.")
-
-                    val defaultOcrFilterData = uiState.ocrFilterData
-                    defaultOcrFilterData.selectedRegexFilterData = RegexData(
-                        detectionLevel = regexDetectionLevel,
-                        regexDefaultString = regexDefaultString,
-                        regexAdditionalStringList = localRegexAdditionalStringListCopy.filter { it.isNotBlank() }
-                            .toMutableList()
-                    )
-                    viewModel.updateOcrFilterData(ocrFilterData = defaultOcrFilterData)
-
-
-                    viewModel.handleBackButton(navController)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = mainPrimary,
-                    contentColor = Variables.stateDefaultEnabled
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-            ) {
-                Text(
-                    text = "Save",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(500),
-                        color = Variables.stateDefaultEnabled,
-                        textAlign = TextAlign.Center,
-                    )
+                val updated = baseConfig.copy(
+                    regexData = updatedRegexData,
+                    regexEnabled = baseConfig.regexEnabled,
+                    characterTypeOptions = baseConfig.characterTypeOptions,
+                    characterTypeEnabled = baseConfig.characterTypeEnabled,
+                    characterMatchData = baseConfig.characterMatchData,
+                    characterMatchEnabled = baseConfig.characterMatchEnabled,
+                    stringLengthRange = baseConfig.stringLengthRange,
+                    stringLengthEnabled = baseConfig.stringLengthEnabled
                 )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-        }
+                viewModel.saveOcrFieldConfig(updated)
+                viewModel.handleBackButton(navController)
+            },
+            onCancel = { viewModel.handleBackButton(navController) }
+        )
     }
-
 }
 
 @Composable
@@ -458,9 +374,7 @@ private fun InputTextFieldDefaultRegex(
                     }
                 }
             )
-
             Spacer(modifier = Modifier.padding(top = 4.dp))
-
             if (isRegexValid) {
                 Text(
                     text = "Enter value",
@@ -510,7 +424,6 @@ private fun InputTextFieldAdditionalRegex(
             ),
         ) {
             var isRegexValid by remember { mutableStateOf(true) }
-
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -561,12 +474,10 @@ private fun InputTextFieldAdditionalRegex(
                         }
                     }
                 )
-
                 Spacer(modifier = Modifier.width(width = 4.dp))
-
                 Image(
                     painter = painterResource(id = R.drawable.ic_trash_can),
-                    colorFilter = ColorFilter.tint(color =Variables.mainSubtle),
+                    colorFilter = ColorFilter.tint(color = Variables.mainSubtle),
                     contentDescription = "image description",
                     contentScale = ContentScale.None,
                     modifier = Modifier.Companion
@@ -577,7 +488,6 @@ private fun InputTextFieldAdditionalRegex(
                 )
             }
             Spacer(modifier = Modifier.height(height = 4.dp))
-
             if (isRegexValid) {
                 Text(
                     text = "Enter value",
@@ -601,31 +511,6 @@ private fun InputTextFieldAdditionalRegex(
                     )
                 )
             }
-
         }
-    }
-}
-
-@Composable
-fun CustomTickToast(message: String) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color.DarkGray)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Check,
-            contentDescription = "Tick Mark",
-            tint = Color.Green,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = message,
-            color = Color.White,
-            fontSize = 16.sp
-        )
     }
 }

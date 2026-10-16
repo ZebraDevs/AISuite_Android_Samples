@@ -1,403 +1,415 @@
 package com.zebra.aidatacapturedemo.model
 
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
-import com.zebra.aidatacapturedemo.data.AdvancedFilterOption
+import com.zebra.aidatacapturedemo.data.BarcodeFieldFilterConfig
+import com.zebra.aidatacapturedemo.data.CharacterMatchData
 import com.zebra.aidatacapturedemo.data.CharacterMatchFilterOption
 import com.zebra.aidatacapturedemo.data.CharacterTypeFilterOption
-import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
+import com.zebra.aidatacapturedemo.data.OcrFieldFilterConfig
 import com.zebra.aidatacapturedemo.data.ResultData
+import com.zebra.aidatacapturedemo.ui.view.FilterMatchType
 import com.zebra.aidatacapturedemo.ui.view.RegexConstant
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
+import kotlin.random.Random
 
 /**
  * FilterUtils is a utility class that provides functions to filter OCR and Barcode result data
  * based on user-selected criteria in the UI state.
  */
-class FilterUtils {
-    companion object {
-        fun getOcrFilteredResultData(
-            uiState: AIDataCaptureDemoUiState,
-            outputOCRResultData: MutableList<ResultData>
-        ): List<ResultData> {
+object FilterUtils {
 
-            val filteredOCRResultData = mutableListOf<ResultData>()
+    fun generateFieldId(title: String): String {
+        val slug = title.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+        return "${slug}_${Random.nextInt(1000, 9999)}"
+    }
 
-            when (uiState.ocrFilterData.selectedRegularFilterOption) {
-                OcrRegularFilterOption.UNFILTERED -> {
-                    val regex = "(.*?)".toRegex()
-                    for (d in outputOCRResultData) {
-                        if (regex.matches(d.text)) {
-                            filteredOCRResultData += ResultData(
-                                boundingBox = d.boundingBox,
-                                text = d.text
-                            )
-                        }
-                    }
-                }
+    fun validateRegexSyntax(regexString: String): Pattern? {
+        val userInputString = regexString.replace("\\\\", "\\")
+        return try {
+            Pattern.compile(userInputString)
+        } catch (_: PatternSyntaxException) {
+            null
+        }
+    }
 
-                OcrRegularFilterOption.REGEX -> {
-                    // This list holds all the possible regex patterns which includes default + additional regex strings
-                    val regexPatternList: MutableList<Pattern> = mutableListOf()
+    /**
+     * Field-scoped OCR filter evaluation.
+     * A result passes if it matches at least one configured field rule-set.
+     */
+    fun getOcrFilteredResultData(
+        uiState: AIDataCaptureDemoUiState,
+        outputOCRResultData: List<ResultData>
+    ): List<ResultData> {
+        val selectedIds = uiState.ocrFilterData.selectedFieldIds.toSet()
+        if (selectedIds.isEmpty()) return outputOCRResultData
 
-                    // The following validation block of code is useful for regex validation.
-                    val regexStringDefault =
-                        uiState.ocrFilterData.selectedRegexFilterData.regexDefaultString
-                    if (regexStringDefault.isNotBlank()) {
+        val fieldConfigs = uiState.ocrFilterData.fieldFilterConfigs
+            .filter { it.fieldId in selectedIds }
+        if (fieldConfigs.isEmpty()) return outputOCRResultData
 
-                        // add default regex string
-                        validateRegexSyntax(regexStringDefault)?.let { pattern ->
-                            regexPatternList.add(pattern)
-                        }
+        val accepted = mutableListOf<ResultData>()
+        for (result in outputOCRResultData) {
+            val text = result.text
+            if (text.isBlank()) continue
 
-                        // add additional regex string(s)
-                        uiState.ocrFilterData.selectedRegexFilterData.regexAdditionalStringList.forEach { additionalRegexString ->
-                            if (additionalRegexString.isNotBlank()) {
-                                validateRegexSyntax(additionalRegexString)?.let { pattern ->
-                                    regexPatternList.add(pattern)
-                                }
-                            }
-                        }
-                    }
-
-                    if (regexPatternList.isNotEmpty()) {
-                        outputOCRResultData.forEach { resultData ->
-                            var isRegexMatchedFound = false
-
-                            run outerLoop@{
-                                regexPatternList.forEach { regexPattern ->
-                                    if (regexPattern.matcher(resultData.text).matches()) {
-                                        isRegexMatchedFound = true
-                                        return@outerLoop // skip the other additional regex
-                                    }
-                                }
-                            }
-
-                            if (isRegexMatchedFound) {
-                                filteredOCRResultData += ResultData(
-                                    boundingBox = resultData.boundingBox,
-                                    text = resultData.text
-                                )
-                            }
-                        }
-                    }
-                }
-
-                OcrRegularFilterOption.ADVANCED -> {
-                    outputOCRResultData.forEach { resultData ->
-                        var isAdvancedMatchedFound = true
-
-                        run outerLoop@{
-                            uiState.ocrFilterData.selectedAdvancedFilterOptionList.forEach continueNextIteration@{ advancedFilterType ->
-                                when (advancedFilterType) {
-                                    AdvancedFilterOption.CHARACTER_TYPE -> {
-                                        val ocrCharacterTypeFilterOptionListSize =
-                                            uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.size
-                                        if (ocrCharacterTypeFilterOptionListSize > 0) {
-
-                                            // If Select All is selected, skip any further check, because it is considered as wildcard
-                                            if (uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                    CharacterTypeFilterOption.SELECT_ALL
-                                                )
-                                            ) {
-                                                // skip other checks
-                                            } else {
-
-                                                if (ocrCharacterTypeFilterOptionListSize == 1) {
-                                                    if (uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.ALPHA
-                                                        )
-                                                    ) {
-                                                        if (RegexConstant.ALPHA_ONLY.matches(
-                                                                resultData.text
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration // continue next iteration, CHARACTER_TYPE condition success
-                                                        } else {
-                                                            isAdvancedMatchedFound = false
-                                                            return@outerLoop // break the loop, CHARACTER_TYPE condition failed and skip this result
-                                                        }
-                                                    }
-
-                                                    if (uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.NUMERIC
-                                                        )
-                                                    ) {
-                                                        if (RegexConstant.NUMERIC_ONLY.matches(
-                                                                resultData.text
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        } else {
-                                                            isAdvancedMatchedFound = false
-                                                            return@outerLoop
-                                                        }
-                                                    }
-
-                                                    if (uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.INCLUDE_SPECIAL_CHARACTERS
-                                                        )
-                                                    ) {
-                                                        if (RegexConstant.SPECIAL_CHARACTERS_ONLY.matches(
-                                                                resultData.text
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        } else {
-                                                            isAdvancedMatchedFound = false
-                                                            return@outerLoop
-                                                        }
-                                                    }
-                                                } else { // ocrCharacterTypeFilterOptionListSize == 2
-                                                    // hybrid selection found
-
-                                                    if (uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.ALPHA
-                                                        ) &&
-                                                        uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.NUMERIC
-                                                        )
-                                                    ) {
-                                                        if (RegexConstant.ALPHA_AND_NUMERIC_ONLY.matches(
-                                                                resultData.text
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        } else {
-                                                            isAdvancedMatchedFound = false
-                                                            return@outerLoop
-                                                        }
-                                                    } else if (uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.ALPHA
-                                                        ) &&
-                                                        uiState.ocrFilterData.selectedCharacterTypeFilterOptionList.contains(
-                                                            CharacterTypeFilterOption.INCLUDE_SPECIAL_CHARACTERS
-                                                        )
-                                                    ) {
-                                                        if (RegexConstant.ALPHA_AND_SPECIAL_CHARACTERS_ONLY.matches(
-                                                                resultData.text
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        } else {
-                                                            isAdvancedMatchedFound = false
-                                                            return@outerLoop
-                                                        }
-                                                    } else {
-                                                        if (RegexConstant.NUMERIC_AND_SPECIAL_CHARACTERS_ONLY.matches(
-                                                                resultData.text
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        } else {
-                                                            isAdvancedMatchedFound = false
-                                                            return@outerLoop
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // perform more validation if character match is selected
-                                    AdvancedFilterOption.CHARACTER_MATCH -> {
-                                        when (uiState.ocrFilterData.selectedCharacterMatchFilterData.type) {
-                                            CharacterMatchFilterOption.STARTS_WITH -> {
-                                                val areAllStringsNotBlank =
-                                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.startsWithStringList.all { it.isNotBlank() }
-                                                if (areAllStringsNotBlank) {
-                                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.startsWithStringList.forEach { startsWithString ->
-                                                        if (resultData.text.startsWith(
-                                                                startsWithString,
-                                                                ignoreCase = true
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        }
-                                                    }
-                                                }
-                                                isAdvancedMatchedFound = false
-                                                return@outerLoop
-                                            }
-
-                                            CharacterMatchFilterOption.CONTAINS -> {
-                                                val areAllStringsNotBlank =
-                                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.containsStringList.all { it.isNotBlank() }
-                                                if (areAllStringsNotBlank) {
-                                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.containsStringList.forEach { containString ->
-                                                        if (resultData.text.contains(
-                                                                containString,
-                                                                ignoreCase = true
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        }
-                                                    }
-                                                }
-                                                isAdvancedMatchedFound = false
-                                                return@outerLoop
-                                            }
-
-                                            CharacterMatchFilterOption.EXACT_MATCH -> {
-                                                val areAllStringsNotBlank =
-                                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList.all { it.isNotBlank() }
-                                                if (areAllStringsNotBlank) {
-
-                                                    uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList.forEach { exactMatchString ->
-                                                        if (resultData.text.equals(
-                                                                exactMatchString,
-                                                                ignoreCase = true
-                                                            )
-                                                        ) {
-                                                            return@continueNextIteration
-                                                        }
-                                                    }
-                                                }
-                                                isAdvancedMatchedFound = false
-                                                return@outerLoop
-                                            }
-                                        }
-                                    }
-
-                                    AdvancedFilterOption.STRING_LENGTH -> {
-
-                                        if (resultData.text.length in uiState.ocrFilterData.selectedStringLengthRange.start.toInt()..uiState.ocrFilterData.selectedStringLengthRange.endInclusive.toInt()) {
-                                            return@continueNextIteration
-                                        } else {
-                                            isAdvancedMatchedFound = false
-                                            return@outerLoop
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (isAdvancedMatchedFound) {
-                            filteredOCRResultData += ResultData(
-                                boundingBox = resultData.boundingBox,
-                                text = resultData.text
-                            )
-                        }
-                    }
-                }
-
+            // OR across field configs (match any configured field)
+            val matchedAnyField = fieldConfigs.any { cfg ->
+                evaluateOcrFieldConfig(text, cfg)
             }
 
-            return filteredOCRResultData
+            if (matchedAnyField) accepted.add(result)
         }
 
-        fun getBarcodeFilteredResultData(
-            uiState: AIDataCaptureDemoUiState,
-            outputBarcodeResultData: MutableList<ResultData>
-        ): List<ResultData> {
+        return accepted
+    }
 
-            val filteredBarcodeResultData = mutableListOf<ResultData>()
+    /**
+     * Field-scoped Barcode filter evaluation.
+     * A result passes if it matches at least one configured field rule-set.
+     */
+    fun getBarcodeFilteredResultData(
+        uiState: AIDataCaptureDemoUiState,
+        outputBarcodeResultData: List<ResultData>
+    ): List<ResultData> {
+        val selectedIds =
+            uiState.barcodeFilterData.selectedFieldIds.toSet()
+        if (selectedIds.isEmpty()) return outputBarcodeResultData
 
-            outputBarcodeResultData.forEach { resultData ->
-                var isBarcodeMatchedFound = true
+        val fieldConfigs = uiState.barcodeFilterData.fieldFilterConfigs
+            .filter { it.fieldId in selectedIds }
+        if (fieldConfigs.isEmpty()) return outputBarcodeResultData
 
-                run outerLoop@{
-                    uiState.barcodeFilterData.selectedAdvancedFilterOptionList.forEach continueNextIteration@{ advancedFilterType ->
+        val accepted = mutableListOf<ResultData>()
+        for (result in outputBarcodeResultData) {
+            val text = result.text
+            if (text.isBlank()) continue
 
-                        when (advancedFilterType) {
-                            AdvancedFilterOption.CHARACTER_MATCH -> {
-                                when (uiState.barcodeFilterData.selectedCharacterMatchFilterData.type) {
-                                    CharacterMatchFilterOption.STARTS_WITH -> {
-                                        val areAllStringsNotBlank =
-                                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.startsWithStringList.all { it.isNotBlank() }
-                                        if (areAllStringsNotBlank) {
-                                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.startsWithStringList.forEach { startsWithString ->
-                                                if (resultData.text.startsWith(
-                                                        startsWithString,
-                                                        ignoreCase = true
-                                                    )
-                                                ) {
-                                                    return@continueNextIteration
-                                                }
-                                            }
-                                        }
-                                        isBarcodeMatchedFound = false
-                                        return@outerLoop
-                                    }
+            // OR across field configs (match any configured field)
+            val matchedAnyField = fieldConfigs.any { cfg ->
+                var anyEnabled = false
+                var anyFilterPassed = false
 
-                                    CharacterMatchFilterOption.CONTAINS -> {
-                                        val areAllStringsNotBlank =
-                                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.containsStringList.all { it.isNotBlank() }
-                                        if (areAllStringsNotBlank) {
-                                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.containsStringList.forEach { containString ->
-                                                if (resultData.text.contains(
-                                                        containString,
-                                                        ignoreCase = true
-                                                    )
-                                                ) {
-                                                    return@continueNextIteration
-                                                }
-                                            }
-                                        }
-                                        isBarcodeMatchedFound = false
-                                        return@outerLoop
-                                    }
-
-                                    CharacterMatchFilterOption.EXACT_MATCH -> {
-                                        val areAllStringsNotBlank =
-                                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.exactMatchStringList.all { it.isNotBlank() }
-                                        if (areAllStringsNotBlank) {
-                                            uiState.barcodeFilterData.selectedCharacterMatchFilterData.exactMatchStringList.forEach { exactMatchString ->
-                                                if (resultData.text.equals(
-                                                        exactMatchString,
-                                                        ignoreCase = true
-                                                    )
-                                                ) {
-                                                    return@continueNextIteration
-                                                }
-                                            }
-                                        }
-                                        isBarcodeMatchedFound = false
-                                        return@outerLoop
-                                    }
-                                }
-                            }
-
-                            AdvancedFilterOption.STRING_LENGTH -> {
-                                if (resultData.text.length in uiState.barcodeFilterData.selectedStringLengthRange.start.toInt()..uiState.barcodeFilterData.selectedStringLengthRange.endInclusive.toInt()) {
-                                    return@continueNextIteration
-                                } else {
-                                    isBarcodeMatchedFound = false
-                                    return@outerLoop
-                                }
-                            }
-
-                            else -> {
-                                TODO("Unhandled barcode filter received = $advancedFilterType")
-                            }
-                        }
-                    }
+                // CHARACTER MATCH FILTER
+                if (cfg.characterMatchEnabled && !anyFilterPassed) {
+                    anyEnabled = true
+                    val cm = cfg.characterMatchData
+                    val charMatchPass = cm != null &&
+                            matchesCharacterMatch(text, cm)
+                    if (charMatchPass) anyFilterPassed = true
                 }
 
-                if (isBarcodeMatchedFound) {
-                    filteredBarcodeResultData += ResultData(
-                        boundingBox = resultData.boundingBox,
-                        text = resultData.text
+                // STRING LENGTH FILTER
+                if (cfg.stringLengthEnabled && !anyFilterPassed) {
+                    anyEnabled = true
+                    val range = cfg.stringLengthRange
+                    val stringLengthPass = range != null &&
+                            text.length.toFloat() in range
+                    if (stringLengthPass) anyFilterPassed = true
+                }
+
+                // If no filters enabled for this field, don't treat it as a match.
+                anyEnabled && anyFilterPassed
+            }
+
+            if (matchedAnyField) accepted.add(result)
+        }
+
+        return accepted
+    }
+
+    /**
+     * Returns which filter type matched for OCR result
+     */
+    fun getOcrMatchingFilterType(
+        text: String,
+        cfg: OcrFieldFilterConfig
+    ): FilterMatchType? {
+        if (text.isBlank()) return null
+
+        var anyEnabled = false
+        var matchedFilter: FilterMatchType? = null
+
+        // REGEX FILTER
+        if (cfg.regexEnabled && matchedFilter == null) {
+            anyEnabled = true
+            val regexData = cfg.regexData
+            val regexPass = if (regexData == null) {
+                false
+            } else {
+                val patterns = mutableListOf<String>()
+                if (regexData.regexDefaultString.isNotBlank()) {
+                    patterns.add(regexData.regexDefaultString)
+                }
+
+                patterns.addAll(regexData.regexAdditionalStringList.filter {
+                    it.isNotBlank()
+                })
+
+                if (patterns.isEmpty()) {
+                    false
+                } else {
+                    patterns.any { pattern ->
+
+                        validateRegexSyntax(pattern)?.matcher(text)?.matches() == true
+                    }
+                }
+            }
+            if (regexPass) matchedFilter = FilterMatchType.REGEX
+        }
+
+        // CHARACTER MATCH FILTER
+        if (cfg.characterMatchEnabled && matchedFilter == null) {
+            anyEnabled = true
+            val cm = cfg.characterMatchData
+            val charMatchPass = cm != null && matchesCharacterMatch(
+                text,
+                cm
+            )
+            if (charMatchPass) matchedFilter =
+                FilterMatchType.CHARACTER_MATCH
+        }
+
+        // STRING LENGTH FILTER
+        if (cfg.stringLengthEnabled && matchedFilter == null) {
+            anyEnabled = true
+            val range = cfg.stringLengthRange
+            val stringLengthPass = range != null && text.length.toFloat() in range
+            if (stringLengthPass) matchedFilter = FilterMatchType.STRING_LENGTH
+        }
+
+        // CHARACTER TYPE FILTER
+        if (cfg.characterTypeEnabled && matchedFilter == null) {
+            anyEnabled = true
+            val options = cfg.characterTypeOptions
+            val charTypePass = validateCharacterType(text, options)
+            if (charTypePass) matchedFilter = FilterMatchType.CHARACTER_TYPE
+        }
+
+        return if (anyEnabled && matchedFilter != null) matchedFilter
+        else null
+    }
+
+    /**
+     * Returns which filter type matched for Barcode result
+     */
+    fun getBarcodeMatchingFilterType(
+        text: String,
+        cfg: BarcodeFieldFilterConfig
+    ): FilterMatchType? {
+        if (text.isBlank()) return null
+
+        var anyEnabled = false
+        var matchedFilter: FilterMatchType? = null
+
+        // CHARACTER MATCH FILTER
+        if (cfg.characterMatchEnabled && matchedFilter == null) {
+            anyEnabled = true
+            val cm = cfg.characterMatchData
+            val charMatchPass = cm != null && matchesCharacterMatch(
+                text,
+                cm
+            )
+            if (charMatchPass) matchedFilter = FilterMatchType.CHARACTER_MATCH
+        }
+
+        // STRING LENGTH FILTER
+        if (cfg.stringLengthEnabled && matchedFilter == null) {
+            anyEnabled = true
+            val range = cfg.stringLengthRange
+            val stringLengthPass = range != null && text.length.toFloat() in range
+            if (stringLengthPass) matchedFilter = FilterMatchType.STRING_LENGTH
+        }
+
+        return if (anyEnabled && matchedFilter != null) matchedFilter
+        else null
+    }
+
+    /**
+     * OCR field-level evaluation with enabled flags.
+     */
+    private fun evaluateOcrFieldConfig(
+        text: String,
+        cfg: OcrFieldFilterConfig
+    ): Boolean {
+        var anyEnabled = false
+        var anyFilterPassed = false
+
+        // REGEX FILTER
+        if (cfg.regexEnabled) {
+            anyEnabled = true
+            val regexData = cfg.regexData
+            val regexPass = if (regexData == null) false else {
+                val patterns = mutableListOf<String>()
+                if (regexData.regexDefaultString.isNotBlank()) {
+                    patterns.add(regexData.regexDefaultString)
+                }
+
+                patterns.addAll(regexData.regexAdditionalStringList.filter {
+                    it.isNotBlank()
+                })
+
+                if (patterns.isEmpty()) false else patterns.any { pattern ->
+                    validateRegexSyntax(pattern)
+                        ?.matcher(text)?.matches() == true
+                }
+            }
+            if (regexPass) anyFilterPassed = true
+        }
+
+        // CHARACTER MATCH FILTER
+        if (cfg.characterMatchEnabled && !anyFilterPassed) {
+            anyEnabled = true
+            val cm = cfg.characterMatchData
+            val charMatchPass = cm != null && matchesCharacterMatch(
+                text,
+                cm
+            )
+            if (charMatchPass) anyFilterPassed = true
+        }
+
+        // STRING LENGTH FILTER
+        if (cfg.stringLengthEnabled && !anyFilterPassed) {
+            anyEnabled = true
+            val range = cfg.stringLengthRange
+            val stringLengthPass = range != null && text.length.toFloat() in range
+            if (stringLengthPass) anyFilterPassed = true
+        }
+
+        // CHARACTER TYPE FILTER
+        if (cfg.characterTypeEnabled && !anyFilterPassed) {
+            anyEnabled = true
+            val options = cfg.characterTypeOptions
+            val charTypePass = validateCharacterType(text, options)
+            if (charTypePass) anyFilterPassed = true
+        }
+
+        return anyEnabled && anyFilterPassed
+    }
+
+    private fun matchesCharacterMatch(value: String, data: CharacterMatchData): Boolean {
+        return when (data.type) {
+            CharacterMatchFilterOption.STARTS_WITH ->
+                data.startsWithStringList.any { token ->
+                    token.isNotBlank() && value.startsWith(
+                        token,
+                        ignoreCase = true
                     )
                 }
-            }
 
-            return filteredBarcodeResultData
+            CharacterMatchFilterOption.CONTAINS ->
+                data.containsStringList.any { token ->
+                    token.isNotBlank() && value.contains(
+                        token,
+                        ignoreCase = true
+                    )
+                }
+
+            CharacterMatchFilterOption.EXACT_MATCH ->
+                data.exactMatchStringList.any { token ->
+                    token.isNotBlank() && value.equals(
+                        token,
+                        ignoreCase = true
+                    )
+                }
+        }
+    }
+
+    private fun validateCharacterType(
+        text: String,
+        options: List<CharacterTypeFilterOption>
+    ): Boolean {
+        if (options.isEmpty()) return true
+        if (text.isBlank()) return false
+
+        if (options.contains(CharacterTypeFilterOption.SELECT_ALL)) return true
+
+        val hasAlpha = options.contains(CharacterTypeFilterOption.ALPHA)
+        val hasNumeric = options.contains(CharacterTypeFilterOption.NUMERIC)
+        val hasSpecial = options.contains(CharacterTypeFilterOption.INCLUDE_SPECIAL_CHARACTERS)
+
+        if (hasAlpha && !hasNumeric && !hasSpecial) {
+            return RegexConstant.ALPHA_ONLY.matches(text)
+        }
+        if (!hasAlpha && hasNumeric && !hasSpecial) {
+            return RegexConstant.NUMERIC_ONLY.matches(text)
+        }
+        if (!hasAlpha && !hasNumeric && hasSpecial) {
+            return RegexConstant.SPECIAL_CHARACTERS_ONLY.matches(text)
+        }
+        if (hasAlpha && hasNumeric && !hasSpecial) {
+            return RegexConstant.ALPHA_AND_NUMERIC_ONLY.matches(text)
+        }
+        if (hasAlpha && !hasNumeric && hasSpecial) {
+            return RegexConstant.ALPHA_AND_SPECIAL_CHARACTERS_ONLY.matches(text)
+        }
+        if (!hasAlpha && hasNumeric && hasSpecial) {
+            return RegexConstant.NUMERIC_AND_SPECIAL_CHARACTERS_ONLY.matches(text)
         }
 
-        fun validateRegexSyntax(regexString: String): Pattern? {
+        return hasAlpha && hasNumeric && hasSpecial
+    }
 
-            // replace if any '\\' found on the regex with '\' as sometime user may get this online suggestion
-            val userInputString = regexString.replace(
-                "\\\\",
-                "\\"
+    fun matchesOcrFieldResult(
+        text: String,
+        cfg: OcrFieldFilterConfig
+    ): Boolean {
+        if (text.isBlank()) return false
+        return evaluateOcrFieldConfig(text, cfg)
+    }
+
+    fun matchesBarcodeFieldResult(
+        text: String,
+        cfg: BarcodeFieldFilterConfig
+    ): Boolean {
+        if (text.isBlank()) return false
+
+        var anyEnabled = false
+        var anyFilterPassed = false
+
+        // CHARACTER MATCH FILTER
+        if (cfg.characterMatchEnabled && !anyFilterPassed) {
+            anyEnabled = true
+            val cm = cfg.characterMatchData
+            val charMatchPass = cm != null && matchesCharacterMatch(
+                text,
+                cm
             )
-
-            return try {
-                Pattern.compile(userInputString)
-            } catch (e: PatternSyntaxException) {
-                null
-            }
+            if (charMatchPass) anyFilterPassed = true
         }
+
+        // STRING LENGTH FILTER
+        if (cfg.stringLengthEnabled && !anyFilterPassed) {
+            anyEnabled = true
+            val range = cfg.stringLengthRange
+            val stringLengthPass = range != null && text.length.toFloat() in range
+            if (stringLengthPass) anyFilterPassed = true
+        }
+
+        return anyEnabled && anyFilterPassed
+    }
+
+    fun getOrCreateOcrFieldConfig(
+        uiState: AIDataCaptureDemoUiState,
+        fieldId: String,
+        fieldTitle: String
+    ): OcrFieldFilterConfig {
+        return uiState.ocrFilterData.fieldFilterConfigs.firstOrNull { it.fieldId == fieldId }
+            ?: OcrFieldFilterConfig(
+                fieldId = fieldId,
+                fieldTitle = fieldTitle
+            )
+    }
+
+    fun getOrCreateBarcodeFieldConfig(
+        uiState: AIDataCaptureDemoUiState,
+        fieldId: String,
+        fieldTitle: String
+    ): BarcodeFieldFilterConfig {
+        return uiState.barcodeFilterData.fieldFilterConfigs.firstOrNull { it.fieldId == fieldId }
+            ?: BarcodeFieldFilterConfig(
+                fieldId = fieldId,
+                fieldTitle = fieldTitle,
+            )
     }
 }

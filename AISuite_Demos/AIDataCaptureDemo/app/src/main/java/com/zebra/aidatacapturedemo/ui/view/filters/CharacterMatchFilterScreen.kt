@@ -1,7 +1,6 @@
 package com.zebra.aidatacapturedemo.ui.view.filters
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -38,9 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -51,10 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.zebra.aidatacapturedemo.R
+import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.CharacterMatchData
 import com.zebra.aidatacapturedemo.data.CharacterMatchFilterOption
 import com.zebra.aidatacapturedemo.data.DetectionLevel
+import com.zebra.aidatacapturedemo.data.FieldFilterConfig
 import com.zebra.aidatacapturedemo.data.FilterType
+import com.zebra.aidatacapturedemo.model.FilterUtils
 import com.zebra.aidatacapturedemo.ui.view.Variables
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainPrimary
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
@@ -67,66 +65,26 @@ fun CharacterMatchFilterScreen(
 ) {
     val uiState = viewModel.uiState.collectAsState().value
 
-    var level by remember {
-        mutableStateOf(
-            if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                uiState.ocrFilterData.selectedCharacterMatchFilterData.detectionLevel
-            } else {
-                uiState.barcodeFilterData.selectedCharacterMatchFilterData.detectionLevel
-            }
-        )
-    }
+    val fieldId = uiState.selectedFilterFieldId ?: ""
+    val fieldTitle = uiState.selectedFilterFieldTitle ?: ""
+    val filterType = uiState.selectedFilterType
+    val existing = getConfigByFilterType(filterType, uiState, fieldId)
 
-    var type by remember {
-        mutableStateOf(
-            if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                uiState.ocrFilterData.selectedCharacterMatchFilterData.type
-            } else {
-                uiState.barcodeFilterData.selectedCharacterMatchFilterData.type
-            }
-        )
-    }
+    val characterMatchData = existing?.characterMatchData
+    val charMatchType = characterMatchData?.type ?: CharacterMatchFilterOption.CONTAINS
+    val charDetLvl = characterMatchData?.detectionLevel ?: DetectionLevel.WORD
+    val charStartText = characterMatchData?.startsWithStringList?.joinToString() ?: ""
+    val charContainText = characterMatchData?.containsStringList?.joinToString() ?: ""
+    val charExactText = characterMatchData?.exactMatchStringList?.joinToString() ?: ""
 
-    var startsWithString by remember {
-        mutableStateOf(
-            if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                uiState.ocrFilterData.selectedCharacterMatchFilterData.startsWithStringList.joinToString()
-            } else {
-                uiState.barcodeFilterData.selectedCharacterMatchFilterData.startsWithStringList.joinToString()
-            }
-        )
-    } // Default separator is a comma
+    var matchType by remember(fieldId) { mutableStateOf(charMatchType) }
+    var detectionLevel by remember(fieldId) { mutableStateOf(charDetLvl) }
+    var startsWithText by remember(fieldId) { mutableStateOf(charStartText) }
+    var containsText by remember(fieldId) { mutableStateOf(charContainText) }
+    var exactText by remember(fieldId) { mutableStateOf(charExactText) }
 
-    var containsString by remember {
-        mutableStateOf(
-            if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                uiState.ocrFilterData.selectedCharacterMatchFilterData.containsStringList.joinToString()
-            } else {
-                uiState.barcodeFilterData.selectedCharacterMatchFilterData.containsStringList.joinToString()
-            }
-        )
-    } // Default separator is a comma
-
-    var exactMatchString by remember {
-        mutableStateOf(
-            if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                uiState.ocrFilterData.selectedCharacterMatchFilterData.exactMatchStringList.joinToString()
-            } else {
-                uiState.barcodeFilterData.selectedCharacterMatchFilterData.exactMatchStringList.joinToString()
-            }
-        )
-    } // Default separator is a comma
-
-    BackHandler(enabled = true) {
-        viewModel.handleBackButton(navController)
-    }
-
-    viewModel.updateAppBarTitle(stringResource(R.string.ocr_filter_character_match_title))
-
-    uiState.toastMessage?.let {
-        viewModel.toast(it)
-        viewModel.updateToastMessage(message = null)
-    }
+    InitToast(uiState, viewModel)
+    BackHandler(enabled = true) { viewModel.handleBackButton(navController) }
 
     Column(
         modifier = Modifier
@@ -155,10 +113,10 @@ fun CharacterMatchFilterScreen(
                         modifier = Modifier
                             .padding(4.dp)
                             .clickable {
-                                level = DetectionLevel.WORD
+                                detectionLevel = DetectionLevel.WORD
                             }
                             .then(
-                                if (level == DetectionLevel.WORD) {
+                                if (detectionLevel == DetectionLevel.WORD) {
                                     Modifier.background(
                                         color = Variables.surfaceDefault,
                                         shape = RoundedCornerShape(size = Variables.radiusMinimal)
@@ -175,7 +133,7 @@ fun CharacterMatchFilterScreen(
                                 lineHeight = Variables.TypefaceLineHeight20,
                                 fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
                                 fontWeight = FontWeight(500),
-                                color = if (level == DetectionLevel.WORD) {
+                                color = if (detectionLevel == DetectionLevel.WORD) {
                                     Variables.colorsTextDefault
                                 } else {
                                     Variables.mainSubtle
@@ -196,11 +154,10 @@ fun CharacterMatchFilterScreen(
                         modifier = Modifier
                             .padding(4.dp)
                             .clickable {
-                                level =
-                                    DetectionLevel.LINE
+                                detectionLevel = DetectionLevel.LINE
                             }
                             .then(
-                                if (level == DetectionLevel.LINE) {
+                                if (detectionLevel == DetectionLevel.LINE) {
                                     Modifier.background(
                                         color = Variables.surfaceDefault,
                                         shape = RoundedCornerShape(size = Variables.radiusMinimal)
@@ -217,7 +174,7 @@ fun CharacterMatchFilterScreen(
                                 lineHeight = Variables.TypefaceLineHeight20,
                                 fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
                                 fontWeight = FontWeight(500),
-                                color = if (level == DetectionLevel.LINE) {
+                                color = if (detectionLevel == DetectionLevel.LINE) {
                                     Variables.colorsTextDefault
                                 } else {
                                     Variables.mainSubtle
@@ -244,11 +201,11 @@ fun CharacterMatchFilterScreen(
                     .fillMaxWidth()
                     .padding(start = 20.dp, end = 16.dp)
                     .clickable {
-                        type = CharacterMatchFilterOption.STARTS_WITH
+                        matchType = CharacterMatchFilterOption.STARTS_WITH
                     }
             ) {
                 RadioButton(
-                    selected = (type == CharacterMatchFilterOption.STARTS_WITH),
+                    selected = (matchType == CharacterMatchFilterOption.STARTS_WITH),
                     onClick = null,
                     colors = RadioButtonDefaults.colors(
                         selectedColor = mainPrimary,
@@ -281,11 +238,10 @@ fun CharacterMatchFilterScreen(
                 }
             }
             Spacer(modifier = Modifier.height(height = 4.dp))
-            if (type == CharacterMatchFilterOption.STARTS_WITH) {
-
+            if (matchType == CharacterMatchFilterOption.STARTS_WITH) {
                 InputTextField(
-                    stringValue = startsWithString,
-                    onStringValueChange = { startsWithString = it }
+                    stringValue = startsWithText,
+                    onStringValueChange = { startsWithText = it }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
@@ -299,11 +255,11 @@ fun CharacterMatchFilterScreen(
                     .fillMaxWidth()
                     .padding(start = 20.dp, end = 16.dp)
                     .clickable {
-                        type = CharacterMatchFilterOption.CONTAINS
+                        matchType = CharacterMatchFilterOption.CONTAINS
                     }
             ) {
                 RadioButton(
-                    selected = (type == CharacterMatchFilterOption.CONTAINS),
+                    selected = (matchType == CharacterMatchFilterOption.CONTAINS),
                     onClick = null,
                     colors = RadioButtonDefaults.colors(
                         selectedColor = mainPrimary,
@@ -336,10 +292,10 @@ fun CharacterMatchFilterScreen(
                 }
             }
             Spacer(modifier = Modifier.height(height = 4.dp))
-            if (type == CharacterMatchFilterOption.CONTAINS) {
+            if (matchType == CharacterMatchFilterOption.CONTAINS) {
                 InputTextField(
-                    stringValue = containsString,
-                    onStringValueChange = { containsString = it }
+                    stringValue = containsText,
+                    onStringValueChange = { containsText = it }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
@@ -353,11 +309,11 @@ fun CharacterMatchFilterScreen(
                     .fillMaxWidth()
                     .padding(start = 20.dp, end = 16.dp)
                     .clickable {
-                        type = CharacterMatchFilterOption.EXACT_MATCH
+                        matchType = CharacterMatchFilterOption.EXACT_MATCH
                     }
             ) {
                 RadioButton(
-                    selected = (type == CharacterMatchFilterOption.EXACT_MATCH),
+                    selected = (matchType == CharacterMatchFilterOption.EXACT_MATCH),
                     onClick = null,
                     colors = RadioButtonDefaults.colors(
                         selectedColor = mainPrimary,
@@ -390,10 +346,10 @@ fun CharacterMatchFilterScreen(
                 }
             }
             Spacer(modifier = Modifier.height(height = 4.dp))
-            if (type == CharacterMatchFilterOption.EXACT_MATCH) {
+            if (matchType == CharacterMatchFilterOption.EXACT_MATCH) {
                 InputTextField(
-                    stringValue = exactMatchString,
-                    onStringValueChange = { exactMatchString = it }
+                    stringValue = exactText,
+                    onStringValueChange = { exactText = it }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
@@ -401,100 +357,79 @@ fun CharacterMatchFilterScreen(
             }
         }
 
-
-        // Bottom Action Buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Spacer(modifier = Modifier.width(16.dp))
-            // Cancel Button
-            Button(
-                onClick = {
-                    viewModel.handleBackButton(navController)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                border = BorderStroke(1.dp, Variables.mainLight),
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(500),
-                        color = Variables.mainDefault,
-                        textAlign = TextAlign.Center,
-                    )
+        FilterBottomBar(
+            onSave = {
+                val newData = CharacterMatchData(
+                    detectionLevel = detectionLevel,
+                    type = matchType,
+                    startsWithStringList = startsWithText.split(",").map { it.trim() }
+                        .filter { it.isNotBlank() },
+                    containsStringList = containsText.split(",").map { it.trim() }
+                        .filter { it.isNotBlank() },
+                    exactMatchStringList = exactText.split(",").map { it.trim() }
+                        .filter { it.isNotBlank() }
                 )
-            }
 
-            // Save Button
-            Button(
-                onClick = {
-                    viewModel.updateToastMessage("Save was successful.")
-
-                    if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                        val defaultOcrFilterData = uiState.ocrFilterData
-                        defaultOcrFilterData.selectedCharacterMatchFilterData = CharacterMatchData(
-                            detectionLevel = level,
-                            type = type,
-                            startsWithStringList = startsWithString.split(",")
-                                .map { it.trim() },
-                            containsStringList = containsString.split(",").map { it.trim() },
-                            exactMatchStringList = exactMatchString.split(",").map { it.trim() }
-                        )
-                        viewModel.updateOcrFilterData(ocrFilterData = defaultOcrFilterData)
-                    } else {
-                        val defaultBarcodeFilterData = uiState.barcodeFilterData
-                        defaultBarcodeFilterData.selectedCharacterMatchFilterData =
-                            CharacterMatchData(
-                                detectionLevel = level,
-                                type = type,
-                                startsWithStringList = startsWithString.split(",")
-                                    .map { it.trim() },
-                                containsStringList = containsString.split(",").map { it.trim() },
-                                exactMatchStringList = exactMatchString.split(",").map { it.trim() }
+                when (filterType) {
+                    FilterType.OCR_FILTER -> {
+                        val baseConfig =
+                            FilterUtils.getOrCreateOcrFieldConfig(uiState, fieldId, fieldTitle)
+                        val hasMatchData = newData.startsWithStringList.isNotEmpty() ||
+                            newData.containsStringList.isNotEmpty() ||
+                            newData.exactMatchStringList.isNotEmpty()
+                        viewModel.saveOcrFieldConfig(
+                            baseConfig.copy(
+                                characterMatchData = newData,
+                                regexData = baseConfig.regexData,
+                                regexEnabled = baseConfig.regexEnabled,
+                                characterTypeOptions = baseConfig.characterTypeOptions,
+                                characterTypeEnabled = baseConfig.characterTypeEnabled,
+                                stringLengthRange = baseConfig.stringLengthRange,
+                                stringLengthEnabled = baseConfig.stringLengthEnabled,
+                                characterMatchEnabled = hasMatchData
                             )
-                        viewModel.updateBarcodeFilterData(barcodeFilterData = defaultBarcodeFilterData)
+                        )
                     }
-                    viewModel.handleBackButton(navController)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = mainPrimary,
-                    contentColor = Variables.stateDefaultEnabled
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-            ) {
-                Text(
-                    text = "Save",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(500),
-                        color = Variables.stateDefaultEnabled,
-                        textAlign = TextAlign.Center,
-                    )
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-        }
-    }
 
+                    FilterType.BARCODE_FILTER -> {
+                        val baseConfig =
+                            FilterUtils.getOrCreateBarcodeFieldConfig(uiState, fieldId, fieldTitle)
+                        val hasMatchData = newData.startsWithStringList.isNotEmpty() ||
+                            newData.containsStringList.isNotEmpty() ||
+                            newData.exactMatchStringList.isNotEmpty()
+                        viewModel.saveBarcodeFieldConfig(
+                            baseConfig.copy(
+                                characterMatchData = newData,
+                                stringLengthRange = baseConfig.stringLengthRange,
+                                stringLengthEnabled = baseConfig.stringLengthEnabled,
+                                characterMatchEnabled = hasMatchData
+                            )
+                        )
+                    }
+
+                    FilterType.NONE -> Unit
+                }
+                viewModel.handleBackButton(navController)
+            },
+            onCancel = { viewModel.handleBackButton(navController) }
+        )
+    }
+}
+
+
+@Composable
+private fun getConfigByFilterType(
+    filterType: FilterType,
+    uiState: AIDataCaptureDemoUiState,
+    fieldId: String?
+): FieldFilterConfig? = when (filterType) {
+    FilterType.OCR_FILTER -> uiState.ocrFilterData.fieldFilterConfigs
+        .firstOrNull { it.fieldId == fieldId }
+
+    FilterType.BARCODE_FILTER -> uiState.barcodeFilterData.fieldFilterConfigs
+        .firstOrNull { it.fieldId == fieldId }
+
+    FilterType.NONE -> null
 }
 
 @Composable
@@ -548,7 +483,6 @@ private fun InputTextField(
                     }
                 }
             )
-
             if (showTextFieldHint) {
                 Spacer(modifier = Modifier.padding(top = 4.dp))
                 Text(

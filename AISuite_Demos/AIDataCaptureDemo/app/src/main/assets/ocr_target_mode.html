@@ -1,0 +1,82 @@
+<div id="summary">
+
+    Set the default <strong>width</strong> and <strong>height</strong> as percentages to define the initial target frame size.
+    Once you save a custom size, that value will be used in all future sessions instead of the factory default.
+</div>
+<div id="description">
+    <p>
+        Target mode allows you to define a rectangular frame within the camera preview where OCR recognition will focus.
+        Instead of processing the entire camera view, the AI model analyzes only the target region,
+        <strong>reducing false detections from background elements and improving performance on the desired text area.</strong>
+    </p>
+    <p>
+        You control the size of the target frame using two settings:
+        <strong>Width and Height (as percentages of the screen).</strong>
+        The frame is always centered on the screen.
+        <strong>These values define the default frame size.</strong>
+        Once you adjust and save them, your last saved values will automatically be applied every time you start a session—
+        so you never have to reconfigure for your typical use case.
+    </p>
+</div>
+<div id="title">Target Mode Settings</div>
+<div id="details">
+    <p><strong>Width Percentage (10% – 100%)</strong></p>
+    <ul style="list-style-type: disc">
+        <li><strong>What it is:</strong> The default target frame width as a percentage of the screen width.</li>
+        <li>10% – Very narrow, for scanning thin labels or single-column text</li>
+        <li>50% – Half the screen width, suitable for standard document or barcode scanning</li>
+        <li>100% – Full screen width; effectively no horizontal cropping</li>
+        <li><em>Your last saved value will be restored automatically on next launch.</em></li>
+    </ul>
+
+    <p><strong>Height Percentage (5% – 100%)</strong></p>
+    <ul style="list-style-type: disc">
+        <li><strong>What it is:</strong> The default target frame height as a percentage of the screen height.</li>
+        <li>10% – Thin horizontal strip, ideal for reading single lines of text</li>
+        <li>30% – Factory default, captures a moderate text area without excessive background</li>
+        <li>60% – Large area, useful for multi-line text or product labels</li>
+        <li>100% – Full screen height; no vertical cropping</li>
+        <li><em>Your last saved value will be restored automatically on next launch.</em></li>
+    </ul>
+</div>
+<div id="recommendation">
+    <p><strong>Recommendation:</strong></p>
+    <ul style="list-style-type: disc">
+        <li>
+            <strong>Factory defaults:</strong> 60% width, 30% height.
+            This provides a good balance for typical barcode and label scanning.
+            These are used the very first time, or after restoring defaults.
+        </li>
+        <li>
+            <strong>For single-line barcodes:</strong> Reduce height to 15–20% and keep width at 70–80%.
+        </li>
+        <li>
+            <strong>For multi-line text or receipts:</strong> Increase height to 50–70% and keep width at 80–90%.
+        </li>
+        <li>
+            <strong>For shelf product labels:</strong> Use a moderate frame (50–70% width, 40–50% height).
+        </li>
+        <li>
+            <strong>Test and iterate:</strong> Adjust width and height, save, and reopen to confirm your saved frame persists across sessions.
+        </li>
+    </ul>
+</div>
+<div id="tip">
+    <p>
+        <strong>Tip:</strong>&nbsp;When target mode is active, the frame overlay on the camera preview shows exactly what area will be processed.
+        <strong>Tap or drag the preview to hide the instruction text and see the live target frame more clearly.</strong>
+        Adjust the width and height until the entire text you want to recognize fits comfortably within the frame, with minimal background around it.
+        <strong>Once saved, your frame size is remembered — you won't need to re-adjust it next time you open the app.</strong>
+        Use <em>Restore to Default Settings</em> to reset back to the factory defaults at any time.
+    </p>
+</div>
+<div id="use_cases">
+    <p><strong>Common Use Cases:</strong></p>
+    <ul style="list-style-type: disc">
+        <li><strong>Barcode scanning at checkout:</strong> 70% width, 20% height</li>
+        <li><strong>Receipt scanning:</strong> 85% width, 60% height</li>
+        <li><strong>Shelf label reading:</strong> 60% width, 40% height</li>
+        <li><strong>Document form filling:</strong> 90% width, 70% height</li>
+        <li><strong>QR code scanning:</strong> 50% width, 50% height</li>
+    </ul>
+</div>

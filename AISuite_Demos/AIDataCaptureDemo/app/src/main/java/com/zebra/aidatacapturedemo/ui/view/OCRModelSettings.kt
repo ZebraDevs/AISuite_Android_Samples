@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,13 +69,9 @@ fun AdvancedOCRSettingsScreen(
     innerPadding: PaddingValues,
     context: Context
 ) {
-    val uiState = viewModel.uiState.collectAsState().value
-    // Intercept back presses on this screen
-    val demo = uiState.usecaseSelected
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle(stringResource(R.string.advanced_settings))
     val settingsItemsList = ExpandableSettingsItemsList()
     settingsItemsList.AddOCRSettings()
 
@@ -290,7 +287,8 @@ fun AddOCRRecognitionOptions(viewModel: AIDataCaptureDemoViewModel) {
         //}
         HorizontalDivider(
             modifier = Modifier
-                .fillMaxWidth().padding(horizontal = 5.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 5.dp),
             thickness = 2.dp
         )
         SwitchOption(
@@ -439,3 +437,54 @@ fun AddOCRGroupingOptions(viewModel: AIDataCaptureDemoViewModel, enabled: Boolea
         )
     }
 }
+
+@Composable
+fun ExpandableSettingsItemsList.AddTargetModeSettings()  {
+    itemsTitle.add(ExpandableSettingsItem(stringResource(R.string.target_mode)))
+}
+
+@Composable
+fun AddTargetModeSettingUi(viewModel: AIDataCaptureDemoViewModel) {
+    val uiState = viewModel.uiState.collectAsState().value
+    val targetMode = uiState.ocrBarcodeFindSettings.targetModeSetting
+
+    // Convert stored ratios (0.0–1.0) to percentage (0–100) for display
+    var widthPercent by remember(targetMode.defaultFrameWidthRatio) {
+        mutableFloatStateOf(targetMode.defaultFrameWidthRatio * 100f)
+    }
+    var heightPercent by remember(targetMode.defaultFrameHeightRatio) {
+        mutableFloatStateOf(targetMode.defaultFrameHeightRatio * 100f)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Top),
+        horizontalAlignment = Alignment.Start
+    ) {
+        SingleValueInputSlider(
+            value = widthPercent,
+            onValueChange = { newVal ->
+                widthPercent = newVal
+                viewModel.updateDefaultTargetModeFrameSize(newVal, heightPercent)
+            }, onValueChangeFinished = { viewModel.commitDefaultTargetModeFrameSize() },
+            valueRange = 10f..100f,
+            steps = 17,
+            label = "${stringResource(R.string.default_frame_width)} (%)"
+        )
+
+        SingleValueInputSlider(
+            value = heightPercent,
+            onValueChange = { newVal ->
+                heightPercent = newVal
+                viewModel.updateDefaultTargetModeFrameSize(widthPercent, newVal)
+            }, onValueChangeFinished = { viewModel.commitDefaultTargetModeFrameSize() },
+            valueRange = 5f..100f,
+            steps = 18,
+            label = "${stringResource(R.string.default_frame_height)} (%)"
+        )
+    }
+}
+

@@ -38,6 +38,7 @@ object Variables {
     val colorsSurfaceDisabled: Color = Color(0xFFE0E3E9)
 
     val blackText: Color = Color(0xFF000000)
+    val whiteIcon: Color = Color(0xFFFFFFFF)
     val spacingSmall: Dp = 8.dp
     val spacingMinimum: Dp = 4.dp
 
@@ -83,6 +84,10 @@ object Variables {
     val colorsIconNegative: Color = Color(0xFFF36170)
 
     val colorsMainNegative: Color = Color(0xFFD70015)
+}
+
+object FeatureFlags {
+    const val IS_SOFT_SCAN_BARCODE_BUTTON_ENABLED: Boolean = true
 }
 
 fun getIconMainColor(demo: String): Color {
@@ -243,6 +248,22 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
             }
         }
 
+        R.string.dpm_mode -> {
+            when (value) {
+                0 -> {
+                    descString = R.string.dpm_mode_disabled_desc
+                }
+
+                1 -> {
+                    descString = R.string.dpm_mode_small_desc
+                }
+
+                2 -> {
+                    descString = R.string.dpm_mode_large_desc
+                }
+            }
+        }
+
         R.string.resolution -> {
             when (demo) {
                 UsecaseState.Barcode.value -> {
@@ -294,23 +315,22 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
         }
 
         R.string.model_input_size -> {
+            // NOTE: value is now the actual pixel dimension (640/832/1280/1600/2560), not a radio
+            // index — the supported set of sizes differs per usecase, so a fixed positional index
+            // no longer maps to the same size across usecases.
             when (demo) {
                 UsecaseState.Barcode.value -> {
                     when (value) {
-                        0 -> {
+                        640 -> {
                             descString = R.string.model_input_size_640_bc
                         }
 
-                        1 -> {
+                        1280 -> {
                             descString = R.string.model_input_size_1280_bc
                         }
 
-                        2 -> {
+                        1600 -> {
                             descString = R.string.model_input_size_1600_bc
-                        }
-
-                        3 -> {
-                            descString = R.string.model_input_size_2560_bc
                         }
                     }
                 }
@@ -318,19 +338,19 @@ fun getSettingDescription(demo: String, setting: Int, value: Int): Int? {
                 UsecaseState.OCR.value,
                 UsecaseState.OCRBarcodeFind.value -> {
                     when (value) {
-                        0 -> {
+                        640 -> {
                             descString = R.string.model_input_size_640_ocr
                         }
 
-                        1 -> {
+                        1280 -> {
                             descString = R.string.model_input_size_1280_ocr
                         }
 
-                        2 -> {
+                        1600 -> {
                             descString = R.string.model_input_size_1600_ocr
                         }
 
-                        3 -> {
+                        2560 -> {
                             descString = R.string.model_input_size_2560_ocr
                         }
                     }

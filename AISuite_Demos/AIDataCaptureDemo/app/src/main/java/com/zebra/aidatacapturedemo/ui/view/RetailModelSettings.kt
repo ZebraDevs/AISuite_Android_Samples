@@ -52,12 +52,18 @@ fun ExpandableSettingsItemsList.AddProductRecognitionSettings() {
 }
 @Composable
 fun AddImportDatabaseOptions(viewModel: AIDataCaptureDemoViewModel) {
-    val productLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            if (uri != null) {
-                viewModel.loadProductIndex(uri)
+    val invalidFileFormatMsg = stringResource(R.string.invalid_db_file_format)
+    val productLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.loadProductIndex(uri) { success ->
+                if (!success) {
+                    viewModel.toast(invalidFileFormatMsg)
+                }
             }
         }
+    }
 
     fun productLauncherFunc() {
         productLauncher.launch(arrayOf("*/*"))
@@ -85,9 +91,9 @@ fun AddImportDatabaseOptions(viewModel: AIDataCaptureDemoViewModel) {
         }
     }
 
-        ButtonOption(ButtonData(R.string.import_database, mainPrimary, 1.0F, true, onButtonClick = {
-            productLauncherFunc()
-        }))
+    ButtonOption(ButtonData(R.string.import_database, mainPrimary, 1.0F, true, onButtonClick = {
+        productLauncherFunc()
+    }))
 }
 
 @Composable
@@ -115,8 +121,9 @@ fun AddExportDatabaseOptions(viewModel: AIDataCaptureDemoViewModel) {
     }
 
         ButtonOption(ButtonData(R.string.export_database, mainPrimary, 1.0F, true, onButtonClick = {
-            FileUtils.saveProductDBFile()
-            viewModel.toast("Saved Active Database to \"Download\" folder ")
+            viewModel.exportProductDatabase {
+                viewModel.toast("Saved Active Database to \"Download\" folder ")
+            }
         }))
 }
 

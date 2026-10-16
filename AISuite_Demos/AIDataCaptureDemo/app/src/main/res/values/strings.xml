@@ -2,6 +2,15 @@
     <string name="app_name">AI Data Capture Demo</string>
     <string name="about">About</string>
 
+    <string name="title_app_bar_ocr_field_config">OCR Field Configuration</string>
+    <string name="title_app_bar_ocr_filter_config">OCR Filter Configuration</string>
+    <string name="title_app_bar_bar_code_field_config">Barcode Field Configuration</string>
+    <string name="title_app_bar_bar_code_filter_config">Barcode Filter Configuration</string>
+    <string name="title_app_bar_regex_filter">Regex Filter</string>
+    <string name="title_app_bar_char_type_filter">Character Type Filter</string>
+    <string name="title_app_bar_char_match_filter">Character Match Filter</string>
+    <string name="title_app_bar_str_length_filter">String Length Filter</string>
+
     <string name="usecase_demos">Use Case Demos</string>
     <string name="ocr_barcode_find">OCR &amp; Barcode Find</string>
     <string name="ocr_barcode_find_desc">Search for specific text or barcode</string>
@@ -36,6 +45,7 @@
     <string name="home_button">Home</string>
     <string name="enterproductsku">Enroll Product</string>
     <string name="enterproducthint">Scan or Type Product SKU</string>
+    <string name="scan_barcode">Scan Barcode</string>
 
     <string name="barcode_settings">Barcode Recognizer Settings</string>
     <string name="ocr_barcode_find_settings">OCR &amp; Barcode Settings</string>
@@ -59,7 +69,7 @@
     <string name="datamatrix">Datamatrix</string>
     <string name="dotcode">Dotcode</string>
     <string name="dutch_postal">Dutch Postal</string>
-    <string name="ean_8">EAN 28</string>
+    <string name="ean_8">EAN 8</string>
     <string name="ean_13">EAN 13</string>
     <string name="finnish_postal_4s">Finnish Postal</string>
     <string name="grid_matrix">Grid Matrix</string>
@@ -95,6 +105,15 @@
     <string name="resolution">Resolution</string>
     <string name="model_input_size">Model Input Size</string>
     <string name="barcode_symbology">Barcode Symbologies</string>
+    <string name="enhanced_1d_barcode_decode_title">Enhanced 1D Barcode Decode</string>
+    <string name="enhanced_1d_barcode_decode_subtitle">Uses the device\'s AI processor (NPU) to improve scanning performance. Enabling this may slow down other features that also use the AI processor.</string>
+    <string name="dpm_mode">DPM Mode</string>
+    <string name="dpm_mode_disabled">Disabled</string>
+    <string name="dpm_mode_small">Small</string>
+    <string name="dpm_mode_large">Large</string>
+    <string name="dpm_mode_disabled_desc">Standard barcode decoding</string>
+    <string name="dpm_mode_small_desc">Optimized for small Direct Part Mark codes</string>
+    <string name="dpm_mode_large_desc">Optimized for large Direct Part Mark codes</string>
     <string name="detection_parameters">Detection Parameters</string>
     <string name="recognition_parameters">Recognition Parameters</string>
     <string name="grouping">Grouping</string>
@@ -112,11 +131,13 @@
     <string name="instruction_5">No products found. Please recapture the image</string>
     <string name="instruction_6">Camera Start Failed, lower resolution settings or restore defaults</string>
 
+    <string name="invalid_db_file_format">Invalid file format, Please select a product database file</string>
     <string name="importdb_description">Allows you to select and load a previously saved database of enrolled products from a file, allowing you to start recognizing products without the need to enroll them. </string>
     <string name="exportdb_description">Saves your current enrolled products as a file to your device’s “Download” directory or SD card, making it easy to backup or share your Active Database.</string>
     <string name="cleardb_description">Removes all of the enrolled products from the Active Database within the application to allow you to start enrolling products from scratch. Note: this does not delete or clear any previously saved database files that have been exported.</string>
 
     <string name="model_input_size_640">640 x 640 (small)</string>
+    <string name="model_input_size_832">832 x 832 (medium-small)</string>
     <string name="model_input_size_1280">1280 x 1280 (medium)</string>
     <string name="model_input_size_1600">1600 x 1600 (large)</string>
     <string name="model_input_size_2560">2560 x 2560 (extra large)</string>
@@ -186,6 +207,7 @@
     <string name="paragraph_height_ratio_threshold">Paragraph Height Ratio Threshold</string>
 
     <string name="enable_tiling">Enable Tiling</string>
+    <string name="enable_diagnostic_logging">Enable Diagnostic Logging</string>
     <string name="top_correlation_threshold">Top Correlation Threshold</string>
     <string name="merge_points_cutoff">Merge Points Cutoff</string>
     <string name="split_margin_factor">Split Margin Factor</string>
@@ -219,4 +241,36 @@
     <string name="ocr_filter_string_length_title">String Length</string>
     <string name="ocr_filter_regex_title">Regex</string>
     <string name="barcode_filter_title">Barcode Filters</string>
+
+    <!-- UnSupported Device Popup-->
+    <string name="unsupported_device_error">This application is not supported on non-Zebra devices.</string>
+    <string name="unsupported_device_title">Initialization Error</string>
+    <string name="unsupported_device_ok">OK</string>
+    <string name="sdk_init_failed_error">AI Vision SDK is currently unavailable.</string>
+
+    <!-- Target Mode Setting -->
+    <string name="target_mode">Target Mode</string>
+    <string name="target_mode_instruction">Resize the target frame to focus on the text area</string>
+    <string name="default_frame_width">Default Frame Width</string>
+    <string name="default_frame_height">Default Frame Height</string>
+    <string name="frame_size_settings">Default Frame Size</string>
+    <string name="export_diagnostic_logs">Export Diagnostic Logs</string>
+
+    <!-- Inferencer Options Setting -->
+    <string name="inferencer_options">Inferencer Options</string>
+    <string name="enable_ai_barcode_decode">Enable AI Barcode Decode</string>
+    <string name="enable_ai_barcode_decode_desc">Use the AI model to improve barcode detection and decoding accuracy</string>
+
+    <!-- Inference Performance Mode Setting -->
+    <string name="setting_screen_performance_mode_title">Inference (performance) Mode</string>
+    <string name="setting_screen_performance_mode_description">Sets the AI inferencer performance level. Burst is the default for maximum throughput on supported chipsets (QCS6490/6690); Balanced is the broadly supported fallback.</string>
+    <string name="setting_screen_performance_mode_balanced_title">Balanced</string>
+    <string name="setting_screen_performance_mode_balanced_subtitle">Broadly supported across devices</string>
+    <string name="setting_screen_performance_mode_burst_title">Burst</string>
+    <string name="setting_screen_performance_mode_burst_subtitle">Highest performance; supported devices only (QCS6490/6690)</string>
+    <string name="setting_screen_inferencer_options_title">Inferencer Options</string>
+    <string name="setting_screen_ai_barcode_decode_title">AI Barcode Decode</string>
+    <string name="setting_screen_ai_barcode_decode_subtitle">Use AI-powered barcode detection and decoding pipeline</string>
+    <string name="setting_screen_ai_barcode_decode_description">When enabled, the AI model handles both barcode detection and decoding in a single step for best accuracy. Disable to use the legacy two-step pipeline.</string>
+
 </resources>

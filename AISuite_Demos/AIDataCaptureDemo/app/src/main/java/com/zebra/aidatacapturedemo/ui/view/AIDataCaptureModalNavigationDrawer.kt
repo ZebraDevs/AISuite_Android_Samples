@@ -59,6 +59,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AIDataCaptureModalNavigationDrawer(
     drawerState: DrawerState,
+    gesturesEnabled: Boolean,
     innerPadding: PaddingValues,
     activityInnerPadding: PaddingValues,
     selectedItem: String,
@@ -71,6 +72,7 @@ fun AIDataCaptureModalNavigationDrawer(
 ) {
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = gesturesEnabled,
         drawerContent = {
             ModalDrawerSheet(
                 modifier = Modifier
@@ -194,7 +196,7 @@ fun AIDataCaptureModalNavigationDrawer(
                         tint = Variables.surfaceDefault
                     )
                     Text(
-                        text = "Powered by Zebra Frontline AI Enablers",
+                        text = "Powered by Zebra Mobile Computing AI Suite",
                         style = TextStyle(
                             fontSize = 12.sp,
                             lineHeight = 16.sp,

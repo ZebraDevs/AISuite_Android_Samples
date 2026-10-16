@@ -1,9 +1,7 @@
 package com.zebra.aidatacapturedemo.ui.view.filters
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,12 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.SliderDefaults
@@ -36,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -46,9 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.zebra.aidatacapturedemo.R
+import com.zebra.aidatacapturedemo.data.DefaultValues
 import com.zebra.aidatacapturedemo.data.FilterType
+import com.zebra.aidatacapturedemo.model.FilterUtils
 import com.zebra.aidatacapturedemo.ui.view.Variables
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
+
+private val defStringLengthRange =
+    DefaultValues.STRING_LENGTH_RANGE_MIN_VALUE..DefaultValues.STRING_LENGTH_RANGE_MAX_VALUE
 
 @Composable
 fun StringLengthFilterScreen(
@@ -57,26 +56,33 @@ fun StringLengthFilterScreen(
     innerPadding: PaddingValues
 ) {
     val uiState = viewModel.uiState.collectAsState().value
-    var stringLengthRange by remember {
-        mutableStateOf(
-            if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
-                uiState.ocrFilterData.selectedStringLengthRange
-            } else {
-                uiState.barcodeFilterData.selectedStringLengthRange
-            }
-        )
+
+    val fieldId = uiState.selectedFilterFieldId ?: ""
+    val fieldTitle = uiState.selectedFilterFieldTitle ?: ""
+    val filterType = uiState.selectedFilterType
+
+    val existingRange: ClosedFloatingPointRange<Float> = when (filterType) {
+        FilterType.OCR_FILTER -> {
+            val cfg = uiState.ocrFilterData.fieldFilterConfigs
+                .firstOrNull { it.fieldId == fieldId }
+            cfg?.stringLengthRange ?: defStringLengthRange
+        }
+
+        FilterType.BARCODE_FILTER -> {
+            val cfg = uiState.barcodeFilterData.fieldFilterConfigs
+                .firstOrNull { it.fieldId == fieldId }
+            cfg?.stringLengthRange ?: defStringLengthRange
+        }
+
+        FilterType.NONE -> defStringLengthRange
     }
 
-    BackHandler(enabled = true) {
-        viewModel.handleBackButton(navController)
+    var stringLengthRange by remember(fieldId, filterType) {
+        mutableStateOf(existingRange)
     }
 
-    viewModel.updateAppBarTitle(stringResource(R.string.ocr_filter_string_length_title))
-
-    uiState.toastMessage?.let {
-        viewModel.toast(it)
-        viewModel.updateToastMessage(message = null)
-    }
+    InitToast(uiState, viewModel)
+    BackHandler(enabled = true) { viewModel.handleBackButton(navController) }
 
     Column(
         modifier = Modifier
@@ -96,83 +102,53 @@ fun StringLengthFilterScreen(
             )
         }
 
+        FilterBottomBar(
+            onSave = {
+                val minVal = stringLengthRange.start.toInt()
+                val maxVal = stringLengthRange.endInclusive.toInt()
 
-        // Bottom Action Buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Spacer(modifier = Modifier.width(16.dp))
-            // Cancel Button
-            Button(
-                onClick = {
-                    viewModel.handleBackButton(navController)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                border = BorderStroke(1.dp, Variables.mainLight),
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(500),
-                        color = Variables.mainDefault,
-                        textAlign = TextAlign.Center,
-                    )
-                )
-            }
+                if (minVal > maxVal) {
+                    viewModel.updateToastMessage("Min length cannot be greater than max length.")
+                    return@FilterBottomBar
+                }
 
-            // Save Button
-            Button(
-                onClick = {
-                    viewModel.updateToastMessage("Save was successful.")
-                    if (uiState.selectedFilterType == FilterType.OCR_FILTER) {
+                when (filterType) {
+                    FilterType.OCR_FILTER -> {
+                        val baseConfig =
+                            FilterUtils.getOrCreateOcrFieldConfig(uiState, fieldId, fieldTitle)
 
-                        val defaultOcrFilterData = uiState.ocrFilterData
-                        defaultOcrFilterData.selectedStringLengthRange = stringLengthRange
-                        viewModel.updateOcrFilterData(ocrFilterData = defaultOcrFilterData)
-                    } else {
-                        val defaultBarcodeFilterData = uiState.barcodeFilterData
-                        defaultBarcodeFilterData.selectedStringLengthRange = stringLengthRange
-                        viewModel.updateBarcodeFilterData(barcodeFilterData = defaultBarcodeFilterData)
+                        val updated = baseConfig.copy(
+                            stringLengthRange = minVal.toFloat()..maxVal.toFloat(),
+                            stringLengthEnabled = baseConfig.stringLengthEnabled,
+                            regexData = baseConfig.regexData,
+                            regexEnabled = baseConfig.regexEnabled,
+                            characterTypeOptions = baseConfig.characterTypeOptions,
+                            characterTypeEnabled = baseConfig.characterTypeEnabled,
+                            characterMatchData = baseConfig.characterMatchData,
+                            characterMatchEnabled = baseConfig.characterMatchEnabled
+                        )
+                        viewModel.saveOcrFieldConfig(updated)
                     }
-                    viewModel.handleBackButton(navController)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Variables.mainPrimary,
-                    contentColor = Variables.stateDefaultEnabled
-                ),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-            ) {
-                Text(
-                    text = "Save",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                        fontWeight = FontWeight(500),
-                        color = Variables.stateDefaultEnabled,
-                        textAlign = TextAlign.Center,
-                    )
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-        }
+
+                    FilterType.BARCODE_FILTER -> {
+                        val baseConfig =
+                            FilterUtils.getOrCreateBarcodeFieldConfig(uiState, fieldId, fieldTitle)
+
+                        val updated = baseConfig.copy(
+                            stringLengthRange = minVal.toFloat()..maxVal.toFloat(),
+                            stringLengthEnabled = baseConfig.stringLengthEnabled,
+                            characterMatchData = baseConfig.characterMatchData,
+                            characterMatchEnabled = baseConfig.characterMatchEnabled
+                        )
+                        viewModel.saveBarcodeFieldConfig(updated)
+                    }
+
+                    FilterType.NONE -> Unit
+                }
+                viewModel.handleBackButton(navController)
+            },
+            onCancel = { viewModel.handleBackButton(navController) }
+        )
     }
 }
 
@@ -180,21 +156,24 @@ fun StringLengthFilterScreen(
 @Composable
 fun InputRangeSliderFieldNew(
     rangeSliderValue: ClosedFloatingPointRange<Float>,
-    onRangeSliderValueChange: (ClosedFloatingPointRange<Float>) -> Unit
+    onRangeSliderValueChange: (ClosedFloatingPointRange<Float>) -> Unit,
+    allowedRange: ClosedFloatingPointRange<Float> = defStringLengthRange,
+    modifier: Modifier = Modifier
 ) {
+    val startLabel = rangeSliderValue.start.toInt().toString()
+    val endLabel = rangeSliderValue.endInclusive.toInt().toString()
+
     Column(
-        modifier = Modifier.background(color = Variables.colorsSurfaceCool)
+        modifier = modifier.background(color = Variables.colorsSurfaceCool)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(vertical = 8.dp, horizontal = 12.dp)
         ) {
-            Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = rangeSliderValue.start.toInt()
-                    .toString(),
+                text = startLabel,
                 style = TextStyle(
                     fontSize = Variables.TypefaceFontSize14,
                     lineHeight = Variables.TypefaceLineHeight16,
@@ -203,75 +182,46 @@ fun InputRangeSliderFieldNew(
                     color = Variables.colorsMainSubtle,
                     textAlign = TextAlign.Center,
                 ),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.width(28.dp)
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(8.dp))
+
             RangeSlider(
                 value = rangeSliderValue,
-                onValueChange = {
-                    onRangeSliderValueChange(it)
-                },
-                valueRange = 2f..15f,
-                modifier = Modifier.weight(8f),
-                startThumb = {
-                    CircularThumb()
-                },
-                endThumb = {
-                    CircularThumb()
-                },
-//                track = { sliderState ->
-//                    // Custom track implementation
-//                    Box(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .height(4.dp) // Set your desired track height here
-//                            .background(Variables.mainLight) // Background color for the full track
-//                    ) {
-//                        // Determine the progress and apply the active track color to a sub-Box
-////                        val fraction = (sliderState.value.endInclusive - sliderState.value.start) / (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
-//                        val start = (sliderState.valueRange.start - sliderState.valueRange.start) / (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
-//
-//                        Box(
-//                            modifier = Modifier
-//                                .fillMaxWidth(0.6f) // Fills the fraction of the track that is active
-//                                .height(4.dp) // Same height
-//                                .background(Variables.mainPrimary) // Color for the active portion
-//                            // Need to manually place the active part at the correct start position.
-//                            // A more robust solution might involve custom drawing with Canvas or a MeasurePolicy.
-//                            // For simplicity here, the thumb still manages its own positioning relative to the *full* Box width.
-//                        )
-//                    }
-//                }
-
-                // Working #1
+                onValueChange = onRangeSliderValueChange,
+                valueRange = allowedRange,
+                modifier = Modifier.weight(1f),
+                startThumb = { CircularThumb() },
+                endThumb = { CircularThumb() },
                 track = { state ->
-                    // Custom Track: Inactive (gray) + Active (primary)
                     Box(
-                        Modifier
+                        modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp)
                     ) {
-                        // Inactive part
                         Box(
-                            Modifier
+                            modifier = Modifier
                                 .fillMaxSize()
                                 .background(Variables.mainSubtle)
                         )
 
-                        // Active part (using RangeSliderState to calculate positioning)
                         SliderDefaults.Track(
                             rangeSliderState = state,
                             modifier = Modifier.height(4.dp),
-                            colors = SliderDefaults.colors(activeTrackColor = Variables.mainPrimary)
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = Variables.mainPrimary,
+                                inactiveTrackColor = Color.Transparent
+                            )
                         )
                     }
                 }
             )
-            Spacer(modifier = Modifier.weight(1f))
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Text(
-                text = rangeSliderValue.endInclusive.toInt()
-                    .toString(),
+                text = endLabel,
                 style = TextStyle(
                     fontSize = Variables.TypefaceFontSize14,
                     lineHeight = Variables.TypefaceLineHeight16,
@@ -280,11 +230,10 @@ fun InputRangeSliderFieldNew(
                     color = Variables.colorsMainSubtle,
                     textAlign = TextAlign.Center,
                 ),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.width(28.dp)
             )
-
-            Spacer(modifier = Modifier.weight(1f))
         }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()

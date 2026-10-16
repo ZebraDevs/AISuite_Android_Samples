@@ -1,13 +1,16 @@
 package com.zebra.aidatacapturedemo.ui.view
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +39,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -52,13 +58,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainDisabled
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainInverse
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainPrimary
+import kotlinx.coroutines.delay
 
 /**
  * CommonUIElements.kt
@@ -84,7 +92,7 @@ data class RadioButtonData(
 
 @Composable
 fun ListOfRadioButtonOptions(currentSelection: Int, radioOptions: List<RadioButtonData>) {
-    val (selectedOption, onOptionSelected) = remember { mutableStateOf(radioOptions[currentSelection]) }
+    val (selectedOption, onOptionSelected) = remember(currentSelection) { mutableStateOf(radioOptions[currentSelection]) }
 
     Column(Modifier.selectableGroup()) { // Modifier.selectableGroup() is crucial for accessibility
         radioOptions.forEach { item ->
@@ -108,9 +116,9 @@ fun ListOfRadioButtonOptions(currentSelection: Int, radioOptions: List<RadioButt
                     10.799999237060547.dp,
                     Alignment.Start
                 ),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.title,
                         style = TextStyle(
@@ -135,7 +143,6 @@ fun ListOfRadioButtonOptions(currentSelection: Int, radioOptions: List<RadioButt
                     }
 
                 }
-                Spacer(modifier = Modifier.weight(1f))
                 RadioButton(
                     modifier = Modifier
                         .background(color = Variables.surfaceDefault),
@@ -217,7 +224,7 @@ fun SwitchOptionForModelSelectionScreen(currentValue: Boolean, switchOption: Swi
 
 @Composable
 fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
-    var isChecked by remember { mutableStateOf(currentValue) }
+    var isChecked by remember(currentValue) { mutableStateOf(currentValue) }
     var title = stringResource(switchOption.titleId)
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
@@ -272,8 +279,12 @@ fun SwitchOption(currentValue: Boolean, switchOption: SwitchOptionData) {
 }
 
 @Composable
-fun SwitchOptionWithTextDescription(currentValue: Boolean, switchOption: SwitchOptionData, description : String) {
-    var isChecked by remember { mutableStateOf(currentValue) }
+fun SwitchOptionWithTextDescription(
+    currentValue: Boolean,
+    switchOption: SwitchOptionData,
+    description: String
+) {
+    var isChecked by remember(currentValue) { mutableStateOf(currentValue) }
     var title = stringResource(switchOption.titleId)
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
@@ -443,6 +454,7 @@ fun ButtonOption(buttonData: ButtonData) {
         }
     }
 }
+
 @Composable
 fun ButtonWithIconOption(buttonData: ButtonData, drawableRes: Int) {
     Row(
@@ -493,6 +505,7 @@ fun ButtonWithIconOption(buttonData: ButtonData, drawableRes: Int) {
         }
     }
 }
+
 data class BorderlessButtonData(
     val titleId: Int,
     val onButtonClick: () -> Unit
@@ -608,11 +621,23 @@ fun RoundedIconButton(icon: Int, onClick: () -> Unit, contentDescription: String
     IconButton(
         onClick = onClick,
         modifier = Modifier
-            .border(width = 1.dp, color = Variables.borderSubtle, shape = RoundedCornerShape(size = 4.dp))
+            .border(
+                width = 1.dp,
+                color = Variables.borderSubtle,
+                shape = RoundedCornerShape(size = 4.dp)
+            )
             .width(45.21143.dp)
             .height(44.dp)
-            .background(color = Variables.stateDefaultEnabled, shape = RoundedCornerShape(size = 4.dp))
-            .padding(start = Variables.spacingSmall, top = Variables.spacingSmall, end = Variables.spacingSmall, bottom = Variables.spacingSmall)
+            .background(
+                color = Variables.stateDefaultEnabled,
+                shape = RoundedCornerShape(size = 4.dp)
+            )
+            .padding(
+                start = Variables.spacingSmall,
+                top = Variables.spacingSmall,
+                end = Variables.spacingSmall,
+                bottom = Variables.spacingSmall
+            )
     ) {
         Icon(
             painter = painterResource(id = icon),
@@ -632,6 +657,7 @@ fun EmptyComposable() {
 fun SingleValueInputSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (() -> Unit)? = null,
     valueRange: ClosedFloatingPointRange<Float> = 0f..100f,
     steps: Int = 0,
     label: String = "Value"
@@ -646,6 +672,7 @@ fun SingleValueInputSlider(
         Slider(
             value = value,
             onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
             steps = steps,
             modifier = Modifier.fillMaxWidth(),
@@ -661,7 +688,12 @@ fun SingleValueInputSlider(
 @Composable
 fun SmallScreenButtonOption(buttonData: ButtonData) {
     Row(
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = Variables.spacingSmall, bottom = Variables.spacingSmall),
+        modifier = Modifier.padding(
+            start = 16.dp,
+            end = 16.dp,
+            top = Variables.spacingSmall,
+            bottom = Variables.spacingSmall
+        ),
         horizontalArrangement = Arrangement.Center
     ) {
         Row(
@@ -718,4 +750,83 @@ fun SmallScreenTextviewNormal(info: String) {
             color = Color(0xFF1D1E23),
         )
     )
+}
+
+@Composable
+fun ModalLoadingOverlay(
+    timeoutMs: Long = 30_000L,
+    onTimeout: () -> Unit
+) {
+    // Stable reference to prevent repeated timeout triggers
+    val onTimeoutStable = remember { onTimeout }
+
+    // Trigger timeout once when composable enters
+    LaunchedEffect(Unit) {
+        delay(timeoutMs)
+        onTimeoutStable()
+    }
+
+    Dialog(
+        onDismissRequest = {
+            // Non-dismissible: intentional no-op
+            Log.d("LoadingDialog", "User attempted to dismiss loading dialog")
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.35f))
+                // Block all taps to prevent accidental interactions
+                .pointerInput(Unit) { detectTapGestures {} },
+            contentAlignment = Alignment.Center
+        ) { LoadingContent() }
+    }
+}
+
+@Composable
+private fun LoadingContent() {
+    Column(
+        modifier = Modifier
+            .width(164.dp)
+            .height(164.dp)
+            .background(
+                color = Variables.surfaceDefault,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = Variables.borderDefault,
+                shape = RoundedCornerShape(8.dp)
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Smooth rotating circular progress indicator
+        CircularProgressIndicator(
+            color = Variables.mainPrimary,
+            modifier = Modifier.size(56.dp),
+            strokeWidth = 7.dp,
+            // No fixed progress = continuous smooth rotation
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Loading",
+            style = TextStyle(
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                fontWeight = FontWeight(400),
+                color = Variables.colorsMainSubtle,
+                textAlign = TextAlign.Center
+            )
+        )
+    }
 }

@@ -2,16 +2,28 @@ package com.zebra.aidatacapturedemo
 
 import android.Manifest
 import android.content.Context
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.zebra.aidatacapturedemo.model.FileUtils
@@ -26,6 +38,7 @@ import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
  */
 @OptIn(ExperimentalPermissionsApi::class)
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -38,20 +51,66 @@ class MainActivity : ComponentActivity() {
 
         FileUtils(application.filesDir.absolutePath, application as Context)
         val viewModel: AIDataCaptureDemoViewModel by viewModels { AIDataCaptureDemoViewModel.factory() }
+
         FeedbackUtils(viewModel, application as Context)
 
         val activityLifecycle = lifecycle
         setContent {
+            // If SDK init failed (e.g. non-Zebra device), show Compose error dialog and close
+            val sdkInitError by viewModel.sdkInitError.collectAsState()
+            sdkInitError?.let { errorMessage ->
+                AlertDialog(
+                    onDismissRequest = {},
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.unsupported_device_title),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        )
+                    },
+                    text = { Text(
+                        text = errorMessage,
+                        fontWeight = FontWeight.Light,
+                        fontSize = 14.sp
+                    ) },
+                    confirmButton = {
+                        TextButton(onClick = { finishAffinity() }) {
+                            Text(
+                                text = stringResource(id = R.string.unsupported_device_ok),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                )
+                return@setContent
+            }
 
             val multiplePermissionsState = rememberMultiplePermissionsState(
                 listOf(
                     Manifest.permission.CAMERA,
-                    Manifest.permission.RECORD_AUDIO
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION
                 )
             )
             LaunchedEffect(Unit) {
                 // Request the permission when the Composable first enters the composition
                 multiplePermissionsState.launchMultiplePermissionRequest()
+            }
+
+            // MANAGE_EXTERNAL_STORAGE — must be handled separately via Settings
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                LaunchedEffect(Unit) {
+                    Log.e(TAG, "onCreate: -----------------------Methodcalled", )
+                    if (!Environment.isExternalStorageManager()) {
+                        val intent = android.content.Intent(
+                            Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                            Uri.parse("package:${packageName}")
+                        )
+                        startActivity(intent)
+                    }
+                }
             }
 
             AIDataCaptureDemoTheme {

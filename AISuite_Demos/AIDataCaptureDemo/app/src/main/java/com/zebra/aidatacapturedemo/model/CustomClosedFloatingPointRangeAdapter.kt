@@ -6,6 +6,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonSerializer
+import com.zebra.aidatacapturedemo.data.DefaultValues
 import java.lang.reflect.Type
 
 // Gson lib cannot directly typecase kotlin.ranges.ClosedFloatingPointRange and store under file,
@@ -30,9 +31,9 @@ class CustomClosedFloatingPointRangeAdapter : JsonSerializer<ClosedFloatingPoint
         context: JsonDeserializationContext
     ): ClosedFloatingPointRange<*> {
         val obj = json.asJsonObject
-        val start = obj.get("start").asDouble
-        val endInclusive = obj.get("endInclusive").asDouble
-        // Reconstruct the concrete range type
+        val start = obj.get("start")?.asFloat ?: DefaultValues.STRING_LENGTH_RANGE_MIN_VALUE
+        val endInclusive =
+            obj.get("endInclusive")?.asFloat ?: DefaultValues.STRING_LENGTH_RANGE_MAX_VALUE
         return start..endInclusive
     }
 }

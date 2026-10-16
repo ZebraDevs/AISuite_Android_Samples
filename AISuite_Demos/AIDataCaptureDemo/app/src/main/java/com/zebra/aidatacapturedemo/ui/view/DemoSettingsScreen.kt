@@ -1,5 +1,6 @@
 package com.zebra.aidatacapturedemo.ui.view
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +48,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +59,7 @@ import androidx.navigation.NavHostController
 import com.zebra.aidatacapturedemo.BuildConfig
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.UsecaseState
+import com.zebra.aidatacapturedemo.ui.view.filters.InitToast
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -97,21 +101,29 @@ fun DemoSettingsScreen(
 
     val uiState = viewModel.uiState.collectAsState().value
 
+    InitToast(uiState, viewModel)
+
     // Intercept back presses on this screen
     val demo = uiState.usecaseSelected
     BackHandler(enabled = true) {
         viewModel.handleBackButton(navController)
     }
-    viewModel.updateAppBarTitle(stringResource(R.string.settings))
     val settingsItemsList = ExpandableSettingsItemsList()
     settingsItemsList.AddCommonSettings()
 
     if (demo == UsecaseState.Barcode.value) {
         settingsItemsList.AddBarcodeSettings()
-    }
-    else if (demo == UsecaseState.OCRBarcodeFind.value){
+        settingsItemsList.AddBarcodeDecoderSettings()
+        settingsItemsList.AddDpmModeSettings()
+    } else if (demo == UsecaseState.OCRBarcodeFind.value) {
         settingsItemsList.AddBarcodeSettings()
+        settingsItemsList.AddBarcodeDecoderSettings()
+        if (uiState.isBarcodeModelEnabled) {
+            settingsItemsList.AddDpmModeSettings()
+        }
         settingsItemsList.AddFeedbackSettings()
+        settingsItemsList.AddTargetModeSettings()
+    } else if (demo == UsecaseState.OCR.value) {
     } else if (demo == UsecaseState.Retail.value) {
         settingsItemsList.AddProductRecognitionSettings()
     } else if (demo == UsecaseState.Product.value) {
@@ -176,6 +188,21 @@ fun DemoSettingsScreen(
                 .wrapContentHeight()
         ) {
             if (demo == UsecaseState.OCR.value) {
+                SwitchOption(
+                    uiState.textOCRSettings.enableDiagnosticLogging,
+                    SwitchOptionData(R.string.enable_diagnostic_logging) { title, enabled ->
+                        viewModel.updateOCRSwitchOptions(title, enabled)
+                        viewModel.saveSettings()
+                    }
+                )
+                BorderlessButton(
+                    BorderlessButtonData(
+                        R.string.export_diagnostic_logs,
+                        onButtonClick = {
+                            viewModel.exportDiagnosticBundle()
+                        }
+                    )
+                )
                 BorderlessButton(
                     BorderlessButtonData(
                         R.string.advanced_settings,
@@ -188,7 +215,12 @@ fun DemoSettingsScreen(
                 BorderlessButtonData(
                     R.string.restore_default,
                     onButtonClick = {
+                        viewModel.updateCaptureBitmap(null)
+                        viewModel.updateProductRecognitionResult(null)
+                        viewModel.updateRetailShelfDetectionResult(null)
+                        viewModel.updateProductEnrollmentState(false)
                         viewModel.restoreDefaultSettings()
+                        viewModel.saveSettings()
                     }
                 ))
         }
@@ -435,13 +467,36 @@ fun AddIndividualSettings(item: ExpandableSettingsItem, viewModel: AIDataCapture
             SettingHeader(viewModel = viewModel, document)
             AddSimilarityThreshold(viewModel)
         }
-    }
-    else if (item.title.equals(stringResource(R.string.feedback))) {
+    } else if (item.title.equals(stringResource(R.string.feedback))) {
         Column(
             verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AddFeedbackSwitchOption(viewModel)
+        }
+    } else if (item.title.equals(stringResource(R.string.enhanced_1d_barcode_decode_title))) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AddAIBarcodeDecodeSwitchOption(viewModel)
+        }
+    } else if (item.title.equals(stringResource(R.string.dpm_mode))) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AddDpmModeRadioButtonList(viewModel)
+        }
+    } else if (item.title == stringResource(R.string.target_mode)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val htmlString = viewModel.loadInputStreamFromAsset(fileName = "ocr_target_mode.html")
+            val document: Document = Jsoup.parse(htmlString)
+            SettingHeader(viewModel = viewModel, document)
+            AddTargetModeSettingUi(viewModel)
         }
     }
 }
@@ -501,75 +556,76 @@ fun AddProcessorRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     }
 }
 
+/** Title string resource for a given model input size value. */
+private fun modelInputSizeTitleRes(size: Int): Int = when (size) {
+    640 -> R.string.model_input_size_640
+    832 -> R.string.model_input_size_832
+    1280 -> R.string.model_input_size_1280
+    1600 -> R.string.model_input_size_1600
+    2560 -> R.string.model_input_size_2560
+    else -> R.string.model_input_size_640
+}
+
 @Composable
 fun AddModelInputSizeRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     val currentUIState = viewModel.uiState.collectAsState().value
-    val listOfModelInputSizes = mutableListOf<RadioButtonData>(
+    var selectedInputSize by remember { mutableIntStateOf(viewModel.getInputSizeSelected() ?: 640) }
+
+    // Per-model supported input sizes (confirmed with the SDK team + docs):
+    //  - OCR (single decoder): 640/1280/1600/2560 — 2560 is supported and pre-cached for OCR.
+    //  - Barcode / OCRBarcodeFind: 640/1280/1600 — Barcode has no 2560 support, and
+    //    OCRBarcodeFind runs OCR+Barcode together every frame so it's limited by Barcode.
+    //  - Product / Retail (product-and-shelf-recognizer): 640/832/1280/1600 — no 2560 support.
+    val supportedSizes = when (currentUIState.usecaseSelected) {
+        UsecaseState.OCR.value -> listOf(640, 1280, 1600, 2560)
+        UsecaseState.Product.value, UsecaseState.Retail.value -> listOf(640, 832, 1280, 1600)
+        else -> listOf(640, 1280, 1600) // Barcode, OCRBarcodeFind
+    }
+
+    val listOfModelInputSizes = supportedSizes.mapIndexed { idx, sizeValue ->
         RadioButtonData(
-            stringResource(R.string.model_input_size_640),
+            stringResource(modelInputSizeTitleRes(sizeValue)),
             getSettingDescription(
                 currentUIState.usecaseSelected,
                 R.string.model_input_size,
-                0
+                sizeValue
             ),
-            0,
-            onItemSelected = { selectedModelInputSize ->
-                viewModel.updateSelectedDimensions(selectedModelInputSize)
-            }),
-        RadioButtonData(
-            stringResource(R.string.model_input_size_1280),
-            getSettingDescription(
-                currentUIState.usecaseSelected,
-                R.string.model_input_size,
-                1
-            ),
-            1,
-            onItemSelected = { selectedModelInputSize ->
-                viewModel.updateSelectedDimensions(selectedModelInputSize)
-            }),
-        RadioButtonData(
-            stringResource(R.string.model_input_size_1600),
-            getSettingDescription(
-                currentUIState.usecaseSelected,
-                R.string.model_input_size,
-                2
-            ),
-            2,
-            onItemSelected = { selectedModelInputSize ->
-                viewModel.updateSelectedDimensions(selectedModelInputSize)
-            }
-        ),
-        RadioButtonData(
-            stringResource(R.string.model_input_size_2560),
-            getSettingDescription(
-                currentUIState.usecaseSelected,
-                R.string.model_input_size,
-                3
-            ),
-            3,
-            onItemSelected = { selectedModelInputSize ->
-                viewModel.updateSelectedDimensions(selectedModelInputSize)
+            idx,
+            onItemSelected = {
+                viewModel.updateSelectedDimensions(sizeValue)
+                selectedInputSize = sizeValue
             }
         )
-    )
-    if (currentUIState.usecaseSelected == UsecaseState.Barcode.value) {
-        // Remove inputSize 2560 option for Barcode Decoder
-        listOfModelInputSizes.removeAt(listOfModelInputSizes.size - 1)
     }
-    var selectedIndex = 0
-    if (viewModel.getInputSizeSelected() == 1280) {
-        selectedIndex = 1
-    } else if (viewModel.getInputSizeSelected() == 1600) {
-        selectedIndex = 2
-    } else if (viewModel.getInputSizeSelected() == 2560) {
-        selectedIndex = 3
-    }
+
+    val selectedIndex = supportedSizes.indexOf(viewModel.getInputSizeSelected()).let { if (it >= 0) it else 0 }
     ListOfRadioButtonOptions(selectedIndex, listOfModelInputSizes)
+    AddHighSettingsAdvisory(
+        inputSize = selectedInputSize,
+        resolutionIndex = viewModel.getSelectedResolution() ?: 0
+    )
+}
+
+
+@Composable
+fun AddHighSettingsAdvisory(inputSize: Int, resolutionIndex: Int) {
+    if (inputSize == 2560 && resolutionIndex == 3) {
+        Text(
+            text = "⚠️ Higher resolution and model input size boost accuracy but use more memory/battery — may stress low-end devices. Lower them for better performance.",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
 }
 
 @Composable
 fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
     val currentUIState = viewModel.uiState.collectAsState().value
+    var selectedResolutionIndex by remember {
+        mutableIntStateOf(
+            viewModel.getSelectedResolution() ?: 0
+        )
+    }
+
     val listOfResolutionSizes = listOf<RadioButtonData>(
         RadioButtonData(
             stringResource(R.string.resolution_size_1280),
@@ -582,6 +638,7 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             0,
             onItemSelected = { selectedResolution ->
                 viewModel.updateSelectedResolution(selectedResolution)
+                selectedResolutionIndex = selectedResolution
             }),
         RadioButtonData(
             stringResource(R.string.resolution_size_1920),
@@ -593,6 +650,7 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             1,
             onItemSelected = { selectedResolution ->
                 viewModel.updateSelectedResolution(selectedResolution)
+                selectedResolutionIndex = selectedResolution
             }),
         RadioButtonData(
             stringResource(R.string.resolution_size_2688),
@@ -604,6 +662,7 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             2,
             onItemSelected = { selectedResolution ->
                 viewModel.updateSelectedResolution(selectedResolution)
+                selectedResolutionIndex = selectedResolution
             }
         ),
         RadioButtonData(
@@ -616,11 +675,16 @@ fun AddResolutionRadioButtonList(viewModel: AIDataCaptureDemoViewModel) {
             3,
             onItemSelected = { selectedResolution ->
                 viewModel.updateSelectedResolution(selectedResolution)
+                selectedResolutionIndex = selectedResolution
             }
         )
     )
     viewModel.getSelectedResolution()?.let {
         ListOfRadioButtonOptions(it, listOfResolutionSizes)
+        AddHighSettingsAdvisory(
+            inputSize = viewModel.getInputSizeSelected() ?: 640,
+            resolutionIndex = selectedResolutionIndex
+        )
     }
 }
 
@@ -642,7 +706,7 @@ fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
         UsecaseState.Barcode.value -> {
             Pair(
                 first = "Barcode Recognizer Version",
-                second = BuildConfig.BarcodeLocalizer_Version
+                second = BuildConfig.BarcodeDecoder_Version
             )
         }
 
@@ -661,7 +725,8 @@ fun AddAboutInformation(viewModel: AIDataCaptureDemoViewModel) {
         }
 
         else -> {
-            TODO("On AddAboutInformation() - Invalid use case ${uiState.usecaseSelected} selected")
+            Log.e("AddAboutInformation", "Invalid use case ${uiState.usecaseSelected} selected")
+            return
         }
     }
 

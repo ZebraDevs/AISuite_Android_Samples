@@ -14,18 +14,6 @@ enum class FilterType(val value: String) {
     BARCODE_FILTER(value = "BarcodeFilter")
 }
 
-enum class OcrRegularFilterOption {
-    UNFILTERED,
-    REGEX,
-    ADVANCED
-}
-
-enum class AdvancedFilterOption {
-    CHARACTER_TYPE,
-    CHARACTER_MATCH,
-    STRING_LENGTH
-}
-
 enum class CharacterTypeFilterOption {
     SELECT_ALL,
     ALPHA,
@@ -44,6 +32,14 @@ enum class DetectionLevel {
     LINE
 }
 
+enum class FilterMenuAction {
+    NONE,
+    SELECT_ALL,
+    DESELECT_ALL,
+    DELETE,
+    RESET
+}
+
 data class RegexData(
     var detectionLevel: DetectionLevel = DefaultValues.OCR_DETECTION_LEVEL,
     var regexAdditionalStringList: MutableList<String> = mutableListOf(),
@@ -59,22 +55,54 @@ data class CharacterMatchData(
 )
 
 data class OcrFilterData(
-    var selectedRegularFilterOption: OcrRegularFilterOption = DefaultValues.OCR_REGULAR_FILTER_OPTION,
-    var selectedAdvancedFilterOptionList: MutableList<AdvancedFilterOption> = mutableListOf(),
-    var selectedRegexFilterData: RegexData = RegexData(),
-    var selectedCharacterTypeFilterOptionList: MutableList<CharacterTypeFilterOption> = mutableListOf(),
-    var selectedCharacterMatchFilterData: CharacterMatchData = CharacterMatchData(),
-    var selectedStringLengthRange: ClosedFloatingPointRange<Float> = (DefaultValues.STRING_LENGTH_RANGE_MIN_VALUE ..DefaultValues.STRING_LENGTH_RANGE_MAX_VALUE)
+    var fieldList: MutableList<FilterField> = mutableListOf(),
+    var fieldFilterConfigs: MutableList<OcrFieldFilterConfig> =
+        mutableListOf(),
+    var selectedFieldIds: MutableList<String> = mutableListOf()
 )
 
 data class BarcodeFilterData(
-    var selectedAdvancedFilterOptionList: MutableList<AdvancedFilterOption> = mutableListOf(),
-    var selectedCharacterMatchFilterData: CharacterMatchData = CharacterMatchData(),
-    var selectedStringLengthRange: ClosedFloatingPointRange<Float> = (DefaultValues.STRING_LENGTH_RANGE_MIN_VALUE ..DefaultValues.STRING_LENGTH_RANGE_MAX_VALUE)
+    var fieldList: MutableList<FilterField> = mutableListOf(),
+    var fieldFilterConfigs: MutableList<BarcodeFieldFilterConfig> =
+        mutableListOf(),
+    var selectedFieldIds: MutableList<String> = mutableListOf()
 )
 
+
+data class FilterField(
+    val id: String,
+    val title: String,
+    val isDefault: Boolean = true
+)
+
+sealed class FieldFilterConfig {
+    abstract val characterMatchData: CharacterMatchData?
+    abstract val stringLengthRange: ClosedFloatingPointRange<Float>?
+}
+
+data class OcrFieldFilterConfig(
+    var fieldId: String? = null,
+    var fieldTitle: String? = null,
+    var regexData: RegexData? = null,
+    var characterTypeOptions: MutableList<CharacterTypeFilterOption> = mutableListOf(),
+    override var characterMatchData: CharacterMatchData? = null,
+    override var stringLengthRange: ClosedFloatingPointRange<Float>? = null,
+    var regexEnabled: Boolean = false,
+    var characterMatchEnabled: Boolean = false,
+    var characterTypeEnabled: Boolean = false,
+    var stringLengthEnabled: Boolean = false
+) : FieldFilterConfig()
+
+data class BarcodeFieldFilterConfig(
+    var fieldId: String? = null,
+    var fieldTitle: String? = null,
+    override var characterMatchData: CharacterMatchData? = null,
+    override var stringLengthRange: ClosedFloatingPointRange<Float>? = null,
+    var characterMatchEnabled: Boolean = false,
+    var stringLengthEnabled: Boolean = false
+) : FieldFilterConfig()
+
 object DefaultValues {
-    val OCR_REGULAR_FILTER_OPTION = OcrRegularFilterOption.UNFILTERED
     val CHARACTER_MATCH_FILTER_OPTION = CharacterMatchFilterOption.STARTS_WITH
     val OCR_DETECTION_LEVEL = DetectionLevel.WORD
     const val STRING_LENGTH_RANGE_MIN_VALUE = 2f

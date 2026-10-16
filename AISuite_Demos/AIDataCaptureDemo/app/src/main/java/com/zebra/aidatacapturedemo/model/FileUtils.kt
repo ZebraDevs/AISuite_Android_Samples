@@ -18,11 +18,13 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.zebra.ai.vision.detector.BBox
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
+import com.zebra.aidatacapturedemo.data.BarcodeFieldFilterConfig
 import com.zebra.aidatacapturedemo.data.BarcodeFilterData
 import com.zebra.aidatacapturedemo.data.BarcodeSettings
 import com.zebra.aidatacapturedemo.data.FilterType
 import com.zebra.aidatacapturedemo.data.OcrBarcodeCaptureSessionData
 import com.zebra.aidatacapturedemo.data.OcrBarcodeFindSettings
+import com.zebra.aidatacapturedemo.data.OcrFieldFilterConfig
 import com.zebra.aidatacapturedemo.data.OcrFilterData
 import com.zebra.aidatacapturedemo.data.ProductData
 import com.zebra.aidatacapturedemo.data.ProductRecognitionSettings
@@ -37,12 +39,13 @@ import java.nio.file.Paths
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.ArrayDeque
+import androidx.core.content.edit
 
 
 /**
  * FileUtils class to provide utility functions related to filesystem
  */
-class FileUtils(cacheDir: String, context : Context) {
+class FileUtils(cacheDir: String, context: Context) {
     init {
         mCacheDir = cacheDir
         mContext = context
@@ -50,7 +53,7 @@ class FileUtils(cacheDir: String, context : Context) {
         ocrTextSettingsFile = File(mCacheDir, "ocr_text_settings.json")
         retailShelfSettingsFile = File(mCacheDir, "retailshelf_settings.json")
         ocrBarcodeFindSettingsFile = File(mCacheDir, "ocrbarcodefind_settings.json")
-        productRecogntionSettingsFile= File(mCacheDir, "product_recognition_settings.json")
+        productRecogntionSettingsFile = File(mCacheDir, "product_recognition_settings.json")
         ocrFilterDataFile = File(mCacheDir, "ocr_filter_data.json")
         barcodeFilterDataFile = File(mCacheDir, "barcode_filter_data.json")
         settingsFiles.put(UsecaseState.Barcode.value, barcodeSettingsFile)
@@ -65,11 +68,14 @@ class FileUtils(cacheDir: String, context : Context) {
     companion object {
         private val TAG: String = "FileUtils"
         lateinit var mCacheDir: String
-        lateinit var mContext : Context
-        lateinit var mSavedTimeStamp : String
+        lateinit var mContext: Context
+        lateinit var mSavedTimeStamp: String
         var databaseFile: String = "products.db"
         private val gson = GsonBuilder()
-            .registerTypeAdapter(ClosedFloatingPointRange::class.java, CustomClosedFloatingPointRangeAdapter())
+            .registerTypeAdapter(
+                ClosedFloatingPointRange::class.java,
+                CustomClosedFloatingPointRangeAdapter()
+            )
             .create()
 
         private lateinit var barcodeSettingsFile: File
@@ -80,7 +86,7 @@ class FileUtils(cacheDir: String, context : Context) {
         private lateinit var ocrFilterDataFile: File
         private lateinit var barcodeFilterDataFile: File
 
-        var settingsFiles : MutableMap<String, File> = mutableMapOf()
+        var settingsFiles: MutableMap<String, File> = mutableMapOf()
 
         fun loadBarcodeSettings(): BarcodeSettings {
 
@@ -105,6 +111,7 @@ class FileUtils(cacheDir: String, context : Context) {
                 e.printStackTrace()
             }
         }
+
         fun loadOCRSettings(): TextOcrSettings {
             return if (settingsFiles.getValue(UsecaseState.OCR.value).exists()) {
                 try {
@@ -132,7 +139,8 @@ class FileUtils(cacheDir: String, context : Context) {
             return if (settingsFiles.getValue(UsecaseState.OCRBarcodeFind.value).exists()) {
                 try {
                     val json = settingsFiles.getValue(UsecaseState.OCRBarcodeFind.value).readText()
-                    gson.fromJson(json, OcrBarcodeFindSettings::class.java) ?: OcrBarcodeFindSettings()
+                    gson.fromJson(json, OcrBarcodeFindSettings::class.java)
+                        ?: OcrBarcodeFindSettings()
                 } catch (_: Exception) {
                     OcrBarcodeFindSettings()
                 }
@@ -178,12 +186,23 @@ class FileUtils(cacheDir: String, context : Context) {
             return if (settingsFiles.getValue(UsecaseState.Product.value).exists()) {
                 try {
                     val json = settingsFiles.getValue(UsecaseState.Product.value).readText()
-                    gson.fromJson(json, ProductRecognitionSettings::class.java) ?: ProductRecognitionSettings()
+                    gson.fromJson(json, ProductRecognitionSettings::class.java)
+                        ?: ProductRecognitionSettings()
                 } catch (_: Exception) {
                     ProductRecognitionSettings()
                 }
             } else {
                 ProductRecognitionSettings()
+            }
+        }
+
+        fun saveProductRecognitionSettings(settings: ProductRecognitionSettings) {
+            try {
+                FileWriter(settingsFiles.getValue(UsecaseState.Product.value)).use { writer ->
+                    gson.toJson(settings, writer)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
 
@@ -197,11 +216,21 @@ class FileUtils(cacheDir: String, context : Context) {
             }
         }
 
+        @Suppress("SENSELESS_COMPARISON")
         fun loadOcrFilterData(): OcrFilterData {
             return if (settingsFiles.getValue(FilterType.OCR_FILTER.value).exists()) {
                 try {
                     val json = settingsFiles.getValue(FilterType.OCR_FILTER.value).readText()
-                    gson.fromJson(json, OcrFilterData::class.java) ?: OcrFilterData()
+                    val data = gson.fromJson(
+                        json, OcrFilterData::class.java
+                    ) ?: OcrFilterData()
+                    if (data.fieldList == null) data.fieldList = mutableListOf()
+                    if (data.fieldFilterConfigs == null) data.fieldFilterConfigs = mutableListOf()
+                    if (data.selectedFieldIds == null) data.selectedFieldIds = mutableListOf()
+                    data.fieldFilterConfigs = data.fieldFilterConfigs
+                        .filterIsInstance<OcrFieldFilterConfig>()
+                        .toMutableList()
+                    data
                 } catch (_: Exception) {
                     OcrFilterData()
                 }
@@ -220,11 +249,21 @@ class FileUtils(cacheDir: String, context : Context) {
             }
         }
 
+        @Suppress("SENSELESS_COMPARISON")
         fun loadBarcodeFilterData(): BarcodeFilterData {
             return if (settingsFiles.getValue(FilterType.BARCODE_FILTER.value).exists()) {
                 try {
                     val json = settingsFiles.getValue(FilterType.BARCODE_FILTER.value).readText()
-                    gson.fromJson(json, BarcodeFilterData::class.java) ?: BarcodeFilterData()
+                    val data = gson.fromJson(
+                        json, BarcodeFilterData::class.java
+                    ) ?: BarcodeFilterData()
+                    if (data.fieldList == null) data.fieldList = mutableListOf()
+                    if (data.fieldFilterConfigs == null) data.fieldFilterConfigs = mutableListOf()
+                    if (data.selectedFieldIds == null) data.selectedFieldIds = mutableListOf()
+                    data.fieldFilterConfigs = data.fieldFilterConfigs
+                        .filterIsInstance<BarcodeFieldFilterConfig>()
+                        .toMutableList()
+                    data
                 } catch (_: Exception) {
                     BarcodeFilterData()
                 }
@@ -233,15 +272,6 @@ class FileUtils(cacheDir: String, context : Context) {
             }
         }
 
-        fun saveProductRecognitionSettings(settings: ProductRecognitionSettings) {
-            try {
-                FileWriter(settingsFiles.getValue(UsecaseState.Product.value)).use { writer ->
-                    gson.toJson(settings, writer)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
 
         private fun getTimeStamp(): String {
             return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS"))
@@ -251,11 +281,16 @@ class FileUtils(cacheDir: String, context : Context) {
          * This function is used to create a timestamped folder in the external files directory to
          * save product images
          */
-        fun getTimeStampedFolderName() : String {
+        fun getTimeStampedFolderName(): String {
             mSavedTimeStamp = getTimeStamp()
             val timestampFolder = File(mContext.getExternalFilesDir(null), mSavedTimeStamp)
             if (!timestampFolder.exists()) {
-                timestampFolder.mkdir()
+                if (!timestampFolder.mkdir()) {
+                    Log.w(
+                        TAG,
+                        "Failed to create timestamped folder: ${timestampFolder.absolutePath}"
+                    )
+                }
             }
             return mSavedTimeStamp
         }
@@ -263,25 +298,38 @@ class FileUtils(cacheDir: String, context : Context) {
         /**
          * This function is used to save the bitmap image in the Pictures folder
          */
-        fun saveBitmap(bmp: Bitmap,
-                       subFolderName: String?,
-                       filename: String?) {
+        fun saveBitmap(
+            bmp: Bitmap,
+            subFolderName: String?,
+            filename: String?
+        ) {
             var imageOutStream: OutputStream
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues()
                 values.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
                 values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-                values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" +subFolderName);
+                values.put(
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/" + subFolderName
+                );
 
-                val uri = mContext.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                val uri = mContext.contentResolver.insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    values
+                )
                 imageOutStream = uri?.let { mContext.getContentResolver().openOutputStream(it) }!!
             } else {
-                val folder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString(), subFolderName)
+                val folder = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                        .toString(), subFolderName
+                )
                 if (!folder.exists()) {
-                    folder.mkdir()
+                    if (!folder.mkdir()) {
+                        Log.w(TAG, "Failed to create folder: ${folder.absolutePath}")
+                    }
                 }
                 val file = File(folder, filename)
-                imageOutStream =  FileOutputStream(file);
+                imageOutStream = FileOutputStream(file);
             }
             bmp.compress(Bitmap.CompressFormat.JPEG, 100, imageOutStream);
             imageOutStream.flush();
@@ -295,7 +343,9 @@ class FileUtils(cacheDir: String, context : Context) {
         fun deleteProductDBFile() {
             val path = Paths.get(mCacheDir, databaseFile).toString()
             val file = File(path)
-            file.delete()
+            if (!file.delete()) {
+                Log.w(TAG, "Failed to delete product DB file: $path")
+            }
         }
 
         /**
@@ -309,7 +359,8 @@ class FileUtils(cacheDir: String, context : Context) {
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
             // Query for the file
-            val cursor: Cursor? = mContext.getContentResolver().query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, null, null, null, null)
+            val cursor: Cursor? = mContext.getContentResolver()
+                .query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, null, null, null, null)
             var fileUri: Uri? = null
             // If file found
             if (cursor != null && cursor.count > 0) {
@@ -322,25 +373,33 @@ class FileUtils(cacheDir: String, context : Context) {
                             val idIndex = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
                             if (idIndex > -1) {
                                 val id = cursor.getLong(idIndex)
-                                fileUri = ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id)
+                                fileUri = ContentUris.withAppendedId(
+                                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                    id
+                                )
                                 break
                             }
                         }
                     }
                 }
-                cursor.close()
-            } else {
-                // insert new file otherwise
-                val resolver = mContext.contentResolver
-                fileUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
             }
+            cursor?.close()
+
+            // Insert once, only if not found
+            if (fileUri == null) {
+                fileUri = mContext.contentResolver.insert(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    contentValues
+                )
+            }
+
             saveFile(productDBFile.toUri(), fileUri)
         }
 
         /**
          * This function is used to reads product crops in Downloads folder
          */
-        fun readProductCrops(uri: Uri) : List<ProductData>{
+        fun readProductCrops(uri: Uri): List<ProductData> {
 
             // Creates a remembered mutable state list to store paths of images.
             val rootDirectoryFile = DocumentFile.fromTreeUri(mContext, uri)
@@ -363,10 +422,10 @@ class FileUtils(cacheDir: String, context : Context) {
                             // Add Uri of the image file to the list
                             imageFileUris += file.uri
                             mContext.contentResolver.openInputStream(file.uri).use { input ->
-                                if(input != null) {
+                                if (input != null) {
                                     val bitmap = BitmapFactory.decodeStream(input)
                                     file.parentFile?.name?.let {
-                                        listOfProductData += ProductData( it, BBox(), bitmap)
+                                        listOfProductData += ProductData(it, BBox(), bitmap)
                                     }
                                     input.close()
                                 }
@@ -385,7 +444,7 @@ class FileUtils(cacheDir: String, context : Context) {
         fun saveFile(srcUri: Uri, destUri: Uri?) {
             if (destUri != null) {
                 mContext.contentResolver.openInputStream(srcUri).use { input ->
-                    if(input != null) {
+                    if (input != null) {
                         mContext.contentResolver.openOutputStream(destUri).use { output ->
                             input.copyTo(output!!, DEFAULT_BUFFER_SIZE)
                         }
@@ -394,7 +453,11 @@ class FileUtils(cacheDir: String, context : Context) {
             }
         }
 
-        fun saveOcrBarcodeCaptureSessionDataToPrefs(context: Context, sessionID: String, uiState: AIDataCaptureDemoUiState) {
+        fun saveOcrBarcodeCaptureSessionDataToPrefs(
+            context: Context,
+            sessionID: String,
+            uiState: AIDataCaptureDemoUiState
+        ) {
             Log.d(TAG, "saveOcrBarcodeCaptureSessionDataToPrefs: $sessionID")
             val sessionData = OcrBarcodeCaptureSessionData(
                 ocrResults = uiState.ocrResults,
@@ -406,10 +469,14 @@ class FileUtils(cacheDir: String, context : Context) {
                     val outputStream = java.io.ByteArrayOutputStream()
                     Log.d(TAG, "outputStream size: ${outputStream.size()}")
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 10, outputStream)
-                    android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.DEFAULT)
+                    android.util.Base64.encodeToString(
+                        outputStream.toByteArray(),
+                        android.util.Base64.DEFAULT
+                    )
                 } ?: ""
             )
-            val prefs = context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
+            val prefs =
+                context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
             val editor = prefs.edit()
             val gson = Gson()
             val json = gson.toJson(sessionData)
@@ -417,8 +484,12 @@ class FileUtils(cacheDir: String, context : Context) {
             editor.apply()
         }
 
-        fun loadOcrBarcodeCaptureSessionDataFromPrefs(context: Context, sessionID: String): OcrBarcodeCaptureSessionData? {
-            val prefs = context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
+        fun loadOcrBarcodeCaptureSessionDataFromPrefs(
+            context: Context,
+            sessionID: String
+        ): OcrBarcodeCaptureSessionData? {
+            val prefs =
+                context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
             val json = prefs.getString(sessionID, null)
             return if (json != null) {
                 try {
@@ -432,8 +503,9 @@ class FileUtils(cacheDir: String, context : Context) {
         }
 
         fun clearOcrBarcodeCaptureSessionPrefs(context: Context) {
-            val prefs = context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
-            prefs.edit().clear().apply()
+            val prefs =
+                context.getSharedPreferences("OcrBarcodeCaptureSessions", Context.MODE_PRIVATE)
+            prefs.edit { clear() }
         }
     }
 }

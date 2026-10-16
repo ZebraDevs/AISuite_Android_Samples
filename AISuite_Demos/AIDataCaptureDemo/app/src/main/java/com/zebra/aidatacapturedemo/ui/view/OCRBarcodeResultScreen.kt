@@ -2,7 +2,6 @@ package com.zebra.aidatacapturedemo.ui.view
 
 import android.content.Context
 import android.graphics.Rect
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,22 +16,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -44,20 +50,31 @@ import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
 import com.zebra.aidatacapturedemo.data.ResultData
 import com.zebra.aidatacapturedemo.model.FileUtils.Companion.loadOcrBarcodeCaptureSessionDataFromPrefs
+import com.zebra.aidatacapturedemo.model.FilterUtils
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainPrimary
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-/**
- * This file defines the OCRBarcodeResultScreen composable function, which displays the results of
- * OCR and barcode scanning sessions. It includes a header showing the current session index,
- * a list of results with their bounding boxes, and navigation buttons to switch between sessions
- * or return to the scanning screen.
- * The results are loaded from the ViewModel's state or from shared preferences
- * when navigating between sessions.
- */
-private const val TAG = "OCRBarcodeResultCapturedScreen"
+enum class FilterMatchType {
+    REGEX,
+    CHARACTER_MATCH,
+    CHARACTER_TYPE,
+    STRING_LENGTH
+}
 
-data class ResultRowData(val text: String, val boundingBox: Rect, val isBarcode: Boolean)
+data class FieldMatchedValue(
+    val text: String?,
+    val boundingBox: Rect?,
+    val isBarcode: Boolean,
+    val matchedFilterType: FilterMatchType? = null
+)
+
+private data class FieldResultGroupRow(
+    val fieldId: String,
+    val fieldName: String,
+    val values: List<FieldMatchedValue>
+)
 
 @Composable
 fun OCRBarcodeResultScreen(
@@ -67,107 +84,166 @@ fun OCRBarcodeResultScreen(
     context: Context
 ) {
     val uiState = viewModel.uiState.collectAsState().value
-    val resultList = remember { mutableStateListOf<ResultRowData>() }
     val updateResults = remember { mutableStateOf(false) }
-    val updateResultsTrigger = remember { mutableStateOf(0) }
+    val updateResultsTrigger = remember { mutableIntStateOf(0) }
 
-    BackHandler(enabled = true) {
-        viewModel.handleBackButton(navController)
-    }
-    viewModel.updateAppBarTitle(stringResource(R.string.results))
+    val ocrRowsState = remember { mutableStateOf<List<FieldResultGroupRow>>(emptyList()) }
+    val barcodeRowsState = remember { mutableStateOf<List<FieldResultGroupRow>>(emptyList()) }
 
-    LaunchedEffect(updateResultsTrigger.value) {
-        if(uiState.ocrBarcodeCaptureSessionCount == uiState.ocrBarcodeCaptureSessionIndex){
-            val ocrList = uiState.ocrResults.isNullOrEmpty().let {
-                uiState.ocrResults.filter { it.text.isNotEmpty() }.map {
-                    ResultRowData(it.text, it.boundingBox, isBarcode = false)
-                }
-            }
-            val barcodeList = uiState.barcodeResults.isNullOrEmpty().let {
-                uiState.barcodeResults.filter { it.text.isNotEmpty() }.map {
-                    ResultRowData(it.text, it.boundingBox, isBarcode = true)
-                }
-            }
-            resultList.clear()
-            resultList += ocrList + barcodeList
+    BackHandler(enabled = true) { viewModel.handleBackButton(navController) }
+
+    LaunchedEffect(updateResultsTrigger.intValue, uiState.ocrBarcodeCaptureSessionIndex) {
+        val isCurrentSession =
+            uiState.ocrBarcodeCaptureSessionCount == uiState.ocrBarcodeCaptureSessionIndex
+
+        val (ocrSource, barcodeSource) = if (isCurrentSession) {
+            Pair(
+                uiState.ocrResults.filter { it.text.isNotBlank() },
+                uiState.barcodeResults.filter { it.text.isNotBlank() }
+            )
         } else {
-            if (updateResults.value == true) {
-                val loadedResults = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    loadSessionResults(context, uiState)
+            if (updateResults.value) {
+                val session = withContext(Dispatchers.IO) {
+                    loadOcrBarcodeCaptureSessionDataFromPrefs(
+                        context,
+                        uiState.ocrBarcodeCaptureSessionIndex.toString()
+                    )
                 }
-                resultList.clear()
-                resultList += loadedResults
-                Log.d(TAG, "loadSessionResults = ${resultList.size}")
                 updateResults.value = false
+                Pair(
+                    session?.ocrResults?.filter { it.text.isNotBlank() } ?: emptyList(),
+                    session?.barcodeResults?.filter { it.text.isNotBlank() } ?: emptyList()
+                )
+            } else {
+                Pair(emptyList(), emptyList())
             }
         }
-    }
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(
-            top = innerPadding.calculateTopPadding(),
-            bottom = innerPadding.calculateBottomPadding()
-        )) {
 
+        ocrRowsState.value = buildOcrFieldRows(uiState, ocrSource)
+        barcodeRowsState.value = buildBarcodeFieldRows(uiState, barcodeSource)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding()
+            )
+    ) {
         Header(uiState.ocrBarcodeCaptureSessionIndex)
 
-        LazyColumn(contentPadding = PaddingValues(vertical = 8.dp),
+        val ocrExpanded = remember { mutableStateOf(false) }
+        val barcodeExpanded = remember { mutableStateOf(false) }
+
+        LazyColumn(
+            contentPadding = PaddingValues(vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
                 .background(color = Variables.colorsSurfaceCool)
-                .fillMaxWidth()) {
-            items(resultList) { item ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .background(color = Variables.surfaceDefault)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(start = 32.dp, top = 5.dp, end = 16.dp, bottom = 5.dp)
-                    ) {
-                        Text(
-                            text = item.text,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .weight(1f)
-                                .align(Alignment.CenterVertically)
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_location),
-                            contentDescription = item.text,
-                            modifier = Modifier
-                                .align(Alignment.CenterVertically)
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .clickable {
-                                    val boundingBoxStr =
-                                        "${item.boundingBox.left},${item.boundingBox.top},${item.boundingBox.right},${item.boundingBox.bottom}"
-                                    navController.navigate(
-                                        "${Screen.SingleResult.route}?text=${item.text}&bbox=$boundingBoxStr&isBarcode=${item.isBarcode}"
-                                    )
-                                }
-                        )
+                .fillMaxWidth()
+        ) {
+            if (ocrRowsState.value.isNotEmpty()) {
+                item {
+                    ExpandableSectionHeader(
+                        title = "OCR FIELD RESULTS",
+                        expanded = ocrExpanded.value,
+                        onToggle = { ocrExpanded.value = !ocrExpanded.value }
+                    )
+                }
+                if (ocrExpanded.value) {
+                    itemsIndexed(
+                        ocrRowsState.value,
+                        key = { _, row -> "ocr_${row.fieldId}" }) { index, row ->
+                        FieldResultRow(item = row, navController = navController)
+                        if (index != ocrRowsState.value.lastIndex) {
+                            HorizontalDivider(color = Color(0xFFE8EAF0), thickness = 1.dp)
+                        }
                     }
                 }
-                Spacer(Modifier.height(1.dp))
+            }
+
+            if (ocrRowsState.value.isNotEmpty() && barcodeRowsState.value.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = Color(0xFFE8EAF0), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            if (barcodeRowsState.value.isNotEmpty()) {
+                item {
+                    ExpandableSectionHeader(
+                        title = "BARCODE FIELD RESULTS",
+                        expanded = barcodeExpanded.value,
+                        onToggle = { barcodeExpanded.value = !barcodeExpanded.value }
+                    )
+                }
+                if (barcodeExpanded.value) {
+                    itemsIndexed(
+                        barcodeRowsState.value,
+                        key = { _, row -> "barcode_${row.fieldId}" }) { index, row ->
+                        FieldResultRow(item = row, navController = navController)
+                        if (index != barcodeRowsState.value.lastIndex) {
+                            HorizontalDivider(color = Color(0xFFE8EAF0), thickness = 1.dp)
+                        }
+                    }
+                }
             }
         }
-        Bottom(viewModel, navController, uiState, updateResultsChanged = {updateResults.value = it}, incrementResultsTrigger = {updateResultsTrigger.value++})
+
+        Bottom(
+            viewModel = viewModel,
+            navController = navController,
+            uiState = uiState,
+            updateResultsChanged = { updateResults.value = it },
+            incrementResultsTrigger = { updateResultsTrigger.intValue++ }
+        )
     }
 }
 
 @Composable
-fun Header(session : Int){
+private fun FieldResultRow(
+    item: FieldResultGroupRow,
+    navController: NavHostController
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = Variables.surfaceDefault)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        // Field Name Header
+        ShowFieldName(fieldName = item.fieldName)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (item.values.isEmpty()) ShowValueNoMatch() else {
+            // Group values by filter type
+            val groupedByFilter = item.values.groupBy {
+                it.matchedFilterType
+            }
+
+            groupedByFilter.forEach { (filterType, values) ->
+                // Filter Type Header
+                ShowFilterType(filterType)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Values under this filter type
+                values.forEach { value -> ShowValuesRow(value, navController) }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun Header(session: Int) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(107.dp, Alignment.Start),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .width(349.dp)
+            .fillMaxWidth()
             .height(36.dp)
             .background(color = Variables.colorsSurfaceCool)
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 8.dp)
@@ -178,95 +254,318 @@ fun Header(session : Int){
                 fontSize = Variables.TypefaceFontSize16,
                 lineHeight = Variables.TypefaceLineHeight20,
                 fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                fontWeight = FontWeight(500),
+                fontWeight = FontWeight(600),
                 color = Variables.colorsMainSubtle,
-                letterSpacing = Variables.TypefaceLetterSpacingTitle,
+                letterSpacing = Variables.TypefaceLetterSpacingTitle
             ),
-            modifier = Modifier
-                .weight(1f)
-                .align(Alignment.CenterVertically)
+            modifier = Modifier.weight(1f)
         )
     }
 }
 
 @Composable
-fun Bottom(viewModel : AIDataCaptureDemoViewModel, navController: NavHostController, uiState: AIDataCaptureDemoUiState,
-           updateResultsChanged: (Boolean) -> Unit,
-           incrementResultsTrigger: () -> Unit) {
+private fun ShowFieldName(fieldName: String) {
+    Text(
+        text = "Field: ${fieldName}",
+        modifier = Modifier.padding(horizontal = 4.dp),
+        style = TextStyle(
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+            fontWeight = FontWeight(600),
+            color = Variables.colorsTextDefault,
+        )
+    )
+}
 
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
-        .border(1.dp, Variables.mainInverse),
+@Composable
+private fun ShowValueNoMatch() {
+    Text(
+        text = "Value: No match",
+        modifier = Modifier.padding(horizontal = 4.dp),
+        style = TextStyle(
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            fontFamily =
+                FontFamily(Font(R.font.ibm_plex_sans)),
+            fontWeight = FontWeight(400),
+            color = Variables.colorsMainSubtle
+        )
+    )
+}
+
+@Composable
+private fun ShowFilterType(filterType: FilterMatchType?) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = Color(0xFFF5F5F5))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(
+            imageVector = ImageVector.vectorResource(id = R.drawable.filter_icon),
+            contentDescription = "Configure field",
+            modifier = Modifier.size(16.dp),
+            tint = Variables.blackText
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = getFilterTypeDisplayName(filterType),
+            style = TextStyle(
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
+                fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                fontWeight = FontWeight(500),
+                color = Variables.colorsMainSubtle
+            )
+        )
+    }
 
-        Row(modifier = Modifier
-            .padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+}
+
+@Composable
+private fun ShowValuesRow(
+    value: FieldMatchedValue,
+    navController: NavHostController
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp, horizontal = 8.dp)
+    ) {
+        Text(
+            text = "• ${value.text}",
+            modifier = Modifier.weight(1f),
+            style = TextStyle(
+                fontSize = 13.sp,
+                lineHeight = 12.sp,
+                fontFamily =
+                    FontFamily(Font(R.font.ibm_plex_sans)),
+                fontWeight = FontWeight(400),
+                color = Variables.colorsTextDefault
+            )
+        )
+        Image(
+            painter = painterResource(id = R.drawable.ic_location),
+            contentDescription = value.text,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(20.dp)
+                .clickable {
+                    val b = value.boundingBox ?: return@clickable
+                    val bboxStr = "${b.left},${b.top},${b.right},${b.bottom}"
+                    navController.navigate(
+                        route = Screen.SingleResult.route +
+                                "?text=${value.text}" +
+                                "&bbox=$bboxStr" +
+                                "&isBarcode=${value.isBarcode}"
+                    )
+                }
+        )
+    }
+}
+
+// Helper function to display filter type name
+private fun getFilterTypeDisplayName(
+    filterType: FilterMatchType?
+): String = when (filterType) {
+    FilterMatchType.REGEX -> "Regex"
+    FilterMatchType.CHARACTER_MATCH -> "Character Match"
+    FilterMatchType.CHARACTER_TYPE -> "Character Type"
+    FilterMatchType.STRING_LENGTH -> "String Length"
+    null -> "No Filter"
+}
+
+@Composable
+fun Bottom(
+    viewModel: AIDataCaptureDemoViewModel,
+    navController: NavHostController,
+    uiState: AIDataCaptureDemoUiState,
+    updateResultsChanged: (Boolean) -> Unit,
+    incrementResultsTrigger: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .border(1.dp, Variables.mainInverse),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             RoundedIconButton(R.drawable.ic_previoussession, onClick = {
                 val index = uiState.ocrBarcodeCaptureSessionIndex - 1
-                when {
-                    index < 1 -> 1
-                    index > uiState.ocrBarcodeCaptureSessionCount -> uiState.ocrBarcodeCaptureSessionCount
-                    else -> {
-                        viewModel.updateOcrBarcodeCaptureSessionIndex(index)
-                        updateResultsChanged(true)
-                        incrementResultsTrigger()
-                    }
+                if (index in 1..uiState.ocrBarcodeCaptureSessionCount) {
+                    viewModel.updateOcrBarcodeCaptureSessionIndex(index)
+                    updateResultsChanged(true)
+                    incrementResultsTrigger()
                 }
             })
+
             RoundedIconButton(R.drawable.ic_nextsession, onClick = {
                 val index = uiState.ocrBarcodeCaptureSessionIndex + 1
-                when {
-                    index < 1 -> 1
-                    index > uiState.ocrBarcodeCaptureSessionCount -> uiState.ocrBarcodeCaptureSessionCount
-                    else -> {
-                        viewModel.updateOcrBarcodeCaptureSessionIndex(index)
-                        updateResultsChanged(true)
-                        incrementResultsTrigger()
-                    }
+                if (index in 1..uiState.ocrBarcodeCaptureSessionCount) {
+                    viewModel.updateOcrBarcodeCaptureSessionIndex(index)
+                    updateResultsChanged(true)
+                    incrementResultsTrigger()
                 }
             })
+
             Spacer(modifier = Modifier.weight(1f))
+
             ButtonWithIconOption(
                 ButtonData(
                     R.string.scan,
                     mainPrimary,
                     1.0F,
-                    true,
-                    onButtonClick = {
-                        navController.navigate(route = Screen.Preview.route) {
-                            popUpTo("preview_screen") {
-                                inclusive = true
-                            }
-                            launchSingleTop = true // Prevents multiple copies of the same destination at the top of the stack
-                        }
+                    true
+                ) {
+                    navController.navigate(route = Screen.Preview.route) {
+                        popUpTo("preview_screen") { inclusive = true }
+                        launchSingleTop = true
                     }
-                ),
+                },
                 R.drawable.ic_scan
             )
         }
     }
 }
-private fun loadSessionResults(context: Context, uiState: AIDataCaptureDemoUiState): List<ResultRowData> {
-    val sessionJson = loadOcrBarcodeCaptureSessionDataFromPrefs(context, uiState.ocrBarcodeCaptureSessionIndex.toString())
-    val ocrList = if (!sessionJson?.ocrResults.isNullOrEmpty()) {
-        sessionJson.ocrResults.filter { it.text.isNotEmpty() }.map {
-            ResultRowData(it.text, it.boundingBox, isBarcode = false)
-        }
-    } else {
-        emptyList()
+
+@Composable
+private fun ExpandableSectionHeader(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Variables.colorsSurfaceCool)
+            .clickable { onToggle() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = TextStyle(
+                fontSize = 16.sp, // increased size
+                lineHeight = 22.sp,
+                fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                fontWeight = FontWeight(600),
+                color = Variables.colorsMainSubtle
+            )
+        )
+
+        Icon(
+            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = if (expanded) "Collapse" else "Expand",
+            tint = Variables.colorsMainSubtle
+        )
     }
-    val barcodeList = if (!sessionJson?.barcodeResults.isNullOrEmpty()) {
-        sessionJson.barcodeResults.filter { it.text.isNotEmpty() }.map {
-            ResultRowData(it.text, it.boundingBox, isBarcode = true)
-        }
-    } else {
-        emptyList()
+}
+
+private fun buildOcrFieldRows(
+    uiState: AIDataCaptureDemoUiState,
+    ocrResults: List<ResultData>
+): List<FieldResultGroupRow> {
+    val selectedIds = uiState.ocrFilterData.selectedFieldIds.toSet()
+
+    // No filter fields configured — show all detected OCR results in a default row
+    if (selectedIds.isEmpty()) {
+        if (ocrResults.isEmpty()) return emptyList()
+        return listOf(
+            FieldResultGroupRow(
+                fieldId = "default",
+                fieldName = "All Results",
+                values = ocrResults.map {
+                    FieldMatchedValue(
+                        text = it.text,
+                        boundingBox = it.boundingBox,
+                        isBarcode = false
+                    )
+                }
+            )
+        )
     }
-    return ocrList + barcodeList
+
+    val fieldsById = uiState.ocrFilterData.fieldList.associateBy { it.id }
+    val orderedConfigs =
+        uiState.ocrFilterData.fieldFilterConfigs.filter { it.fieldId in selectedIds }
+
+    return orderedConfigs.map { cfg ->
+        val fieldName = fieldsById[cfg.fieldId]?.title ?: cfg.fieldTitle ?: cfg.fieldId
+        val matches = ocrResults
+            .mapNotNull { result ->
+                val filterType =
+                    FilterUtils.getOcrMatchingFilterType(result.text, cfg)
+                if (filterType != null) FieldMatchedValue(
+                    text = result.text,
+                    boundingBox = result.boundingBox,
+                    isBarcode = false,
+                    matchedFilterType = filterType
+                ) else null
+            }
+
+        FieldResultGroupRow(
+            fieldId = cfg.fieldId ?: "",
+            fieldName = fieldName ?: "",
+            values = matches
+        )
+    }
+}
+
+private fun buildBarcodeFieldRows(
+    uiState: AIDataCaptureDemoUiState,
+    barcodeResults: List<ResultData>
+): List<FieldResultGroupRow> {
+    val selectedIds = uiState.barcodeFilterData.selectedFieldIds.toSet()
+
+    // No filter fields configured — show all detected barcode results in a default row
+    if (selectedIds.isEmpty()) {
+        if (barcodeResults.isEmpty()) return emptyList()
+        return listOf(
+            FieldResultGroupRow(
+                fieldId = "default",
+                fieldName = "All Results",
+                values = barcodeResults.map {
+                    FieldMatchedValue(
+                        text = it.text,
+                        boundingBox = it.boundingBox,
+                        isBarcode = true
+                    )
+                }
+            )
+        )
+    }
+
+    val fieldsById = uiState.barcodeFilterData.fieldList.associateBy { it.id }
+    val orderedConfigs =
+        uiState.barcodeFilterData.fieldFilterConfigs.filter { it.fieldId in selectedIds }
+
+    return orderedConfigs.map { cfg ->
+        val fieldName = fieldsById[cfg.fieldId]?.title ?: cfg.fieldTitle ?: cfg.fieldId
+        val matches = barcodeResults
+            .mapNotNull { result ->
+                val filterType =
+                    FilterUtils.getBarcodeMatchingFilterType(result.text, cfg)
+                if (filterType != null) FieldMatchedValue(
+                    text = result.text,
+                    boundingBox = result.boundingBox,
+                    isBarcode = true,
+                    matchedFilterType = filterType
+                ) else null
+            }
+
+        FieldResultGroupRow(
+            fieldId = cfg.fieldId ?: "",
+            fieldName = fieldName ?: "",
+            values = matches
+        )
+    }
 }

@@ -2,7 +2,7 @@
 
 package com.zebra.aidatacapturedemo.ui.view
 
-import android.content.Context
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,13 +13,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -28,14 +29,17 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonColors
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,15 +67,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.zebra.aidatacapturedemo.R
 import com.zebra.aidatacapturedemo.data.AIDataCaptureDemoUiState
-import com.zebra.aidatacapturedemo.data.OcrRegularFilterOption
+import com.zebra.aidatacapturedemo.data.FilterMenuAction
 import com.zebra.aidatacapturedemo.data.UsecaseState
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainDefault
 import com.zebra.aidatacapturedemo.ui.view.Variables.mainInverse
+import com.zebra.aidatacapturedemo.ui.view.filters.FieldActionsOverflowMenu
 import com.zebra.aidatacapturedemo.viewmodel.AIDataCaptureDemoViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-
-private const val TAG = "AIDataCaptureDemoApp"
 
 /**
  * AIDataCaptureDemoApp.kt is the main entry point for the AI Data Capture Demo application.
@@ -88,195 +91,170 @@ fun AIDataCaptureDemoAppBar(
     uiState: AIDataCaptureDemoUiState,
     viewModel: AIDataCaptureDemoViewModel,
     navController: NavHostController,
-    context: Context,
     scope: CoroutineScope,
     drawerState: DrawerState
 ) {
+    // ----- TopAppBar: navigation icon visibility rules -----
+
+    // Show segmented "All / Barcode / OCR" control only on capture screen.
+    val isCaptureSegmentedControl = uiState.activeScreen == Screen.OCRBarcodeCapture
+    // In OCR+Barcode Find capture-preview flow, UX requires no nav icon.
+    val shouldHideNavIconForCapturePreview =
+        (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) &&
+                (uiState.isCaptureOrLiveEnabled == 0) &&
+                (uiState.activeScreen == Screen.Preview || uiState.activeScreen == Screen.TargetModePreview)
+    // Start screen uses hamburger (open drawer); others use back arrow.
+    val isStartScreen = uiState.activeScreen == Screen.Start
+
+
+    // ----- TopAppBar: actions visibility rules -----
+
+    // Restrict advanced action icons to OCR+Barcode Find use case.
+    val isOcrBarcodeFind = uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value
+    // Capture mode (0) and Live mode (1) have different action sets.
+    val isCaptureMode = uiState.isCaptureOrLiveEnabled == 0
+    // Screen flags used to keep action logic readable.
+    val isDemoStart = uiState.activeScreen == Screen.DemoStart
+    val isPreview = uiState.activeScreen == Screen.Preview
+    val isCaptureScreen = uiState.activeScreen == Screen.OCRBarcodeCapture
+    val isResults = uiState.activeScreen == Screen.OCRBarcodeResults
+    // Overflow menu is shown only on field configuration screens.
+    val isFieldConfigScreen =
+        uiState.activeScreen == Screen.OCRFieldConfig ||
+                uiState.activeScreen == Screen.BarcodeFieldConfig
+
+
+    // ----- Filter dropdown state + indicator rules -----
+
+    // Controls filter dropdown open/close state.
+    var isFilterIconClicked by remember { mutableStateOf(false) }
+    // Empty selectedFieldIds means "default/no custom field selection" is active.
+    val isOcrDefaultFilterSelected = uiState.ocrFilterData.selectedFieldIds.isNotEmpty()
+    val isBarcodeDefaultFilterSelected = uiState.barcodeFilterData.selectedFieldIds.isNotEmpty()
+    // True if any one of the filters are configured and checked
+    val isFilterConfigured = isOcrDefaultFilterSelected || isBarcodeDefaultFilterSelected
+    // Filter icon appears on DemoStart in capture mode; on DemoStart/Preview in live mode.
+    val shouldShowFilterIcon =
+        if (isCaptureMode) isDemoStart else (isDemoStart || isPreview)
+
     CenterAlignedTopAppBar(
         title = {
-            if (uiState.activeScreen == Screen.Preview) {
-                ""
-            } else {
-                AIDataCaptureDemoAppBarTitle(viewModel, uiState)
-            }
+            if (uiState.activeScreen == Screen.Preview ||  uiState.activeScreen == Screen.TargetModePreview) ""
+            else AIDataCaptureDemoAppBarTitle(uiState)
         },
         navigationIcon = {
-            if (uiState.activeScreen == Screen.OCRBarcodeCapture) {
-                RectangularSingleChoiceSegmentedButton(
-                    uiState.allBarcodeOCRCaptureFilter,
-                    onChoiceSelected = { viewModel.updateAllBarcodeOCRCaptureFilter(it) })
-            } else {
-                if ((uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) && (uiState.isCaptureOrLiveEnabled == 0) && (uiState.activeScreen == Screen.Preview)) {
-                    // Show different TopBar per Ux requirement for OCRBarcodeFind Usecase Image Capture mode.
-                    // Add round close button to actions of the TopAppBar and remove navigation icon by passing empty composable here.
-                    EmptyComposable()
-                } else {
-                    IconButton(onClick = {
-                        if (uiState.activeScreen == Screen.Start) {
-                            scope.launch {
-                                drawerState.open()
-                            }
-                        } else {
-                            viewModel.handleBackButton(navController)
-                        }
-                    }) {
-                        if (uiState.activeScreen == Screen.Start) {
-                            Icon(
-                                imageVector = ImageVector.vectorResource(R.drawable.hamburger_icon),
-                                contentDescription = stringResource(R.string.home_button)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back_button)
-                            )
-                        }
+            when {
+                // UX requirement: hide navigation icon on OCR+Barcode Find capture-preview screen.
+                shouldHideNavIconForCapturePreview -> EmptyComposable()
+
+                // On capture screen, navigation area is replaced with All/Barcode/OCR segmented control.
+                isCaptureSegmentedControl -> RectangularSingleChoiceSegmentedButton(
+                    selectedIndex = uiState.allBarcodeOCRCaptureFilter,
+                    onChoiceSelected = viewModel::updateAllBarcodeOCRCaptureFilter
+                )
+
+                // Default navigation behavior: hamburger on Start, back arrow elsewhere.
+                else -> IconButton(
+                    onClick = {
+                        if (isStartScreen) scope.launch { drawerState.open() }
+                        else viewModel.handleBackButton(navController)
                     }
-                }
-            }
-        },
-        colors = if (uiState.activeScreen == Screen.Preview) {
-            TopAppBarDefaults.mediumTopAppBarColors(
-                containerColor = Color.Transparent.copy(alpha = 0.3F),
-                titleContentColor = Color.Transparent,
-                navigationIconContentColor = mainInverse,
-                actionIconContentColor = mainInverse
-            )
-        } else {
-            TopAppBarDefaults.mediumTopAppBarColors(
-                containerColor = mainDefault,
-                titleContentColor = mainInverse,
-                navigationIconContentColor = mainInverse,
-                actionIconContentColor = mainInverse
-            )
-        },
-        actions = {
-
-            if (uiState.usecaseSelected == UsecaseState.OCRBarcodeFind.value) {
-                var isFilterIconClicked by remember { mutableStateOf(false) }
-
-                val isOcrDefaultFilterSelected =
-                    uiState.ocrFilterData.selectedRegularFilterOption == OcrRegularFilterOption.UNFILTERED
-                val isBarcodeDefaultFilterSelected =
-                    uiState.barcodeFilterData.selectedAdvancedFilterOptionList.isEmpty()
-                if (uiState.isCaptureOrLiveEnabled == 0) {
-                    // Camera Capture flow
-
-                    if (uiState.activeScreen == Screen.DemoStart) {
-                        IconButton(onClick = {
-                            isFilterIconClicked = true
-                        }) {
-                            Icon(
-                                ImageVector.vectorResource(
-                                    id = if (isOcrDefaultFilterSelected && isBarcodeDefaultFilterSelected) {
-                                        R.drawable.ic_filter_default
-                                    } else {
-                                        R.drawable.ic_filter_selected
-                                    }
-                                ),
-                                contentDescription = "Filter icon description",
-                                tint = Color.Unspecified
-                            )
-                        }
-                    }
-                    if (uiState.activeScreen == Screen.OCRBarcodeResults) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_trash_can),
-                            contentDescription = "image description",
-                            contentScale = ContentScale.None,
-                            modifier = Modifier.Companion
-                                .padding(Variables.spacingMedium)
-                                .clickable {
-                                    viewModel.clearOcrBarcodeCaptureSession()
-                                    navController.navigate(route = Screen.Preview.route) {
-                                        popUpTo("preview_screen") {
-                                            inclusive = true
-                                        }
-                                        launchSingleTop = true // Prevents multiple copies of the same destination at the top of the stack
-                                    }
-                                }
-                        )
-                    }
-                    if ((uiState.activeScreen == Screen.Preview) || (uiState.activeScreen == Screen.OCRBarcodeCapture)) {
-                        // Show different TopBar per Ux requirement for OCRBarcodeFind Usecase Image Capture mode.
-                        // Add round close button to actions of the TopAppBar
-                        RoundCloseButton(onClick = {
-                            scope.launch {
-                                viewModel.handleBackButton(navController)
-                            }
-                        })
-                    } else {
-                        EmptyComposable()
-                    }
-                } else {
-                    // Live Camera flow
-
-                    // filter icon
-                    if (uiState.activeScreen == Screen.DemoStart || uiState.activeScreen == Screen.Preview) {
-                        IconButton(onClick = {
-                            isFilterIconClicked = true
-                        }) {
-                            Icon(
-                                ImageVector.vectorResource(
-                                    id = if (isOcrDefaultFilterSelected && isBarcodeDefaultFilterSelected) {
-                                        R.drawable.ic_filter_default
-                                    } else {
-                                        R.drawable.ic_filter_selected
-                                    }
-                                ),
-                                contentDescription = "Filter icon description",
-                                tint = Color.Unspecified
-                            )
-                        }
-                    }
-
-                    // mic icon
-                    if (uiState.activeScreen == Screen.Preview && uiState.isOCRModelEnabled) {
-                        IconButton(onClick = {
-                            if (FeedbackUtils.micStatePressed == false) {
-                                FeedbackUtils.micStatePressed = true
-                                FeedbackUtils.startListening(uiState)
-                            }
-                        }) {
-                            Icon(
-                                ImageVector.Companion.vectorResource(R.drawable.mic_icon),
-                                contentDescription = "Microphone"
-                            )
-                        }
-                    }
-
-                }
-
-                if (isFilterIconClicked) {
-                    FilterOptionsDropdownMenu(
-                        isOcrDefaultFilterSelected = isOcrDefaultFilterSelected,
-                        isBarcodeDefaultFilterSelected = isBarcodeDefaultFilterSelected,
-                        onMenuDismissed = {
-                            isFilterIconClicked = false
-                        },
-                        onOCRFilterOptionSelected = {
-                            isFilterIconClicked = false
-                            navController.navigate(route = Screen.OCRFindFilterHome.route)
-                        },
-                        onBarcodeFilterOptionSelected = {
-                            isFilterIconClicked = false
-                            navController.navigate(route = Screen.BarcodeFindFilterHome.route)
-                        })
-                }
-            }
-            if (uiState.activeScreen == Screen.DemoStart) {
-                IconButton(onClick = {
-                    navController.navigate(route = Screen.DemoSetting.route)
-                }) {
-                    Icon(
-                        ImageVector.Companion.vectorResource(id = R.drawable.settings_icon),
-                        contentDescription = "Settings"
+                ) {
+                    if (isStartScreen) Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.hamburger_icon),
+                        contentDescription = stringResource(R.string.home_button)
+                    )
+                    else Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back_button)
                     )
                 }
             }
+        },
+        colors = colorTopAppBar(uiState),
+        actions = {
+            if (isOcrBarcodeFind) {
+                // Show filter entry point where this flow allows filter changes.
+                if (shouldShowFilterIcon) NotificationIcon(
+                    onIconClicked = { isFilterIconClicked = true },
+                    isIndicatorShown = isFilterConfigured,
+                    id = R.drawable.filter_icon,
+                )
+
+                // Results screen action: clear capture session and return to preview.
+                if (isCaptureMode && isResults) Image(
+                    painter = painterResource(id = R.drawable.ic_trash_can),
+                    contentDescription = "image description",
+                    contentScale = ContentScale.None,
+                    modifier = Modifier
+                        .padding(Variables.spacingMedium)
+                        .clickable {
+                            viewModel.clearOcrBarcodeCaptureSession()
+                            navController.navigate(route = Screen.Preview.route) {
+                                popUpTo("preview_screen") { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                )
+
+                // Capture flow uses explicit close action on preview/capture screens.
+                if (isCaptureMode && (isPreview || isCaptureScreen)) {
+                    RoundCloseButton(onClick = {
+                        scope.launch { viewModel.handleBackButton(navController) }
+                    })
+                }
+
+                // Live preview only: enable voice input trigger when OCR is enabled.
+                if (!isCaptureMode && isPreview && uiState.isOCRModelEnabled) {
+                    IconButton(onClick = {
+                        if (!FeedbackUtils.micStatePressed) {
+                            FeedbackUtils.micStatePressed = true
+                            FeedbackUtils.startListening()
+                        }
+                    }) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.mic_icon),
+                            contentDescription = "Microphone"
+                        )
+                    }
+                }
+
+                // Filter chooser menu for navigating to OCR/Barcode field configuration.
+                if (isFilterIconClicked) FilterOptionsDropdownMenu(
+                    isOcrDefaultFilterSelected = isOcrDefaultFilterSelected,
+                    isBarcodeDefaultFilterSelected = isBarcodeDefaultFilterSelected,
+                    onMenuDismissed = { isFilterIconClicked = false },
+                    onOCRFilterOptionSelected = {
+                        isFilterIconClicked = false
+                        navController.navigate(route = Screen.OCRFieldConfig.route)
+                    },
+                    onBarcodeFilterOptionSelected = {
+                        isFilterIconClicked = false
+                        navController.navigate(route = Screen.BarcodeFieldConfig.route)
+                    }
+                )
+            }
+
+            // Global settings entry on demo start.
+            if (isDemoStart) IconButton(onClick = {
+                navController.navigate(route = Screen.DemoSetting.route)
+            }) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(id = R.drawable.settings_icon),
+                    contentDescription = "Settings"
+                )
+            }
+
+            // Field configuration overflow menu (select/delete/reset actions).
+            if (isFieldConfigScreen) FieldActionsOverflowMenu(
+                onDeleteField = { viewModel.postFilterMenuAction(FilterMenuAction.DELETE) },
+                onSelectAll = { viewModel.postFilterMenuAction(FilterMenuAction.SELECT_ALL) },
+                onDeselectAll = { viewModel.postFilterMenuAction(FilterMenuAction.DESELECT_ALL) },
+                onReset = { viewModel.postFilterMenuAction(FilterMenuAction.RESET) }
+            )
         })
 }
-//describe the app's UI
+
 /**
  * Main entry point for the application, that
  */
@@ -289,34 +267,40 @@ fun AIDataCaptureDemoApp(
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    viewModel.restoreDefaultSettings()
-    viewModel.clearOcrBarcodeCaptureSession()
-    viewModel.updateAppBarTitle(stringResource(id = R.string.app_name))
+
+    LaunchedEffect(Unit) {
+        viewModel.restoreDefaultSettings()
+        viewModel.clearOcrBarcodeCaptureSession()
+    }
 
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     var selectedItem by remember { mutableStateOf("Home") }
 
+    LaunchedEffect(uiState.activeScreen) {
+        if (uiState.activeScreen != Screen.Start) drawerState.close()
+    }
+
+    val isTopBarShown = (uiState.usecaseSelected in listOf(
+        UsecaseState.Product.value, UsecaseState.OCR.value
+    )) && (uiState.activeScreen in listOf(
+        Screen.Preview, Screen.ProductsCapture, uiState.activeScreen == Screen.TargetModePreview
+    ))
+
     Scaffold(
         topBar = {
-            if ((uiState.usecaseSelected == UsecaseState.Product.value || uiState.usecaseSelected == UsecaseState.OCR.value) &&
-                (uiState.activeScreen == Screen.Preview || uiState.activeScreen == Screen.ProductsCapture)
-            ) {
-                // Don't show the TopBar here for Product Recognition Use case Preview & Capture Screen
-            } else {
-                AIDataCaptureDemoAppBar(
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    navController = navController,
-                    context = context,
-                    scope = scope,
-                    drawerState = drawerState
-                )
-            }
+            if (!isTopBarShown) AIDataCaptureDemoAppBar(
+                uiState = uiState,
+                viewModel = viewModel,
+                navController = navController,
+                scope = scope,
+                drawerState = drawerState
+            )
         },
         content = { innerPadding ->
             AIDataCaptureModalNavigationDrawer(
                 drawerState = drawerState,
+                gesturesEnabled = uiState.activeScreen == Screen.Start,
                 innerPadding = innerPadding,
                 activityInnerPadding = activityInnerPadding,
                 selectedItem = selectedItem,
@@ -333,17 +317,14 @@ fun AIDataCaptureDemoApp(
 }
 
 @Composable
-fun AIDataCaptureDemoAppBarTitle(
-    viewModel: AIDataCaptureDemoViewModel,
-    uiState: AIDataCaptureDemoUiState
-) {
+fun AIDataCaptureDemoAppBarTitle(uiState: AIDataCaptureDemoUiState) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .background(color = Variables.mainDefault)
+            .background(color = mainDefault)
             .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
     ) {
         Text(
@@ -431,80 +412,101 @@ fun FilterOptionsDropdownMenu(
     ) {
         DropdownMenu(
             expanded = true,
-            onDismissRequest = {
-                onMenuDismissed()
-            },
+            onDismissRequest = { onMenuDismissed() },
             offset = DpOffset(x = (-10).dp, y = 10.dp), // Move the Menu 10dp left and 10dp bottom
             modifier = Modifier
                 .background(color = Variables.surfaceDefault)
         ) {
             // "OCR Filters" option
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = "OCR Filters",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                            fontWeight = FontWeight(400),
-                            color = Variables.colorsTextDefault,
-                        )
-                    )
-                },
-                onClick = {
-                    onOCRFilterOptionSelected()
-                },
-                leadingIcon = {
-                    if (isOcrDefaultFilterSelected) {
-                        Icon(
-                            ImageVector.vectorResource(R.drawable.ic_menu_ocr),
-                            contentDescription = "menu ocr",
-                            tint = Variables.blackText
-                        )
-                    } else {
-                        Icon(
-                            ImageVector.vectorResource(R.drawable.ic_ocr_filter_selected),
-                            contentDescription = "menu ocr",
-                            tint = Color.Unspecified
-                        )
-                    }
-                }
+            MenuDropDown(
+                onDropDownMenuClicked = { onOCRFilterOptionSelected() },
+                dropDownText = "OCR Filters",
+                isIndicatorShown = isOcrDefaultFilterSelected,
+                id = R.drawable.ic_menu_ocr,
             )
 
             // "Barcode Filters" option
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = "Barcode Filters",
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                            fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
-                            fontWeight = FontWeight(400),
-                            color = Variables.colorsTextDefault,
-                        )
-                    )
-                },
-                onClick = {
-                    onBarcodeFilterOptionSelected()
-                },
-                leadingIcon = {
-                    if (isBarcodeDefaultFilterSelected) {
-                        Icon(
-                            ImageVector.vectorResource(R.drawable.ic_menu_barcode),
-                            contentDescription = "menu barcode",
-                            tint = Variables.blackText
-                        )
-                    } else {
-                        Icon(
-                            ImageVector.vectorResource(R.drawable.ic_barcode_filter_selected),
-                            contentDescription = "menu barcode",
-                            tint = Color.Unspecified
-                        )
-                    }
-                }
+            MenuDropDown(
+                onDropDownMenuClicked = { onBarcodeFilterOptionSelected() },
+                dropDownText = "Barcode Filters",
+                isIndicatorShown = isBarcodeDefaultFilterSelected,
+                id = R.drawable.ic_menu_barcode,
             )
         }
     }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun colorTopAppBar(uiState: AIDataCaptureDemoUiState): TopAppBarColors {
+    return if (uiState.activeScreen == Screen.Preview || uiState.activeScreen == Screen.TargetModePreview) {
+        TopAppBarDefaults.mediumTopAppBarColors(
+            containerColor = Color.Transparent.copy(alpha = 0.3F),
+            titleContentColor = Color.Transparent,
+            navigationIconContentColor = mainInverse,
+            actionIconContentColor = mainInverse
+        )
+    } else {
+        TopAppBarDefaults.mediumTopAppBarColors(
+            containerColor = mainDefault,
+            titleContentColor = mainInverse,
+            navigationIconContentColor = mainInverse,
+            actionIconContentColor = mainInverse
+        )
+    }
+}
+
+@Composable
+private fun MenuDropDown(
+    onDropDownMenuClicked: () -> Unit,
+    dropDownText: String,
+    isIndicatorShown: Boolean,
+    @DrawableRes id: Int
+) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = dropDownText,
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontFamily = FontFamily(Font(R.font.ibm_plex_sans)),
+                    fontWeight = FontWeight(400),
+                    color = Variables.colorsTextDefault,
+                )
+            )
+        },
+        onClick = onDropDownMenuClicked,
+        leadingIcon = {
+            NotificationIcon(
+                onIconClicked = {},
+                isIndicatorShown = isIndicatorShown,
+                id = id,
+                tint = Variables.blackText
+            )
+        }
+    )
+}
+
+@Composable
+private fun NotificationIcon(
+    onIconClicked: () -> Unit,
+    isIndicatorShown: Boolean,
+    @DrawableRes id: Int,
+    tint: Color = LocalContentColor.current
+) = Box(
+    modifier = Modifier.clickable { onIconClicked() }) {
+    Icon(
+        imageVector = ImageVector.vectorResource(id),
+        contentDescription = "Configure field",
+        modifier = Modifier.size(24.dp),
+        tint = tint
+    )
+    if (isIndicatorShown) Image(
+        imageVector = ImageVector.vectorResource(id = R.drawable.red_dot),
+        contentDescription = "Active indicator",
+        modifier = Modifier
+            .size(10.dp)
+            .align(Alignment.TopEnd)
+    )
 }

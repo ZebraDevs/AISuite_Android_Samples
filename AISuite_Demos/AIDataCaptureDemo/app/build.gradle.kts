@@ -19,7 +19,7 @@ android {
         applicationId = "com.zebra.aidatacapturedemo"
         minSdk = 33
         targetSdk = 36
-        versionCode = 24
+        versionCode = 39
         versionName = appVersion
 
         buildConfigField("String", "AI_DataCaptureDemo_Version", "\"$appVersion\"")
@@ -27,8 +27,8 @@ android {
         val zebraAIVisionSdk: String = libs.versions.zebraAIVisionSdk.get().toString()
         buildConfigField("String", "Zebra_AI_VisionSdk_Version", "\"$zebraAIVisionSdk\"")
 
-        val barcodeLocalizer: String = libs.versions.barcodeLocalizer.get().toString()
-        buildConfigField("String", "BarcodeLocalizer_Version", "\"$barcodeLocalizer\"")
+        val barcodeDecoder: String = libs.versions.barcodeDecoder.get().toString()
+        buildConfigField("String", "BarcodeDecoder_Version", "\"$barcodeDecoder\"")
 
         val textOcrRecognizer: String = libs.versions.textOcrRecognizer.get().toString()
         buildConfigField("String", "TextOcrRecognizer_Version", "\"$textOcrRecognizer\"")
@@ -52,7 +52,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -98,7 +99,7 @@ dependencies {
     implementation(libs.androidx.documentfile)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
-    implementation(libs.androidx.navigation.compose)
+//    implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
     implementation(libs.jsoup)
 
@@ -115,8 +116,8 @@ dependencies {
     //Below dependency is to get AI Suite SDK
     implementation(libs.zebra.ai.vision.sdk) { artifact { type = "aar" } }
 
-    //Below dependency is to get Barcode Localizer model for AI Suite SDK
-    implementation(libs.barcode.localizer) { artifact { type = "aar" } }
+    //Below dependency is to get Barcode Decoder model for AI Suite SDK
+    implementation(libs.barcode.decoder) { artifact { type = "aar" } }
 
     //Below dependency is to get OCR model for AI Suite SDK
     implementation(libs.text.ocr.recognizer) { artifact { type = "aar" } }

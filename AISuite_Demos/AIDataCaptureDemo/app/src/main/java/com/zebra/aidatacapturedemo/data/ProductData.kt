@@ -12,8 +12,12 @@ import com.zebra.ai.vision.detector.Recognizer.Recognition
  * @param text: String
  * @param bBox: BBox
  * @param crop: Bitmap
+ * @param recognizedSku: the SKU this product was recognized as at creation time, before any
+ * user edit. Stays fixed while [text] is mutated by the enrollment-screen rename dialog, so
+ * enrollment can detect a rename (recognizedSku != text) and migrate the old FeatureStorage
+ * entry instead of leaving a stale duplicate behind.
  */
-class ProductData(var text: String, var bBox: BBox, var crop : Bitmap)
+class ProductData(var text: String, var bBox: BBox, var crop: Bitmap, val recognizedSku: String = text)
 
 /**
  * toProductData function used to convert input bitmap, products and recognitions to product data
