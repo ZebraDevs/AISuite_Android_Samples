@@ -32,16 +32,22 @@
 
 # =============================================================================
 # Settings model — serialized/deserialized by Gson (SettingsJsonStorage).
-# Field names and enum constants must survive obfuscation so that JSON written
-# in one build version can still be read after an app update.
+# Keep field names, enum constants, and the no-arg constructor so JSON written
+# by one build version still loads (with defaults for new fields) after update.
 # =============================================================================
 -keepclassmembers class com.zebra.ai.barcodefinder.sdkcoordinator.model.AppSettings {
+    <init>();
     <fields>;
 }
 -keepclassmembers class com.zebra.ai.barcodefinder.sdkcoordinator.model.BarcodeSymbology {
+    <init>();
     <fields>;
 }
 -keepclassmembers class com.zebra.ai.barcodefinder.sdkcoordinator.model.FeedbackType {
+    <init>();
+    <fields>;
+}
+-keepclassmembers enum com.zebra.ai.barcodefinder.sdkcoordinator.enums.DpmMode {
     <fields>;
 }
 -keepclassmembers enum com.zebra.ai.barcodefinder.sdkcoordinator.enums.PerformanceMode {

@@ -29,7 +29,7 @@ val versionBuild = project.findProperty("VERSION_BUILD")?.toString()?.toIntOrNul
     ?: versionProps.getProperty("VERSION_BUILD")?.toIntOrNull() ?: 1
 
 val appVersionName = "$versionMajor.$versionMinor.$versionPatch"
-val appVersionCode = versionMajor * 10000 + versionMinor * 1000 + versionPatch * 100 + versionBuild
+val appVersionCode = versionMajor * 1000000 + versionMinor * 10000 + versionPatch * 100 + versionBuild
 
 android {
     namespace = "com.zebra.ai.barcodefinder"

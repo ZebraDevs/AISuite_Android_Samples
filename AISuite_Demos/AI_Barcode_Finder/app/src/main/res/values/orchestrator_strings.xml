@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--ModelInput-->
-    <string name="model_input_640_title_settings">640 x 640 (small)</string>
-    <string name="model_input_640_title_home">640 x 640</string>
-    <string name="model_input_1280_title_settings">1280 x 1280 (medium)</string>
-    <string name="model_input_1280_title_home">1280 x 1280</string>
-    <string name="model_input_1600_title_settings">1600 x 1600 (large)</string>
-    <string name="model_input_1600_title_home">1600 x 1600</string>
+    <string name="model_input_640_title_settings">Small</string>
+    <string name="model_input_640_title_home">Small</string>
+    <string name="model_input_1280_title_settings">Medium</string>
+    <string name="model_input_1280_title_home">Medium</string>
+    <string name="model_input_1600_title_settings">Large</string>
+    <string name="model_input_1600_title_home">Large</string>
+    <string name="model_input_custom_title_settings">Custom (exact pixels)</string>
+    <string name="model_input_custom_title_home">Custom</string>
+    <string name="model_input_custom_home_format">Custom (%1$d x %2$d)</string>
 
     <!-- ProcessorType -->
     <string name="processor_type_dsp">DSP</string>

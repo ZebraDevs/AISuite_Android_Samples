@@ -56,12 +56,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zebra.ai.barcodefinder.R
 import com.zebra.ai.barcodefinder.application.domain.model.SettingsApplicationResult
 import com.zebra.ai.barcodefinder.application.presentation.enums.ButtonType
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.DpmMode
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ModelInput
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.PerformanceMode
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ProcessorType
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.Resolution
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.components.ZebraButton
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.components.ZebraText
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.BarcodeSymbologyBottomSheet
+import com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.CaptureModeBottomSheet
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.InferenceBottomSheet
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.ModelInputSizeBottomSheet
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.ResolutionBottomSheet
@@ -78,6 +81,7 @@ import com.zebra.ai.barcodefinder.application.presentation.ui.theme.settingsLazy
 import com.zebra.ai.barcodefinder.application.presentation.ui.theme.textBlack
 import com.zebra.ai.barcodefinder.application.presentation.ui.theme.white
 import com.zebra.ai.barcodefinder.application.presentation.viewmodel.SettingsViewModel
+import com.zebra.ai.barcodefinder.application.presentation.ui.compose.screens.settingsscreen.components.CustomModelInputOption
 
 /**
  * Displays the Settings screen for configuring barcode finder options.
@@ -108,12 +112,15 @@ fun SettingsScreen(
     var inferencerOptionsExpanded by remember { mutableStateOf(false) }
     var feedbackExpanded by remember { mutableStateOf(false) }
     var barcodeSymbologyExpanded by remember { mutableStateOf(false) }
+    var dpmModeExpanded by remember { mutableStateOf(false) }
+    var captureModeExpanded by remember { mutableStateOf(false) }
 
     // State for bottom dialog
     var showModelInputSizeDialog by remember { mutableStateOf(false) }
     var showResolutionDialog by remember { mutableStateOf(false) }
     var showInferenceDialog by remember { mutableStateOf(false) }
     var showBarcodeSymbologyDialog by remember { mutableStateOf(false) }
+    var showCaptureModeDialog by remember { mutableStateOf(false) }
 
     // Navigate back only once the ViewModel confirms the SDK accepted the settings.
     // This keeps the screen alive during reconfiguration so the loading indicator
@@ -286,25 +293,39 @@ fun SettingsScreen(
                             RadioButtonOption(
                                 title = stringResource(id = R.string.setting_screen_model_input_640_title),
                                 subtitle = stringResource(id = R.string.setting_screen_model_input_640_subtitle),
-                                selected = settings.modelInput == ModelInput.SMALL_640,
+                                selected = settings.modelInput == ModelInput.SMALL,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.SMALL_640)
+                                    settingsViewModel.updateModelInput(ModelInput.SMALL)
                                 }
                             )
                             RadioButtonOption(
                                 title = stringResource(id = R.string.setting_screen_model_input_1280_title),
                                 subtitle = stringResource(id = R.string.setting_screen_model_input_1280_subtitle),
-                                selected = settings.modelInput == ModelInput.MEDIUM_1280,
+                                selected = settings.modelInput == ModelInput.MEDIUM,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.MEDIUM_1280)
+                                    settingsViewModel.updateModelInput(ModelInput.MEDIUM)
                                 }
                             )
                             RadioButtonOption(
                                 title = stringResource(id = R.string.setting_screen_model_input_1600_title),
                                 subtitle = stringResource(id = R.string.setting_screen_model_input_1600_subtitle),
-                                selected = settings.modelInput == ModelInput.LARGE_1600,
+                                selected = settings.modelInput == ModelInput.LARGE,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.LARGE_1600)
+                                    settingsViewModel.updateModelInput(ModelInput.LARGE)
+                                }
+                            )
+                            CustomModelInputOption(
+                                selected = settings.modelInput == ModelInput.CUSTOM,
+                                width = settings.customModelWidth,
+                                height = settings.customModelHeight,
+                                onSelected = {
+                                    settingsViewModel.updateCustomModelInput(
+                                        settings.customModelWidth,
+                                        settings.customModelHeight
+                                    )
+                                },
+                                onSizeChanged = { width, height ->
+                                    settingsViewModel.updateCustomModelInput(width, height)
                                 }
                             )
                         }
@@ -602,6 +623,138 @@ fun SettingsScreen(
                                 checked = settings.enableAIBarcodeDecode,
                                 onCheckedChange = {
                                     settingsViewModel.updateAIBarcodeDecode(it)
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
+                    }
+                }
+            }
+
+            // --- Capture Mode (Turbo) Section ---
+            // Shown on all devices; selecting Turbo on an unsupported chipset is handled as a recoverable error.
+                item {
+                    SettingsCard(
+                        title = stringResource(id = R.string.setting_screen_capture_mode_title),
+                        isExpanded = captureModeExpanded,
+                        onExpandToggle = { captureModeExpanded = !captureModeExpanded }
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // Description + "More >" link opens the documentation bottom sheet
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    AppDimensions.dimension_10dp,
+                                    Alignment.Start
+                                ),
+                                verticalAlignment = Alignment.Top,
+                                modifier = Modifier
+                                    .background(mainInverse)
+                                    .padding(
+                                        start = AppDimensions.dimension_12dp,
+                                        top = AppDimensions.dimension_16dp,
+                                        end = AppDimensions.dimension_12dp,
+                                        bottom = AppDimensions.dimension_16dp
+                                    )
+                            ) {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(
+                                        AppDimensions.dimension_10dp,
+                                        Alignment.CenterVertically
+                                    ),
+                                    horizontalAlignment = Alignment.Start,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.setting_screen_capture_mode_description),
+                                        color = textBlack,
+                                        fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                        lineHeight = AppDimensions.BulletLineHeight
+                                    )
+                                    ZebraText(
+                                        textValue = stringResource(id = R.string.setting_screen_more_button),
+                                        textColor = borderPrimaryMain,
+                                        fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                        modifier = Modifier.clickable {
+                                            showCaptureModeDialog = true
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Turbo toggle (on = BURST, off = BALANCED)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .semantics {
+                                        contentDescription = "SettingsOptionsToggles: Capture Mode"
+                                    }
+                                    .padding(
+                                        horizontal = AppDimensions.dimension_2dp,
+                                        vertical = AppDimensions.zeroPadding
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(AppDimensions.zeroPadding)
+                            ) {
+                                SwitchOption(
+                                    title = stringResource(id = R.string.setting_screen_turbo_mode_title),
+                                    subtitle = stringResource(id = R.string.setting_screen_turbo_mode_subtitle),
+                                    checked = settings.performanceMode == PerformanceMode.BURST,
+                                    onCheckedChange = { enabled ->
+                                        settingsViewModel.updatePerformanceMode(
+                                            if (enabled) PerformanceMode.BURST else PerformanceMode.BALANCED
+                                        )
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
+                        }
+                    }
+                }
+
+            // --- DPM Mode Section ---
+            item {
+                SettingsCard(
+                    title = stringResource(id = R.string.setting_screen_dpm_mode_title),
+                    isExpanded = dpmModeExpanded,
+                    onExpandToggle = { dpmModeExpanded = !dpmModeExpanded }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // Radio buttons section with white background and proper padding
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics {
+                                    contentDescription =
+                                        "SettingsOptionsRadioButtons: DPM Mode"
+                                }
+                                .padding(
+                                    horizontal = AppDimensions.dimension_2dp,
+                                    vertical = AppDimensions.zeroPadding
+                                ),
+                            verticalArrangement = Arrangement.spacedBy(AppDimensions.dimension_12dp)
+                        ) {
+                            val currentDpmMode = settings.dpmMode ?: DpmMode.DISABLED
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_dpm_disabled_title),
+                                subtitle = stringResource(id = R.string.setting_screen_dpm_disabled_subtitle),
+                                selected = currentDpmMode == DpmMode.DISABLED,
+                                onSelected = {
+                                    settingsViewModel.updateDpmMode(DpmMode.DISABLED)
+                                }
+                            )
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_dpm_small_title),
+                                subtitle = stringResource(id = R.string.setting_screen_dpm_small_subtitle),
+                                selected = currentDpmMode == DpmMode.SMALL,
+                                onSelected = {
+                                    settingsViewModel.updateDpmMode(DpmMode.SMALL)
+                                }
+                            )
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_dpm_large_title),
+                                subtitle = stringResource(id = R.string.setting_screen_dpm_large_subtitle),
+                                selected = currentDpmMode == DpmMode.LARGE,
+                                onSelected = {
+                                    settingsViewModel.updateDpmMode(DpmMode.LARGE)
                                 }
                             )
                         }
@@ -1274,7 +1427,7 @@ fun SettingsScreen(
         settingsViewModel.let { viewModel ->
             ModelInputSizeBottomSheet(
                 settingsViewModel = viewModel,
-                currentSelection = settings.modelInput ?: ModelInput.SMALL_640,
+                currentSelection = settings.modelInput ?: ModelInput.SMALL,
                 onBackClick = { showModelInputSizeDialog = false },
                 onBackPressed = { showModelInputSizeDialog = false }
             )
@@ -1317,6 +1470,14 @@ fun SettingsScreen(
         }
     }
 
+    // Show Capture Mode (Turbo) documentation bottom sheet when requested
+    if (showCaptureModeDialog) {
+        CaptureModeBottomSheet(
+            onBackClick = { showCaptureModeDialog = false },
+            onBackPressed = { showCaptureModeDialog = false }
+        )
+    }
+
     // Disabled during reconfiguration so rapid back presses cannot queue
     // multiple configureSdk() calls while the SDK pipeline is in flight.
     BackHandler(enabled = applicationState !is SettingsApplicationResult.InProgress) {
@@ -1339,7 +1500,6 @@ fun SettingsScreen(
 
 }
 
-// Remove the old ModelInputSizeOption composable as it's now replaced by RadioButtonOption
 @Preview(showBackground = true, name = "AI Vision SDK Settings Screen")
 @Composable
 fun SettingsScreenPreview() {

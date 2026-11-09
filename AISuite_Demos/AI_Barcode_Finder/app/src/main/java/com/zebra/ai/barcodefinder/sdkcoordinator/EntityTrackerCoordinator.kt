@@ -206,11 +206,14 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
             barcodeDecoderSettings = BarcodeDecoderSettingsBuilder()
                 .configureSymbologies(appSettings.barcodeSymbology)
                 .configureProcessorType(appSettings.processorType)
-                .configureModelInput(
-                    appSettings.modelInput.width,
-                    appSettings.modelInput.height
+                .configureModelResolution(
+                    appSettings.modelInput,
+                    appSettings.customModelWidth,
+                    appSettings.customModelHeight
                 )
                 .configureAIBarcodeDecode(appSettings.enableAIBarcodeDecode)
+                .configureDpmMode(appSettings.dpmMode)
+                .configurePerformanceMode(appSettings.performanceMode)
                 .build()
             _coordinatorState.value = CoordinatorState.BARCODE_DECODER_SETTINGS_INITIALIZED
             Log.d(TAG, "Barcode decoder settings built: enableAIBarcodeDecode=${barcodeDecoderSettings?.enableAIBarcodeDecode}")

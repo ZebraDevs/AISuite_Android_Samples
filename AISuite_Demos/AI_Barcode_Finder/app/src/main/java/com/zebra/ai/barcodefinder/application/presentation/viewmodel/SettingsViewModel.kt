@@ -7,10 +7,13 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.zebra.ai.barcodefinder.R
 import com.zebra.ai.barcodefinder.application.data.source.repository.SettingsRepository
 import com.zebra.ai.barcodefinder.application.data.source.storage.SettingsJsonStorage
 import com.zebra.ai.barcodefinder.application.domain.model.SettingsApplicationResult
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.DpmMode
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ModelInput
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.PerformanceMode
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ProcessorType
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.Resolution
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.AppSettings
@@ -94,6 +97,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
+     * Selects [ModelInput.CUSTOM] with the given dimensions. A blank field is passed as 0.
+     * Invalid dimensions (see [AppSettings.isValidCustomModelSize]) are rejected on Apply.
+     */
+    fun updateCustomModelInput(width: Int, height: Int) {
+        updateDraftSettingsWith {
+            it.copy(
+                modelInput = ModelInput.CUSTOM,
+                customModelWidth = width,
+                customModelHeight = height
+            )
+        }
+    }
+
+    /**
      * Updates the camera resolution and syncs with the AI Vision SDK.
      */
     fun updateResolution(resolution: Resolution) {
@@ -112,6 +129,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun updateAIBarcodeDecode(enabled: Boolean) {
         updateDraftSettingsWith { it.copy(enableAIBarcodeDecode = enabled) }
+    }
+
+    /**
+     * Updates the Direct Part Mark (DPM) decoding mode.
+     */
+    fun updateDpmMode(dpmMode: DpmMode) {
+        updateDraftSettingsWith { it.copy(dpmMode = dpmMode) }
+    }
+
+    /**
+     * Updates the inferencer performance mode (Turbo on = BURST, off = BALANCED).
+     */
+    fun updatePerformanceMode(performanceMode: PerformanceMode) {
+        updateDraftSettingsWith { it.copy(performanceMode = performanceMode) }
     }
 
     /**
@@ -161,6 +192,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun applySettingsToSDK() {
         if (isApplyingSettings) {
             Log.d(TAG, "applySettingsToSDK() ignored — reconfiguration already in progress")
+            return
+        }
+        // Reject an invalid Custom model input size (out of range or not a multiple of 32) with a
+        // toast, without applying. The user can correct the value and retry.
+        val draft = _draftSettings.value
+        if (draft.modelInput == ModelInput.CUSTOM &&
+            !(AppSettings.isValidCustomModelSize(draft.customModelWidth) &&
+                    AppSettings.isValidCustomModelSize(draft.customModelHeight))
+        ) {
+            _applicationState.value = SettingsApplicationResult.Error(
+                exception = null,
+                message = getApplication<Application>().getString(
+                    R.string.setting_screen_custom_model_input_invalid,
+                    AppSettings.CUSTOM_MODEL_SIZE_MIN,
+                    AppSettings.CUSTOM_MODEL_SIZE_MAX,
+                    AppSettings.CUSTOM_MODEL_SIZE_STEP
+                )
+            )
             return
         }
         isApplyingSettings = true

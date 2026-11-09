@@ -66,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zebra.ai.barcodefinder.R
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodefinder.application.presentation.enums.ButtonType
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.components.ZebraButton
 import com.zebra.ai.barcodefinder.application.presentation.ui.compose.components.ZebraText
@@ -280,7 +281,17 @@ fun HomeScreen(
                                         text = buildAnnotatedString {
                                             append(stringResource(id = R.string.home_screen_content_model_input))
                                             withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
-                                                append(stringResource(id = settings.modelInput.homeDisplayNameResId))
+                                                append(
+                                                    if (settings.modelInput == ModelInput.CUSTOM) {
+                                                        stringResource(
+                                                            id = R.string.model_input_custom_home_format,
+                                                            settings.customModelWidth,
+                                                            settings.customModelHeight
+                                                        )
+                                                    } else {
+                                                        stringResource(id = settings.modelInput.homeDisplayNameResId)
+                                                    }
+                                                )
                                             }
                                         },
                                         fontSize = AppDimensions.dialogTextFontSizeMedium,

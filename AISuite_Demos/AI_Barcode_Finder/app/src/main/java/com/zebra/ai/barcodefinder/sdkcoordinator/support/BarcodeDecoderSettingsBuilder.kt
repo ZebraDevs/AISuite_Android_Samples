@@ -1,8 +1,12 @@
 package com.zebra.ai.barcodefinder.sdkcoordinator.support
 
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.DpmMode
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ModelInput
+import com.zebra.ai.barcodefinder.sdkcoordinator.enums.PerformanceMode
 import com.zebra.ai.barcodefinder.sdkcoordinator.enums.ProcessorType
 import com.zebra.ai.barcodefinder.sdkcoordinator.model.BarcodeSymbology
 import com.zebra.ai.vision.detector.BarcodeDecoder
+import com.zebra.ai.vision.detector.InferencerOptions
 
 class  BarcodeDecoderSettingsBuilder {
     private val settings = BarcodeDecoder.Settings("barcode-decoder")
@@ -75,11 +79,25 @@ class  BarcodeDecoderSettingsBuilder {
         return this
     }
 
-    // Configure model input dimensions
-    fun configureModelInput(inputWidth: Int, inputHeight: Int): BarcodeDecoderSettingsBuilder {
-        settings.detectorSetting?.inferencerOptions?.defaultDims?.let { dynamicDims ->
-            dynamicDims.width = inputWidth
-            dynamicDims.height = inputHeight
+    // Configure model input size: S/M/L use the ModelResolution enum; CUSTOM uses an exact Resolution(w, h).
+    fun configureModelResolution(
+        modelInput: ModelInput,
+        customWidth: Int,
+        customHeight: Int
+    ): BarcodeDecoderSettingsBuilder {
+        settings.detectorSetting?.inferencerOptions?.let { inferencerOptions ->
+            when (modelInput) {
+                ModelInput.SMALL ->
+                    inferencerOptions.setModelResolution(InferencerOptions.ModelResolution.SMALL)
+                ModelInput.MEDIUM ->
+                    inferencerOptions.setModelResolution(InferencerOptions.ModelResolution.MEDIUM)
+                ModelInput.LARGE ->
+                    inferencerOptions.setModelResolution(InferencerOptions.ModelResolution.LARGE)
+                ModelInput.CUSTOM ->
+                    inferencerOptions.setModelResolution(
+                        InferencerOptions.Resolution(customWidth, customHeight)
+                    )
+            }
         }
         return this
     }
@@ -87,6 +105,29 @@ class  BarcodeDecoderSettingsBuilder {
     // Enable or disable the AI-powered barcode detection and decoding pipeline
     fun configureAIBarcodeDecode(enabled: Boolean): BarcodeDecoderSettingsBuilder {
         settings.enableAIBarcodeDecode = enabled
+        return this
+    }
+
+    // Configure Direct Part Mark (DPM) decoding mode. A null value is treated as DISABLED.
+    fun configureDpmMode(dpmMode: DpmMode?): BarcodeDecoderSettingsBuilder {
+        val sdkMode = when (dpmMode) {
+            DpmMode.SMALL -> BarcodeDecoder.Settings.DpmSettings.DpmMode.SMALL
+            DpmMode.LARGE -> BarcodeDecoder.Settings.DpmSettings.DpmMode.LARGE
+            else -> BarcodeDecoder.Settings.DpmSettings.DpmMode.DISABLED
+        }
+        settings.dpmSettings?.setMode(sdkMode)
+        return this
+    }
+
+    // Configure the inferencer performance profile. BURST ("Turbo") is supported on select chipsets only;
+    // requesting it elsewhere throws at decoder init, handled as a recoverable error (toast + rollback).
+    fun configurePerformanceMode(performanceMode: PerformanceMode): BarcodeDecoderSettingsBuilder {
+        settings.detectorSetting?.inferencerOptions?.let { inferencerOptions ->
+            inferencerOptions.performanceMode = when (performanceMode) {
+                PerformanceMode.BURST -> InferencerOptions.PerformanceMode.BURST
+                PerformanceMode.BALANCED -> InferencerOptions.PerformanceMode.BALANCED
+            }
+        }
         return this
     }
 

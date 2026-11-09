@@ -26,7 +26,7 @@ import com.zebra.ai.barcodefinder.application.presentation.viewmodel.SettingsVie
 @Composable
 fun ModelInputSizeBottomSheet(
     settingsViewModel: SettingsViewModel = viewModel(),
-    currentSelection: ModelInput = ModelInput.SMALL_640,
+    currentSelection: ModelInput = ModelInput.SMALL,
     onBackClick: () -> Unit = {},
     onBackPressed: () -> Unit = {}
 ) {
@@ -84,6 +84,10 @@ fun ModelInputSizeBottomSheet(
                         stringResource(id = R.string.model_input_size_bottom_sheet_input_large_not_recommended) to listOf(
                             stringResource(id = R.string.model_input_size_bottom_sheet_input_large_not_recommended_bold)
                         )
+                    ),
+                    stringResource(id = R.string.model_input_size_bottom_sheet_input_custom) to listOf(
+                        stringResource(id = R.string.model_input_size_bottom_sheet_input_custom_accuracy) to listOf(""),
+                        stringResource(id = R.string.model_input_size_bottom_sheet_input_custom_best) to listOf("")
                     )
                 )
                 ),
@@ -126,7 +130,7 @@ fun ModelInputSizeBottomSheet(
 fun ModelInputSizeScreenPreview() {
     MaterialTheme {
         ModelInputSizeBottomSheet(
-            currentSelection = ModelInput.MEDIUM_1280,
+            currentSelection = ModelInput.MEDIUM,
             onBackClick = {}
         )
     }
