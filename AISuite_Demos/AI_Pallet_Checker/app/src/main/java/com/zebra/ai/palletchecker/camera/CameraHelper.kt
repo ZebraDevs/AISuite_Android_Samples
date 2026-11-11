@@ -18,7 +18,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.zebra.ai.palletchecker.domain.enums.SettingsMode
 import com.zebra.ai.palletchecker.domain.model.AppSettings
 import com.zebra.ai.palletchecker.helpers.LOGD
 import com.zebra.ai.palletchecker.helpers.LOGE
@@ -33,7 +32,7 @@ import java.util.concurrent.Executors
 
 @ExperimentalCamera2Interop
 class CameraHelper(
-    val settings: (SettingsMode) -> AppSettings,
+    val settings: () -> AppSettings,
     val context: Context,
     val processType: () -> PROCESS_TYPE,
     val callback: CameraCallback
@@ -61,7 +60,7 @@ class CameraHelper(
                 object : ImageCapture.OnImageCapturedCallback() {
                     override fun onCaptureSuccess(image: ImageProxy) {
                         LOGV(TAG, "Capture Image ")
-                        if (settings(SettingsMode.SNAP).debugSettings.dumpSnapImagesToFilesystem) {
+                        if (settings().debugSettings.dumpSnapImagesToFilesystem) {
                             dumpImageToFilesystem(image)
                         }
                         callback.onImageCapture(image)
@@ -149,9 +148,9 @@ class CameraHelper(
             }
             val previewBuilder = Preview.Builder()
             if (processType() == PROCESS_TYPE.CAPTURE_PALLET_BOX) {
-                previewBuilder.setResolutionSelector(getResolutionForMode(SettingsMode.SNAP))
+                previewBuilder.setResolutionSelector(getResolutionForMode())
             } else {
-                previewBuilder.setResolutionSelector(getResolutionForMode(SettingsMode.WAND))
+                previewBuilder.setResolutionSelector(getResolutionForMode(isWand = true))
             }
             mPreviewUsecase = previewBuilder.build()
             mPreviewUsecase?.surfaceProvider = (previewView?.surfaceProvider)
@@ -168,7 +167,7 @@ class CameraHelper(
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             val imageCapture = ImageCapture.Builder()
-            imageCapture.setResolutionSelector(getResolutionForMode(SettingsMode.SNAP))
+            imageCapture.setResolutionSelector(getResolutionForMode())
 
             mImgCaptureBuilder = imageCapture
 
@@ -198,9 +197,9 @@ class CameraHelper(
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
 
             if (processType() == PROCESS_TYPE.CONFIGURE_BARCODE || processType() == PROCESS_TYPE.AUDIT_PARTAIL_PALLET_BOX) {
-                imgAnalysisBuilder.setResolutionSelector(getHighResPreviewSelector(SettingsMode.WAND))
+                imgAnalysisBuilder.setResolutionSelector(getHighResPreviewSelector(isWand = true))
             } else {
-                imgAnalysisBuilder.setResolutionSelector(getResolutionForMode(SettingsMode.SNAP))
+                imgAnalysisBuilder.setResolutionSelector(getResolutionForMode())
             }
 
             mImgAnalysisUsecase = imgAnalysisBuilder.build()
@@ -290,9 +289,9 @@ class CameraHelper(
 
 
 
-    private fun getResolutionForMode(mode: SettingsMode): ResolutionSelector {
-        val appSettings = settings(mode)
-        val resolution = appSettings.resolution
+    private fun getResolutionForMode(isWand: Boolean = false): ResolutionSelector {
+        val appSettings = settings()
+        val resolution = if(isWand) appSettings.wandResolution else appSettings.resolution
         val builder = ResolutionSelector.Builder()
             .setAspectRatioStrategy(
                 AspectRatioStrategy(
@@ -332,9 +331,9 @@ class CameraHelper(
      * Used in wanding/barcode modes where ImageAnalysis resolution may exceed the Preview resolution.
      * Requires applying [CameraCallback.onPreviewResolutionAvailable] correction if a resolution mismatch occurs.
      */
-    private fun getHighResPreviewSelector(mode: SettingsMode): ResolutionSelector {
-        val appSettings = settings(mode)
-        val resolution = appSettings.resolution
+    private fun getHighResPreviewSelector(isWand: Boolean = false): ResolutionSelector {
+        val appSettings = settings()
+        val resolution = if(isWand) appSettings.wandResolution else appSettings.resolution
         val builder = ResolutionSelector.Builder()
             .setAspectRatioStrategy(
                 AspectRatioStrategy(

@@ -3,6 +3,7 @@ package com.zebra.aisuite_quickstart.utils;
 
 import static java.lang.Math.abs;
 
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
@@ -11,15 +12,32 @@ import android.graphics.Rect;
 
 import androidx.camera.core.ImageProxy;
 
+import com.zebra.ai.vision.detector.InferencerOptions;
+
 public class CommonUtils {
     public static final String PREFS_NAME ="FilterPreferences";
     public static final String PREFS_NAME_KOTLIN ="FilterPreferencesKotlin";
     public static final String PREFS_NAME_CUSTOM_DETECTOR = "CustomDetectorPreferences";
     public static final String PALLET_AND_BOX_LOCALIZER = "Pallet and Box Localizer(Beta)";
     public static final String SETTINGS_PREFS = "quick_start_settings";
-    public static final String PREF_MODEL_INPUT_SIZE = "model_input_size";
+    public static final String PREF_MODEL_INPUT_SIZE = "model_input_size_category";
+    public static final String MODEL_SIZE_SMALL = "Small";
+    public static final String MODEL_SIZE_MEDIUM = "Medium";
+    public static final String MODEL_SIZE_LARGE = "Large";
     public static final String PREF_RESOLUTION = "resolution";
     public static final String PREF_TEXT_OCR_PICKLIST_ENABLED = "text_ocr_picklist_enabled";
+
+    /**
+     * Reads the selected model input size category (Small/Medium/Large) and maps it to
+     * the model resolution used by live preview inferencers. Defaults to Small.
+     */
+    public static InferencerOptions.ModelResolution getModelResolution(SharedPreferences prefs) {
+        String size = prefs.getString(PREF_MODEL_INPUT_SIZE, MODEL_SIZE_SMALL);
+        if (MODEL_SIZE_MEDIUM.equals(size)) return InferencerOptions.ModelResolution.MEDIUM;
+        if (MODEL_SIZE_LARGE.equals(size)) return InferencerOptions.ModelResolution.LARGE;
+        return InferencerOptions.ModelResolution.SMALL;
+    }
+
     /**
      * Rotates the bitmap of the given ImageProxy if needed based on its rotation metadata.
      *

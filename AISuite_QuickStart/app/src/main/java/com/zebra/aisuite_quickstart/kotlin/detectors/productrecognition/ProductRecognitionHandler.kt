@@ -57,9 +57,7 @@ class ProductRecognitionHandler(
      * @param inputSize The input dimension size for the recognizer model.
      * @return Configured ModuleRecognizer.Settings instance.
      */
-    private fun createRecognizerSettings(
-        inputSize: Int
-    ): ModuleRecognizer.Settings {
+    private fun createRecognizerSettings(): ModuleRecognizer.Settings {
         return ModuleRecognizer.Settings(mavenModelName).apply {
             inferencerOptions.apply {
                 runtimeProcessorOrder = arrayOf(
@@ -67,8 +65,7 @@ class ProductRecognitionHandler(
                     InferencerOptions.CPU,
                     InferencerOptions.GPU
                 )
-                defaultDims.height = inputSize
-                defaultDims.width = inputSize
+                setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
                 val labelBarcodeSettings: BarcodeDecoder.Settings =
                     BarcodeDecoder.Settings(barcodeMavenModelName)
                 val barcodeSettingsMap: MutableMap<EntityType?, BarcodeDecoder.Settings?> =
@@ -93,13 +90,11 @@ class ProductRecognitionHandler(
                     InferencerOptions.CPU,
                     InferencerOptions.GPU
                 )
-                defaultDims.height = CAPTURE_SIZE
-                defaultDims.width = CAPTURE_SIZE
+                setModelResolution(InferencerOptions.Resolution(1280, 1280))
                 val labelBarcodeSettings: BarcodeDecoder.Settings =
                     BarcodeDecoder.Settings(barcodeMavenModelName)
                 labelBarcodeSettings.enableAIBarcodeDecode = true
-                labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.height = CAPTURE_SIZE
-                labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.width = CAPTURE_SIZE
+                labelBarcodeSettings.detectorSetting.inferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
                 val barcodeSettingsMap: MutableMap<EntityType?, BarcodeDecoder.Settings?> =
                     HashMap()
                 barcodeSettingsMap[EntityType.LABEL] = labelBarcodeSettings
@@ -119,11 +114,8 @@ class ProductRecognitionHandler(
     private fun initializeModuleRecognizer() {
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
             try {
-                val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
                 // --- Settings Configuration ---
-                val liveRecognizerSettings = createRecognizerSettings(
-                    modelInputSize
-                )
+                val liveRecognizerSettings = createRecognizerSettings()
 
                 // --- Launch Initializer ---
                 createModuleRecognizer(
@@ -179,7 +171,7 @@ class ProductRecognitionHandler(
             }
 
             val creationTime = System.currentTimeMillis() - startTime
-            AppLog.i(tag, "ModuleRecognizer model loading time: $creationTime milli sec and input size: ${settings.inferencerOptions.defaultDims.width}")
+            AppLog.i(tag, "ModuleRecognizer model loading time: $creationTime milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             AppLog.e(tag, "ModuleRecognizer model loading failed: ${e.message}")

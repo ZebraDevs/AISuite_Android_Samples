@@ -58,15 +58,13 @@ public class SettingsActivity extends AppCompatActivity {
         // Obtain the SharedPreferences editor
         editor = sharedPreferences.edit();
 
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
-        if (modelInputSize == 640) {
-            binding.rb640.setChecked(true);
-        } else if (modelInputSize == 1280) {
-            binding.rb1280.setChecked(true);
-        } else if (modelInputSize == 1600) {
-            binding.rb1600.setChecked(true);
-        }else if (modelInputSize == 2560) {
-            binding.rb2560.setChecked(true);
+        String modelInputSize = sharedPreferences.getString(CommonUtils.PREF_MODEL_INPUT_SIZE, CommonUtils.MODEL_SIZE_SMALL);
+        if (CommonUtils.MODEL_SIZE_MEDIUM.equals(modelInputSize)) {
+            binding.rbMedium.setChecked(true);
+        } else if (CommonUtils.MODEL_SIZE_LARGE.equals(modelInputSize)) {
+            binding.rbLarge.setChecked(true);
+        } else {
+            binding.rbSmall.setChecked(true);
         }
 
         String resolution = sharedPreferences.getString(CommonUtils.PREF_RESOLUTION, "2MP");
@@ -88,17 +86,14 @@ public class SettingsActivity extends AppCompatActivity {
         binding.radioGroupModelSize.setOnCheckedChangeListener((group, checkedId) -> {
             RadioButton selectedRadioButton = findViewById(checkedId);
 
-            if (binding.rb640 == selectedRadioButton) {
-                editor.putInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
+            if (binding.rbSmall == selectedRadioButton) {
+                editor.putString(CommonUtils.PREF_MODEL_INPUT_SIZE, CommonUtils.MODEL_SIZE_SMALL);
                 editor.apply();
-            } else if (binding.rb1280 == selectedRadioButton) {
-                editor.putInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 1280);
+            } else if (binding.rbMedium == selectedRadioButton) {
+                editor.putString(CommonUtils.PREF_MODEL_INPUT_SIZE, CommonUtils.MODEL_SIZE_MEDIUM);
                 editor.apply();
-            } else if (binding.rb1600 == selectedRadioButton) {
-                editor.putInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 1600);
-                editor.apply();
-            } else if (binding.rb2560 == selectedRadioButton) {
-                editor.putInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 2560);
+            } else if (binding.rbLarge == selectedRadioButton) {
+                editor.putString(CommonUtils.PREF_MODEL_INPUT_SIZE, CommonUtils.MODEL_SIZE_LARGE);
                 editor.apply();
             }
         });

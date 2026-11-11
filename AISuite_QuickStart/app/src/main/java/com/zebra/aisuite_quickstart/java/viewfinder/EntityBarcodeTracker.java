@@ -106,7 +106,6 @@ public class EntityBarcodeTracker {
      * and decoding barcodes from image data. Notifies the callback when the tracker is ready.
      */
     public void initializeBarcodeDecoder() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
             BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
             Integer[] rpo = new Integer[3];
@@ -124,8 +123,7 @@ public class EntityBarcodeTracker {
             decoderSettings.Symbology.I2OF5.enable(true);
 
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = modelInputSize;
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = modelInputSize;
+            decoderSettings.detectorSetting.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
             decoderSettings.enableAIBarcodeDecode = true;
 
             // Call the helper function to create the decoder
@@ -156,7 +154,7 @@ public class EntityBarcodeTracker {
                     this::handleEntities
             );
             imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context), entityTrackerAnalyzer);
-            AppLog.i(TAG, "Entity Tracker BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "Entity Tracker BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
             // Notify that the tracker is ready
             if (callback != null) {
                 callback.onEntityBarcodeTrackerReady();

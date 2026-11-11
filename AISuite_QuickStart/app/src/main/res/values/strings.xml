@@ -17,10 +17,9 @@
     <string name="module_recognizer_version_format">Module Recognizer version: %1$s</string>
     <string name="pallet_box_localizer_version_format">Pallet Box and Localizer version: %1$s</string>
     <string name="model_input_size_arrow_button">Model input size arrow button</string>
-    <string name="input_size_640">640 x 640</string>
-    <string name="input_size_1280">1280 x 1280</string>
-    <string name="input_size_1600">1600 x 1600</string>
-    <string name="input_size_2560">2560 x 2560</string>
+    <string name="input_size_small">Small</string>
+    <string name="input_size_medium">Medium</string>
+    <string name="input_size_large">Large</string>
     <string name="resolution_arrow_button">Resolution arrow button</string>
     <string name="expand_about">Expand About</string>
     <string name="enable_text_ocr_picklist">TextOCR Picklist</string>

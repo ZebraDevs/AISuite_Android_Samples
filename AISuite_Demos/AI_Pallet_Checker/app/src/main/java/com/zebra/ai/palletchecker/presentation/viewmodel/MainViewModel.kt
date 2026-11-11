@@ -75,6 +75,8 @@ class MainViewModel(val app: Application) : AndroidViewModel(app) {
     val wandTimerState: StateFlow<WandTimerState> = _wandTimerState
     private var timerJob: Job? = null
 
+     private var reInitModelsState = MutableStateFlow<Boolean>(false)
+
     /**
      * Starts the wand session countdown timer.
      * Call when entering wand mode. Ticks every second.
@@ -130,14 +132,21 @@ class MainViewModel(val app: Application) : AndroidViewModel(app) {
     fun initModels(model: () -> SettingsViewModel) {
         viewModelScope.launch {
             disposeModels()
+            reInitModelsState.value = false
             LOGD(TAG, "Model Init before modelsInit")
-            ModelsStorage.initializeAllModels({ model().settings.value }, { model().wandSettings.value })
+            ModelsStorage.initializeAllModels({ model().settings.value })
             LOGD(TAG, "Model Init after modelsInit")
         }
         mPalletHelper = PalletProcessHelper(viewModelScope)
         observeModelInitState()
         observePalletResults()
     }
+
+    fun reInitModelsOnSettingsChange() {
+        reInitModelsState.value = true
+
+    }
+    fun getModelReinitState() = reInitModelsState
 
     private fun disposeModels() {
         modelInitState.value = false

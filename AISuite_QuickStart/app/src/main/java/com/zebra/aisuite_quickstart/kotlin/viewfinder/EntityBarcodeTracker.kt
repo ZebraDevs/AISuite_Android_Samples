@@ -84,7 +84,6 @@ class EntityBarcodeTracker(
      */
     // Assuming 'callback' is a member variable or passed as a parameter to the class
     private fun initializeBarcodeDecoder() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
         val decoderSettings = BarcodeDecoder.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -103,8 +102,7 @@ class EntityBarcodeTracker(
 
             detectorSetting.inferencerOptions.apply {
                 runtimeProcessorOrder = rpo
-                defaultDims.height = modelInputSize
-                defaultDims.width = modelInputSize
+                setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
             }
             enableAIBarcodeDecode = true
         }
@@ -142,7 +140,7 @@ class EntityBarcodeTracker(
                 entityTrackerAnalyzer!!
             )
 
-            AppLog.i(TAG, "Entity Tracker BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}")
+            AppLog.i(TAG, "Entity Tracker BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
 
             // Notify that the tracker is ready
             callback.onEntityBarcodeTrackerReady()

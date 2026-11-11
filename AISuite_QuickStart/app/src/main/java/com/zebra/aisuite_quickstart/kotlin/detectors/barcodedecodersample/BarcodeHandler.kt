@@ -73,8 +73,7 @@ class BarcodeHandler(
      * Initializes the live preview BarcodeDecoder with 640px input size.
      */
     fun initializeBarcodeDecoder() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
-        val liveDecoderSettings = createDecoderSettings(modelInputSize)
+        val liveDecoderSettings = createLiveDecoderSettings()
         CoroutineScope(executor.asCoroutineDispatcher()).launch {
             createBarcodeDecoder(liveDecoderSettings, System.currentTimeMillis())
         }
@@ -84,16 +83,31 @@ class BarcodeHandler(
      * Initializes the capture BarcodeDecoder with higher resolution (1280px) settings.
      */
     fun initializeCaptureDecoder() {
-        val captureDecoderSettings = createDecoderSettings(CAPTURE_SIZE)
+        val captureDecoderSettings = createCaptureDecoderSettings()
         CoroutineScope(captureExecutor.asCoroutineDispatcher()).launch {
             createCaptureDecoder(captureDecoderSettings, System.currentTimeMillis())
         }
     }
 
     /**
-     * Creates BarcodeDecoder.Settings with the specified input size.
+     * Creates live preview BarcodeDecoder.Settings using the model resolution selected in Settings.
      */
-    private fun createDecoderSettings(inputSize: Int): BarcodeDecoder.Settings {
+    private fun createLiveDecoderSettings(): BarcodeDecoder.Settings {
+        return createBaseDecoderSettings().apply {
+            detectorSetting.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
+        }
+    }
+
+    /**
+     * Creates capture BarcodeDecoder.Settings with the specified input size.
+     */
+    private fun createCaptureDecoderSettings(): BarcodeDecoder.Settings {
+        return createBaseDecoderSettings().apply {
+            detectorSetting.inferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
+        }
+    }
+
+    private fun createBaseDecoderSettings(): BarcodeDecoder.Settings {
         return BarcodeDecoder.Settings(mavenModelName).apply {
             Symbology.CODE39.enable(true)
             Symbology.CODE93.enable(true)
@@ -110,8 +124,6 @@ class BarcodeHandler(
             )
             detectorSetting.inferencerOptions.apply {
                 runtimeProcessorOrder = rpo
-                defaultDims.height = inputSize
-                defaultDims.width = inputSize
             }
             enableAIBarcodeDecode = true
         }
@@ -133,7 +145,7 @@ class BarcodeHandler(
                 loadingCallback?.invoke(true)
                 attachAnalysisAfterModelLoading()
             }
-            AppLog.i(tag, "BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${decoderSettings.detectorSetting.inferencerOptions.defaultDims.width}")
+            AppLog.i(tag, "BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             AppLog.e(tag, "BarcodeDecoder model loading failed - ${e.message}")

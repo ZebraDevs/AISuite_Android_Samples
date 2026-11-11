@@ -26,7 +26,7 @@ import com.zebra.ai.palletchecker.presentation.viewmodel.SettingsViewModel
 @Composable
 fun ModelInputSizeBottomSheet(
     settingsViewModel: SettingsViewModel = viewModel(),
-    currentSelection: ModelInput = ModelInput.SMALL_640,
+    currentSelection: ModelInput = ModelInput.SMALL,
     onBackClick: () -> Unit = {},
     onBackPressed: () -> Unit = {}
 ) {
@@ -126,7 +126,7 @@ fun ModelInputSizeBottomSheet(
 fun ModelInputSizeScreenPreview() {
     MaterialTheme {
         ModelInputSizeBottomSheet(
-            currentSelection = ModelInput.MEDIUM_1280,
+            currentSelection = ModelInput.MEDIUM,
             onBackClick = {}
         )
     }

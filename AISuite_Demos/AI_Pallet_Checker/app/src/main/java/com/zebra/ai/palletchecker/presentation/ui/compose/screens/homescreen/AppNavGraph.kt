@@ -64,6 +64,7 @@ fun AppNavigation(
         composable<ScreenState.HOME> { backstackEntry ->
             val appConfig by configViewModel.config.collectAsState()
             HomeScreenContent(
+                mainViewModel = mainViewmodel,
                 settingsViewModel = settingsViewModel,
                 settings = settings,
                 uiState = settingsUiState,

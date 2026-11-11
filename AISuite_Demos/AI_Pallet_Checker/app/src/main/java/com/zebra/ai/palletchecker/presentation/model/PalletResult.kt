@@ -1,8 +1,5 @@
 package com.zebra.ai.palletchecker.presentation.model
 
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
 private val TAG = "PalletResult"
 enum class BOX_VALIDATION {
     VERIFIED,
@@ -53,24 +50,4 @@ data class PBoxUIModel(
     val trackId: Long = -1L,
     val stableKey: String = ""
 )
-
-data class SAPPalletBox(val material:String="100-100",
-                        val quantity:Int,
-                        val plant:String="1000",
-                        val storage_location:String="0001",
-                        val movementType:String="561",
-                        val user_id:String="UMANG",
-                        val timestamp:String= convertMillisecondsToISO8601(System.currentTimeMillis()),
-                        val source:String ="NewCoCount",
-                        val transaction:String="MIGO")
-
-fun convertMillisecondsToISO8601(currentMilliseconds: Long): String {
-    val instant =java.time.Instant.ofEpochMilli(currentMilliseconds)
-
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-        .withZone(ZoneId.systemDefault())
-
-
-    return formatter.format(instant)
-}
 

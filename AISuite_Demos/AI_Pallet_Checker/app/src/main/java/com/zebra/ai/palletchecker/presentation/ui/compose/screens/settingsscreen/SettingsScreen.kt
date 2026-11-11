@@ -48,13 +48,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zebra.ai.palletchecker.R
-import com.zebra.ai.palletchecker.presentation.enums.ButtonType
 import com.zebra.ai.palletchecker.domain.enums.AutoTriggerMode
 import com.zebra.ai.palletchecker.domain.enums.ModelInput
+import com.zebra.ai.palletchecker.domain.enums.PerformanceMode
 import com.zebra.ai.palletchecker.domain.enums.ProcessorType
 import com.zebra.ai.palletchecker.domain.enums.Resolution
+import com.zebra.ai.palletchecker.presentation.enums.ButtonType
 import com.zebra.ai.palletchecker.presentation.ui.compose.components.ZebraButton
 import com.zebra.ai.palletchecker.presentation.ui.compose.components.ZebraText
+import com.zebra.ai.palletchecker.presentation.ui.compose.screens.settingsscreen.components.CustomModelInputOption
 import com.zebra.ai.palletchecker.presentation.ui.compose.screens.settingsscreen.components.RadioButtonOption
 import com.zebra.ai.palletchecker.presentation.ui.compose.screens.settingsscreen.components.SettingsCard
 import com.zebra.ai.palletchecker.presentation.ui.compose.screens.settingsscreen.components.SwitchOption
@@ -92,12 +94,12 @@ fun SettingsScreen(
     expectedBoxesToAudit: Int = 10
 ) {
     val settings by settingsViewModel.settings.collectAsState()
-    val wandSettings by settingsViewModel.wandSettings.collectAsState()
     var modelInputSizeExpanded by remember { mutableStateOf(false) }
     var resolutionExpanded by remember { mutableStateOf(false) }
     var inferenceExpanded by remember { mutableStateOf(false) }
     var barcodeSymbologyExpanded by remember { mutableStateOf(false) }
     var barcodeDecoderOptionsExpanded by remember { mutableStateOf(false) }
+    var captureModeExpanded by remember { mutableStateOf(false) }
 
     var fixedQtyText by remember { mutableStateOf(settings.fixedQuantityThreshold.toString()) }
     var percentageText by remember { mutableStateOf(settings.percentageThreshold.toString()) }
@@ -251,36 +253,36 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(AppDimensions.dimension_12dp)
                         ) {
                             RadioButtonOption(
-                                title = stringResource(id = R.string.setting_screen_model_input_640_title),
-                                subtitle = stringResource(id = R.string.setting_screen_model_input_640_subtitle),
-                                selected = settings.modelInput == ModelInput.SMALL_640,
+                                title = stringResource(id = R.string.model_input_small),
+                                subtitle = stringResource(id = R.string.setting_screen_model_input_small_subtitle),
+                                selected = settings.modelInput == ModelInput.SMALL,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.SMALL_640)
+                                    settingsViewModel.updateModelInput(ModelInput.SMALL)
                                 }
                             )
                             RadioButtonOption(
-                                title = stringResource(id = R.string.setting_screen_model_input_1280_title),
-                                subtitle = stringResource(id = R.string.setting_screen_model_input_1280_subtitle),
-                                selected = settings.modelInput == ModelInput.MEDIUM_1280,
+                                title = stringResource(id = R.string.model_input_medium),
+                                subtitle = stringResource(id = R.string.setting_screen_model_input_medium_subtitle),
+                                selected = settings.modelInput == ModelInput.MEDIUM,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.MEDIUM_1280)
+                                    settingsViewModel.updateModelInput(ModelInput.MEDIUM)
                                 }
                             )
                             RadioButtonOption(
-                                title = stringResource(id = R.string.setting_screen_model_input_1600_title),
-                                subtitle = stringResource(id = R.string.setting_screen_model_input_1600_subtitle),
-                                selected = settings.modelInput == ModelInput.LARGE_1600,
+                                title = stringResource(id = R.string.model_input_large),
+                                subtitle = stringResource(id = R.string.setting_screen_model_input_large_subtitle),
+                                selected = settings.modelInput == ModelInput.LARGE,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.LARGE_1600)
+                                    settingsViewModel.updateModelInput(ModelInput.LARGE)
                                 }
                             )
-
-                            RadioButtonOption(
-                                title = stringResource(id = R.string.setting_screen_model_input_2560_title),
-                                subtitle = stringResource(id = R.string.setting_screen_model_input_2560_title),
-                                selected = settings.modelInput == ModelInput.LARGE_2560,
-                                onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.LARGE_2560)
+                            CustomModelInputOption(
+                                selected = settings.modelInput == ModelInput.CUSTOM,
+                                width = settings.customModelWidth,
+                                height = settings.customModelHeight,
+                                onSelected = { settingsViewModel.selectCustomModelInput() },
+                                onSizeChanged = { width, height ->
+                                    settingsViewModel.updateCustomModelInput(width, height)
                                 }
                             )
                         }
@@ -448,8 +450,7 @@ fun SettingsScreen(
                                     onSelected = {
                                         settingsViewModel.updateCustomResolution(
                                             camRes.width,
-                                            camRes.height,
-                                            com.zebra.ai.palletchecker.domain.enums.SettingsMode.SNAP
+                                            camRes.height
                                         )
                                     }
                                 )
@@ -1187,6 +1188,87 @@ fun SettingsScreen(
                 }
             }
 
+
+            // --- Capture Mode (Turbo) Section --- shown only on burst-capable chipsets (6690)
+            if (settingsViewModel.isBurstModeSupported) {
+                item {
+                    SettingsCard(
+                        title = stringResource(id = R.string.setting_screen_capture_mode_title),
+                        isExpanded = captureModeExpanded,
+                        onExpandToggle = { captureModeExpanded = !captureModeExpanded }
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // Description + "More >" link opens the documentation bottom sheet
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    AppDimensions.dimension_10dp,
+                                    Alignment.Start
+                                ),
+                                verticalAlignment = Alignment.Top,
+                                modifier = Modifier
+                                    .background(mainInverse)
+                                    .padding(
+                                        start = AppDimensions.dimension_12dp,
+                                        top = AppDimensions.dimension_16dp,
+                                        end = AppDimensions.dimension_12dp,
+                                        bottom = AppDimensions.dimension_16dp
+                                    )
+                            ) {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(
+                                        AppDimensions.dimension_10dp,
+                                        Alignment.CenterVertically
+                                    ),
+                                    horizontalAlignment = Alignment.Start,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.setting_screen_capture_mode_description),
+                                        color = textBlack,
+                                        fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                        lineHeight = AppDimensions.BulletLineHeight
+                                    )
+                                    ZebraText(
+                                        textValue = stringResource(id = R.string.setting_screen_more_button),
+                                        textColor = borderPrimaryMain,
+                                        fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                        modifier = Modifier.clickable {
+                                            showBottomSheet(4)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Turbo toggle (on = BURST, off = BALANCED)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .semantics {
+                                        contentDescription = "SettingsOptionsToggles: Capture Mode"
+                                    }
+                                    .padding(
+                                        horizontal = AppDimensions.dimension_2dp,
+                                        vertical = AppDimensions.zeroPadding
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(AppDimensions.zeroPadding)
+                            ) {
+                                SwitchOption(
+                                    title = stringResource(id = R.string.setting_screen_turbo_mode_title),
+                                    subtitle = stringResource(id = R.string.setting_screen_turbo_mode_subtitle),
+                                    checked = settings.performanceMode == PerformanceMode.BURST,
+                                    onCheckedChange = { enabled ->
+                                        settingsViewModel.updatePerformanceMode(
+                                            if (enabled) PerformanceMode.BURST else PerformanceMode.BALANCED
+                                        )
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
+                        }
+                    }
+                }
+            }
+
             item {
                 var autoTriggerExpanded by remember { mutableStateOf(false) }
 
@@ -1511,7 +1593,7 @@ fun SettingsScreen(
                         ) {
                             SwitchOption(
                                 title = stringResource(id = R.string.setting_screen_live_pip_thumbnail_toggle),
-                                checked = wandSettings.livePipThumbnailEnabled,
+                                checked = settings.livePipThumbnailEnabled,
                                 onCheckedChange = settingsViewModel::updateLivePipThumbnailEnabled
                             )
                         }
@@ -1632,20 +1714,20 @@ fun SettingsScreen(
                             Column {
                                 SwitchOption(
                                     title = "Enable Wand Debug Mode",
-                                    checked = wandSettings.debugSettings.debugModeEnabled,
+                                    checked = settings.debugSettings.debugModeEnabled,
                                     onCheckedChange = settingsViewModel::updateWandDebugModeEnabled
                                 )
 
-                                if (wandSettings.debugSettings.debugModeEnabled) {
+                                if (settings.debugSettings.debugModeEnabled) {
                                     SwitchOption(
                                         title = "Show Wand Barcode Labels",
-                                        checked = wandSettings.debugSettings.showWandBarcodeLabels,
+                                        checked = settings.debugSettings.showWandBarcodeLabels,
                                         onCheckedChange = settingsViewModel::updateShowWandBarcodeLabels
                                     )
 
                                     SwitchOption(
                                         title = "Show Wand Tracking IDs",
-                                        checked = wandSettings.debugSettings.showWandTrackingIds,
+                                        checked = settings.debugSettings.showWandTrackingIds,
                                         onCheckedChange = settingsViewModel::updateShowWandTrackingIds
                                     )
                                 }

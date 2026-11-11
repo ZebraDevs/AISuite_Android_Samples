@@ -1,7 +1,6 @@
 package com.zebra.ai.palletchecker.data.source.repository
 
 import com.zebra.ai.palletchecker.data.source.storage.SettingsStorage
-import com.zebra.ai.palletchecker.domain.enums.SettingsMode
 import com.zebra.ai.palletchecker.domain.model.AppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,12 +43,12 @@ class SettingsRepository private constructor(private val settingsStorageManager:
 
     companion object {
         @Volatile
-        private var INSTANCEMAP: HashMap<SettingsMode, SettingsRepository> = hashMapOf()
+        private var INSTANCE:  SettingsRepository? = null
 
         fun getInstance(settingsStorageManager: SettingsStorage): SettingsRepository {
 
-            return INSTANCEMAP[settingsStorageManager.mode] ?: synchronized(this) {
-                INSTANCEMAP[settingsStorageManager.mode] ?: SettingsRepository(settingsStorageManager).also { INSTANCEMAP[settingsStorageManager.mode] = it }
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: SettingsRepository(settingsStorageManager).also { INSTANCE= it }
             }
         }
     }

@@ -40,7 +40,22 @@ class WareHouseLocalizerHandler(
      * @param inputSize The input dimension size for the localizer model.
      * @return Configured Localizer.Settings instance.
      */
-    private fun createLocalizerSettings(inputSize: Int): Localizer.Settings {
+    private fun createCaptureLocalizerSettings(): Localizer.Settings {
+        return createBaseLocalizerSettings().apply {
+            inferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
+        }
+    }
+
+    /**
+     * Creates live preview localizer settings using the model resolution selected in Settings.
+     */
+    private fun createLiveLocalizerSettings(): Localizer.Settings {
+        return createBaseLocalizerSettings().apply {
+            inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
+        }
+    }
+
+    private fun createBaseLocalizerSettings(): Localizer.Settings {
         return Localizer.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -48,8 +63,6 @@ class WareHouseLocalizerHandler(
                 InferencerOptions.GPU
             )
             inferencerOptions.runtimeProcessorOrder = rpo
-            inferencerOptions.defaultDims.height = inputSize
-            inferencerOptions.defaultDims.width = inputSize
         }
     }
 
@@ -57,9 +70,8 @@ class WareHouseLocalizerHandler(
      * Initializes the live preview WareHouse localizer with smaller input size for real-time processing.
      */
     private fun initializeWareHouseLocalizer() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
         try {
-            val liveLocalizerSettings = createLocalizerSettings(modelInputSize)
+            val liveLocalizerSettings = createLiveLocalizerSettings()
             createWareHouseLocalizer(liveLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -75,7 +87,7 @@ class WareHouseLocalizerHandler(
      */
     fun initializeCaptureLocalizer() {
         try {
-            val captureLocalizerSettings = createLocalizerSettings(CAPTURE_SIZE)
+            val captureLocalizerSettings = createCaptureLocalizerSettings()
             createCaptureLocalizer(captureLocalizerSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -98,7 +110,7 @@ class WareHouseLocalizerHandler(
                     attachAnalysisAfterModelLoading()
                 }
 
-                AppLog.i(TAG, "Pallet and Box Localizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${localizerSettings.inferencerOptions.defaultDims.width}")
+                AppLog.i(TAG, "Pallet and Box Localizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
             }
             .exceptionally { e ->
                 loadingCallback?.invoke(false)

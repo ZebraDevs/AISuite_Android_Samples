@@ -97,9 +97,24 @@ class Tracker(
         arrayOf(InferencerOptions.DSP, InferencerOptions.CPU, InferencerOptions.GPU)
 
     /**
-     * Creates barcode decoder settings with specified input size.
+     * Creates live preview barcode decoder settings using the model resolution selected in Settings.
      */
-    private fun createBarcodeDecoderSettings(inputSize: Int): BarcodeDecoder.Settings {
+    private fun createLiveBarcodeDecoderSettings(): BarcodeDecoder.Settings {
+        return createBaseBarcodeDecoderSettings().apply {
+            detectorSetting.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
+        }
+    }
+
+    /**
+     * Creates capture barcode decoder settings with specified input size.
+     */
+    private fun createCaptureBarcodeDecoderSettings(): BarcodeDecoder.Settings {
+        return createBaseBarcodeDecoderSettings().apply {
+            detectorSetting.inferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
+        }
+    }
+
+    private fun createBaseBarcodeDecoderSettings(): BarcodeDecoder.Settings {
         return BarcodeDecoder.Settings(mavenModelName).apply {
             val rpo = getProcessorOrder()
             Symbology.CODE39.enable(true)
@@ -111,30 +126,56 @@ class Tracker(
             Symbology.UPCE0.enable(true)
             Symbology.I2OF5.enable(true)
             detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
-            detectorSetting.inferencerOptions.defaultDims.height = inputSize
-            detectorSetting.inferencerOptions.defaultDims.width = inputSize
             enableAIBarcodeDecode = true
         }
     }
 
     /**
-     * Creates TextOCR settings with specified input size.
+     * Creates live preview TextOCR settings using the model resolution selected in Settings.
      */
-    private fun createTextOCRSettings(inputSize: Int): TextOCR.Settings {
+    private fun createLiveTextOCRSettings(): TextOCR.Settings {
+        return createBaseTextOCRSettings().apply {
+            detectionInferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
+        }
+    }
+
+    /**
+     * Creates capture TextOCR settings with specified input size.
+     */
+    private fun createCaptureTextOCRSettings(): TextOCR.Settings {
+        return createBaseTextOCRSettings().apply {
+            detectionInferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
+        }
+    }
+
+    private fun createBaseTextOCRSettings(): TextOCR.Settings {
         return TextOCR.Settings(mavenOCRModelName).apply {
             val rpo = getProcessorOrder()
             detectionInferencerOptions.runtimeProcessorOrder = rpo
             recognitionInferencerOptions.runtimeProcessorOrder = rpo
-            detectionInferencerOptions.defaultDims.height = inputSize
-            detectionInferencerOptions.defaultDims.width = inputSize
             unclipRatio = 0.6f
         }
     }
 
     /**
-     * Creates module recognizer settings with specified input size.
+     * Creates live preview module recognizer settings using the model resolution selected in Settings.
      */
-    private fun createModuleRecognizerSettings(inputSize: Int): ModuleRecognizer.Settings {
+    private fun createLiveModuleRecognizerSettings(): ModuleRecognizer.Settings {
+        return createBaseModuleRecognizerSettings().apply {
+            inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
+        }
+    }
+
+    /**
+     * Creates capture module recognizer settings with specified input size.
+     */
+    private fun createCaptureModuleRecognizerSettings(): ModuleRecognizer.Settings {
+        return createBaseModuleRecognizerSettings().apply {
+            inferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
+        }
+    }
+
+    private fun createBaseModuleRecognizerSettings(): ModuleRecognizer.Settings {
         val productIndexFilename = "product_index.zip"
         val toPath = "${context.filesDir}/"
         copyFromAssets(productIndexFilename, toPath)
@@ -142,8 +183,6 @@ class Tracker(
         return ModuleRecognizer.Settings(mavenProductModelName).apply {
             inferencerOptions.apply {
                 runtimeProcessorOrder = getProcessorOrder()
-                defaultDims.height = inputSize
-                defaultDims.width = inputSize
             }
             enableProductRecognition(
                 mavenProductModelName,
@@ -157,9 +196,8 @@ class Tracker(
     // ========================
 
     fun initializeBarcodeDecoder() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
         try {
-            val liveDecoderSettings = createBarcodeDecoderSettings(modelInputSize)
+            val liveDecoderSettings = createLiveBarcodeDecoderSettings()
             createBarcodeDecoder(liveDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -172,7 +210,7 @@ class Tracker(
         BarcodeDecoder.getBarcodeDecoder(settings, executor).thenAccept { decoder ->
             barcodeDecoder = decoder
             createAnalyzer(listOfNotNull(barcodeDecoder))
-            AppLog.i(TAG, "BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.detectorSetting.inferencerOptions.defaultDims.width}")
+            AppLog.i(TAG, "BarcodeDecoder model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
         }.exceptionally { throwable ->
             loadingCallback?.invoke(false)
             handleException(throwable)
@@ -181,9 +219,8 @@ class Tracker(
     }
 
     private fun initializeTextOCR() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
         try {
-            val liveOCRSettings = createTextOCRSettings(modelInputSize)
+            val liveOCRSettings = createLiveTextOCRSettings()
             createTextOCR(liveOCRSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
@@ -196,7 +233,7 @@ class Tracker(
         TextOCR.getTextOCR(settings, executor).thenAccept { ocr ->
             textOCR = ocr
             createAnalyzer(listOfNotNull(textOCR))
-            AppLog.i(TAG, "TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.detectionInferencerOptions.defaultDims.width}")
+            AppLog.i(TAG, "TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
 
         }.exceptionally { throwable ->
             loadingCallback?.invoke(false)
@@ -206,9 +243,8 @@ class Tracker(
     }
 
     fun initializeModuleRecognizer() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
         try {
-            val liveRecognizerSettings = createModuleRecognizerSettings(modelInputSize)
+            val liveRecognizerSettings = createLiveModuleRecognizerSettings()
             createModuleRecognizer(liveRecognizerSettings)
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
@@ -222,7 +258,7 @@ class Tracker(
             .thenAccept { recognizerInstance ->
                 moduleRecognizer = recognizerInstance
                 createAnalyzer(listOfNotNull(moduleRecognizer))
-                AppLog.i(TAG, "ModuleRecognizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${settings.inferencerOptions.defaultDims.width}")
+                AppLog.i(TAG, "ModuleRecognizer model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
             }
             .exceptionally { throwable ->
                 loadingCallback?.invoke(false)
@@ -240,7 +276,7 @@ class Tracker(
      */
     fun initializeCaptureBarcodeDecoder() {
         try {
-            val captureDecoderSettings = createBarcodeDecoderSettings(CAPTURE_SIZE)
+            val captureDecoderSettings = createCaptureBarcodeDecoderSettings()
             createCaptureBarcodeDecoder(captureDecoderSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -267,7 +303,7 @@ class Tracker(
      */
     fun initializeCaptureOcr() {
         try {
-            val captureOcrSettings = createTextOCRSettings(CAPTURE_SIZE)
+            val captureOcrSettings = createCaptureTextOCRSettings()
             createCaptureTextOCR(captureOcrSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)
@@ -293,7 +329,7 @@ class Tracker(
      */
     fun initializeCaptureModuleRecognizer() {
         try {
-            val captureModuleSettings = createModuleRecognizerSettings(CAPTURE_SIZE)
+            val captureModuleSettings = createCaptureModuleRecognizerSettings()
             createCaptureModuleRecognizer(captureModuleSettings)
         } catch (ex: Exception) {
             loadingCallback?.invoke(false)

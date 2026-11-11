@@ -97,41 +97,31 @@
                         android:orientation="vertical">
 
                         <RadioButton
-                            android:id="@+id/rb640"
+                            android:id="@+id/rbSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="10dp"
-                            android:text="@string/input_size_640"
+                            android:text="@string/input_size_small"
                             android:textColor="@color/black"
                             android:textSize="18sp"
                             app:buttonTint="@color/blue" />
 
                         <RadioButton
-                            android:id="@+id/rb1280"
+                            android:id="@+id/rbMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="10dp"
-                            android:text="@string/input_size_1280"
+                            android:text="@string/input_size_medium"
                             android:textColor="@color/black"
                             android:textSize="18sp"
                             app:buttonTint="@color/blue" />
 
                         <RadioButton
-                            android:id="@+id/rb1600"
+                            android:id="@+id/rbLarge"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="10dp"
-                            android:text="@string/input_size_1600"
-                            android:textColor="@color/black"
-                            android:textSize="18sp"
-                            app:buttonTint="@color/blue" />
-
-                        <RadioButton
-                            android:id="@+id/rb2560"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="10dp"
-                            android:text="@string/input_size_2560"
+                            android:text="@string/input_size_large"
                             android:textColor="@color/black"
                             android:textSize="18sp"
                             app:buttonTint="@color/blue" />

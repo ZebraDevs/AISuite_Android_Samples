@@ -2,7 +2,6 @@ package com.zebra.ai.palletchecker.presentation.viewmodel
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.PreviewView
@@ -16,7 +15,6 @@ import com.zebra.ai.palletchecker.camera.CameraHelper
 import com.zebra.ai.palletchecker.domain.Configuration
 import com.zebra.ai.palletchecker.domain.Settings
 import com.zebra.ai.palletchecker.domain.enums.AutoTriggerMode
-import com.zebra.ai.palletchecker.domain.enums.SettingsMode
 import com.zebra.ai.palletchecker.helpers.BarcodeProcessHelper
 import com.zebra.ai.palletchecker.helpers.LOGE
 import com.zebra.ai.palletchecker.helpers.LOGV
@@ -31,14 +29,12 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class CameraViewModel(val app: Application): AndroidViewModel(app) {
     private val TAG = "CameraVM"
-    private val snapSettingsUseCase = Settings(app, SettingsMode.SNAP)
-    private val wandSettingsUseCase = Settings(app,SettingsMode.WAND)
+    private val settingsUseCase = Settings(app)
     private val configUseCase = Configuration(app)
     private var lastProxySize = IntSize(0,0)
     private var lastPreviewSize = IntSize(0, 0)
@@ -117,7 +113,7 @@ class CameraViewModel(val app: Application): AndroidViewModel(app) {
         if (getProcessType() != PROCESS_TYPE.CAPTURE_PALLET_BOX) {
             _autoSnapUiState.value = AutoSnapUiState(phase = AutoSnapPhase.IDLE, message = "")
         } else {
-            val snapSettings = snapSettingsUseCase.getSettings().value
+            val snapSettings = settingsUseCase.getSettings().value
             if (!snapSettings.autoTriggerEnabled) {
                 _autoSnapUiState.value = AutoSnapUiState(
                     phase = AutoSnapPhase.SEARCHING,
@@ -140,14 +136,14 @@ class CameraViewModel(val app: Application): AndroidViewModel(app) {
     }
 
     private fun initCamera() {
-        cameraHelper = CameraHelper(context = app.applicationContext,  settings = {mode-> if(mode == SettingsMode.SNAP) snapSettingsUseCase.getSettings().value else wandSettingsUseCase.getSettings().value}, processType =  processType!!,
+        cameraHelper = CameraHelper(context = app.applicationContext,  settings = { settingsUseCase.getSettings().value }, processType =  processType!!,
             callback = object : CameraCallback{
                 override fun onImageCapture(proxy: ImageProxy) {
                     LOGD(TAG,"OnCapture Image ${proxy.width} ${proxy.height}")
                     captureInFlight = false
                     cameraFreezeState.value = false
                     resetAutoSnapGate()
-                    val snapSettings = snapSettingsUseCase.getSettings().value
+                    val snapSettings = settingsUseCase.getSettings().value
                     if (!snapSettings.autoTriggerEnabled) {
                         _autoSnapUiState.value = AutoSnapUiState(
                             phase = AutoSnapPhase.SEARCHING,
@@ -283,7 +279,7 @@ class CameraViewModel(val app: Application): AndroidViewModel(app) {
     fun shouldAutoSnap(palletResults: List<PalletBox>): Boolean {
         if (processType?.invoke() != PROCESS_TYPE.CAPTURE_PALLET_BOX) return false
 
-        val snapSettings = snapSettingsUseCase.getSettings().value
+        val snapSettings = settingsUseCase.getSettings().value
         if (!snapSettings.autoTriggerEnabled) {
             if (!captureInFlight) {
                 _autoSnapUiState.value = AutoSnapUiState(
@@ -499,7 +495,7 @@ class CameraViewModel(val app: Application): AndroidViewModel(app) {
     fun getResults() = palletResults
     fun getBarcodeResults() = barcodeResults
     fun getResolutionSize()= lastProxySize //if(processType?.invoke()!= PROCESS_TYPE.AUDIT_PARTAIL_PALLET_BOX) lastProxySize else IntSize(lastProxySize.height,lastProxySize.width)
-    fun getSnapSettings() = snapSettingsUseCase.getSettings()
+    fun getSnapSettings() = settingsUseCase.getSettings()
 
     /**
      * Recomputes [viewRefScale] whenever either the analysis or preview resolution changes.

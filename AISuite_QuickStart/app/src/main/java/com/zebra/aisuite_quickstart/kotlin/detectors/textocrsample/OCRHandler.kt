@@ -73,12 +73,27 @@ class OCRHandler(
     }
 
     /**
-     * Creates OCR settings with specified input size.
+     * Creates live preview OCR settings using the model resolution selected in Settings.
+     */
+    private fun createLiveOCRSettings(): TextOCR.Settings {
+        return createBaseOCRSettings().apply {
+            detectionInferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences))
+        }
+    }
+
+    /**
+     * Creates capture OCR settings with specified input size.
      *
      * @param inputSize The input dimension size for the OCR model.
      * @return Configured TextOCR.Settings instance.
      */
-    private fun createOCRSettings(inputSize: Int): TextOCR.Settings {
+    private fun createCaptureOCRSettings(): TextOCR.Settings {
+        return createBaseOCRSettings().apply {
+            detectionInferencerOptions.setModelResolution(InferencerOptions.Resolution(1280, 1280))
+        }
+    }
+
+    private fun createBaseOCRSettings(): TextOCR.Settings {
         return TextOCR.Settings(mavenModelName).apply {
             val rpo = arrayOf(
                 InferencerOptions.DSP,
@@ -89,10 +104,6 @@ class OCRHandler(
             detectionInferencerOptions.runtimeProcessorOrder = rpo
             recognitionInferencerOptions.runtimeProcessorOrder = rpo
 
-            detectionInferencerOptions.defaultDims.apply {
-                height = inputSize
-                width = inputSize
-            }
             unclipRatio = 0.6f
             picklistConfig.setOCRPicklist(isPicklistEnabled)
         }
@@ -102,9 +113,8 @@ class OCRHandler(
      * Initializes the live preview TextOCR with smaller input size for real-time processing.
      */
     private fun initializeTextOCR() {
-        val modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640)
         try {
-            val liveOCRSettings = createOCRSettings(modelInputSize)
+            val liveOCRSettings = createLiveOCRSettings()
             CoroutineScope(executor.asCoroutineDispatcher()).launch {
                 createTextOCR(liveOCRSettings)
             }
@@ -119,7 +129,7 @@ class OCRHandler(
      */
     fun initializeCaptureOCR() {
         try {
-            val captureOCRSettings = createOCRSettings(CAPTURE_SIZE)
+            val captureOCRSettings = createCaptureOCRSettings()
             CoroutineScope(captureExecutor.asCoroutineDispatcher()).launch {
                 createCaptureOCR(captureOCRSettings)
             }
@@ -144,7 +154,7 @@ class OCRHandler(
                 attachAnalysisAfterModelLoading()
             }
 
-            AppLog.i(tag, "TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and input size: ${textOCRSettings.detectionInferencerOptions.defaultDims.width}")
+            AppLog.i(tag, "TextOCR model loading time: ${System.currentTimeMillis() - startTime} milli sec and model resolution: ${CommonUtils.getModelResolution(sharedPreferences)}")
         } catch (e: Exception) {
             loadingCallback?.invoke(false)
             AppLog.e(tag, "TextOCR model loading failed - ${e.message}")

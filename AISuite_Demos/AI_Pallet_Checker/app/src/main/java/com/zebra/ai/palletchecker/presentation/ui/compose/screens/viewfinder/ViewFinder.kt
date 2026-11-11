@@ -81,7 +81,6 @@ fun ViewFinder(
     val palletSessionState = viewmodel.getPalletSession().collectAsState()
     val pipValidationState = viewmodel.pipValidationState.collectAsState()
     val settings = settingsViewModel.settings.collectAsState()
-    val wandSettings = settingsViewModel.wandSettings.collectAsState()
     val snapSettings = cameraModel.getSnapSettings().collectAsState()
     val config = configViewModel.config.collectAsState()
 
@@ -650,14 +649,14 @@ fun ViewFinder(
                 null
             },
             // PIP is only shown in PALLET_FINITE mode (shelf mode has no pre-built snap map)
-            showPip = isPalletFinite && wandSettings.value.livePipThumbnailEnabled,
+            showPip = isPalletFinite && settings.value.livePipThumbnailEnabled,
             onShowResults = if (processType == PROCESS_TYPE.AUDIT_PARTAIL_PALLET_BOX) {
                 { showInterimResults = true }
             } else null,
             wandTimerState = if (processType == PROCESS_TYPE.AUDIT_PARTAIL_PALLET_BOX)
                 wandTimerState.value else null,
             auditProgress = auditProgress,
-            showAuditProgress = wandSettings.value.showAuditProgress,
+            showAuditProgress = settings.value.showAuditProgress,
             showPreSnapBoundingBoxes = settings.value.debugSettings.debugModeEnabled &&
                 settings.value.debugSettings.showPreSnapBoundingBoxes,
             showSpatialMapIndices = settings.value.debugSettings.debugModeEnabled &&
@@ -666,11 +665,11 @@ fun ViewFinder(
                 settings.value.debugSettings.showSnapBarcodeLabels,
             showSnapTrackingIds = settings.value.debugSettings.debugModeEnabled &&
                 settings.value.debugSettings.showSnapTrackingIds,
-            showWandBarcodeLabels = wandSettings.value.debugSettings.debugModeEnabled &&
-                wandSettings.value.debugSettings.showWandBarcodeLabels,
-            showWandTrackingIds = wandSettings.value.debugSettings.debugModeEnabled &&
-                wandSettings.value.debugSettings.showWandTrackingIds,
-            showLiveBoundingBoxes = wandSettings.value.showLiveBoundingBoxes
+            showWandBarcodeLabels = settings.value.debugSettings.debugModeEnabled &&
+                    settings.value.debugSettings.showWandBarcodeLabels,
+            showWandTrackingIds = settings.value.debugSettings.debugModeEnabled &&
+                    settings.value.debugSettings.showWandTrackingIds,
+            showLiveBoundingBoxes = settings.value.showLiveBoundingBoxes
         )
 
         // Interim results panel

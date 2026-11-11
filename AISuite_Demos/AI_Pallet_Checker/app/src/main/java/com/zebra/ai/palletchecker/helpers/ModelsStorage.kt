@@ -1,7 +1,5 @@
 package com.zebra.ai.palletchecker.helpers
 
-import android.util.Log
-import androidx.compose.ui.unit.IntSize
 import com.zebra.ai.palletchecker.domain.model.AppSettings
 import com.zebra.ai.palletchecker.domain.model.BarcodeSymbology
 import com.zebra.ai.vision.detector.AIVisionSDKException
@@ -17,20 +15,17 @@ import java.io.IOException
 object ModelsStorage {
 
     private val TAG = "ModelsStorage"
-    private val PALLET_LOCALIZER_INPUT_SIZE = IntSize(832,832)
     private val BARCODE_MODEL_NAME = "barcode-decoder"
     private val PALLET_AND_BOX_MODEL_NAME = "pallet-and-box-localizer"
     private var barcodeDecoder: BarcodeDecoder? = null
     private var palletAndBoxLocalizer: Localizer? = null
     private var configBarcodeLocalizer: BarcodeDecoder? = null
     var modelInitiate = MutableStateFlow(false)
-    private var snapModeSettings : (() -> AppSettings)? = null
-    private var wandModeSettings : (() -> AppSettings)? = null
+    private var settings : (() -> AppSettings)? = null
 
-    suspend fun initializeAllModels(snapModeSettings: (() -> AppSettings), wandModeSettings: (() -> AppSettings)) {
-        this.snapModeSettings = snapModeSettings
-        this.wandModeSettings = wandModeSettings
-        LOGV(TAG, "Initialize All Models ${snapModeSettings.invoke().modelInput.width} X ${snapModeSettings.invoke().modelInput.height}")
+    suspend fun initializeAllModels(settings: (() -> AppSettings)) {
+        this.settings = settings
+        LOGV(TAG, "Initialize All Models ${settings.invoke().modelInput} ")
         initializeBarcodeDecoder()
         IntializeBarcodeForConfigure()
         initializePalletAndBoxLocalizer()
@@ -45,21 +40,21 @@ object ModelsStorage {
 
     suspend fun IntializeBarcodeForConfigure() {
         try {
-            val modelWidth = wandModeSettings?.invoke()?.modelInput?.width ?: 640
-            val modelHeight = wandModeSettings?.invoke()?.modelInput?.height ?: 640
+            val modelWidth = settings?.invoke()?.wandModelInput?.width ?: 640
+            val modelHeight = settings?.invoke()?.wandModelInput?.height ?: 640
 
             LOGV(
                 TAG,
                 "Start Config initializeBarcodeDecoder: modelInput=${modelWidth}x${modelHeight}, " +
-                "resolution=${wandModeSettings?.invoke()?.resolution?.width}x${wandModeSettings?.invoke()?.resolution?.height}"
+                "resolution=${settings?.invoke()?.wandResolution?.width}x${settings?.invoke()?.wandResolution?.height}"
             )
 
             val decoderSettings: BarcodeDecoder.Settings =
                 BarcodeDecoder.Settings(
                     BARCODE_MODEL_NAME,
                 )
-            decoderSettings.enableAIBarcodeDecode = wandModeSettings?.invoke()?.enableAIbarcodeDecode ?: true
-            configureSymbology(decoderSettings, wandModeSettings?.invoke()?.barcodeSymbology)
+            decoderSettings.enableAIBarcodeDecode = settings?.invoke()?.enableAIbarcodeDecode ?: true
+            configureSymbology(decoderSettings, settings?.invoke()?.barcodeSymbology)
 
             val rpo = arrayOfNulls<Int>(3)
             rpo[0] = InferencerOptions.DSP
@@ -67,8 +62,10 @@ object ModelsStorage {
             rpo[2] = InferencerOptions.GPU
 
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = modelHeight
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = modelWidth
+            decoderSettings.detectorSetting.inferencerOptions.setModelResolution(InferencerOptions.Resolution(modelWidth,modelHeight))
+            settings?.invoke()?.let {
+                decoderSettings.detectorSetting.inferencerOptions.performanceMode = it.getInferencePerformanceMode()
+            }
 
             LOGD(TAG, "Start getConfigBarcodeDecoder with dims: ${modelWidth}x${modelHeight}")
             val decoderInstance =
@@ -87,20 +84,16 @@ object ModelsStorage {
         try {
             LOGD(
                 TAG,
-                "Start initializeBarcodeDecoder ${snapModeSettings?.invoke()?.modelInput?.width} X ${snapModeSettings?.invoke()?.modelInput?.height}"
+                "Start initializeBarcodeDecoder ${settings?.invoke()?.modelInput} "
             )
-            var inferenceSize = IntSize(640, 640)
-            snapModeSettings?.let {
-                inferenceSize = IntSize(it().modelInput.width, it().modelInput.height)
-            }
 
             val decoderSettings: BarcodeDecoder.Settings =
                 BarcodeDecoder.Settings(
                     BARCODE_MODEL_NAME,
                 )
 
-            decoderSettings.enableAIBarcodeDecode = snapModeSettings?.invoke()?.enableAIbarcodeDecode ?: true
-            configureSymbology(decoderSettings, snapModeSettings?.invoke()?.barcodeSymbology)
+            decoderSettings.enableAIBarcodeDecode = settings?.invoke()?.enableAIbarcodeDecode ?: true
+            configureSymbology(decoderSettings, settings?.invoke()?.barcodeSymbology)
 
             val rpo = arrayOfNulls<Int>(3)
             rpo[0] = InferencerOptions.DSP
@@ -108,10 +101,15 @@ object ModelsStorage {
             rpo[2] = InferencerOptions.GPU
 
             decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.height =
-                inferenceSize.height
-            decoderSettings.detectorSetting.inferencerOptions.defaultDims.width =
-                inferenceSize.width
+            val modelInputSize = settings?.invoke()?.getInferenceResolution()
+            modelInputSize?.let {
+                decoderSettings.detectorSetting.inferencerOptions.setModelResolution(it)
+            } ?: run {
+                decoderSettings.detectorSetting.inferencerOptions.setModelResolution(settings?.invoke()?.getInferenceModelResolution())
+            }
+            settings?.invoke()?.let {
+                decoderSettings.detectorSetting.inferencerOptions.performanceMode = it.getInferencePerformanceMode()
+            }
 
             val decoderInstance =
                 BarcodeDecoder.getBarcodeDecoder(decoderSettings, Dispatchers.IO.asExecutor())
@@ -186,21 +184,23 @@ object ModelsStorage {
 
         LOGD(
             TAG,
-            "initializePalletAndBoxLocalizer ${wandModeSettings?.invoke()?.modelInput?.width} X ${wandModeSettings?.invoke()?.modelInput?.height}"
+            "initializePalletAndBoxLocalizer ${settings?.invoke()?.wandModelInput?.width} X ${settings?.invoke()?.wandModelInput?.height}"
         )
         palletAndBoxLocalizer?.dispose()
         palletAndBoxLocalizer = null
 
-        val inferenceSize = PALLET_LOCALIZER_INPUT_SIZE
+        val inferenceSize = settings?.invoke()?.wandModelInput
         val locSettings = Localizer.Settings(PALLET_AND_BOX_MODEL_NAME)
 
         //Swap the values as the presented index is reverse of what model expects
         val processorOrder = arrayOf(2, 0, 1)
 
         locSettings.inferencerOptions.runtimeProcessorOrder = processorOrder
-
-        locSettings.inferencerOptions.defaultDims.width = inferenceSize.width
-        locSettings.inferencerOptions.defaultDims.height = inferenceSize.height
+        val opt = InferencerOptions.Resolution(inferenceSize?.width ?: 640, inferenceSize?.height ?: 640)
+        locSettings.inferencerOptions.setModelResolution(opt)
+        settings?.invoke()?.let {
+            locSettings.inferencerOptions.performanceMode = it.getInferencePerformanceMode()
+        }
 
         try {
             palletAndBoxLocalizer = Localizer.getLocalizer(locSettings, Dispatchers.IO.asExecutor())

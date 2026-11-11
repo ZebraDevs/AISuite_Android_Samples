@@ -53,10 +53,9 @@ public class BarcodeHandler {
     }
 
     public void initializeBarcodeDecoder() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
-            // Initialize live preview decoder with selected input size
-            BarcodeDecoder.Settings liveDecoderSettings = createDecoderSettings(modelInputSize);
+            // Initialize live preview decoder with selected model resolution
+            BarcodeDecoder.Settings liveDecoderSettings = createLiveDecoderSettings();
             createBarcodeDecoder(liveDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -71,7 +70,7 @@ public class BarcodeHandler {
      */
     public void initializeCaptureDecoder() {
         try {
-            BarcodeDecoder.Settings captureDecoderSettings = createDecoderSettings(CAPTURE_SIZE);
+            BarcodeDecoder.Settings captureDecoderSettings = createCaptureDecoderSettings();
             createCaptureDecoder(captureDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -82,9 +81,24 @@ public class BarcodeHandler {
     }
 
     /**
-     * Creates decoder settings with specified input size
+     * Creates live preview decoder settings using the model resolution selected in Settings
      */
-    private BarcodeDecoder.Settings createDecoderSettings(int inputSize) {
+    private BarcodeDecoder.Settings createLiveDecoderSettings() {
+        BarcodeDecoder.Settings decoderSettings = createBaseDecoderSettings();
+        decoderSettings.detectorSetting.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
+        return decoderSettings;
+    }
+
+    /**
+     * Creates capture decoder settings with specified input size
+     */
+    private BarcodeDecoder.Settings createCaptureDecoderSettings() {
+        BarcodeDecoder.Settings decoderSettings = createBaseDecoderSettings();
+        decoderSettings.detectorSetting.inferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280, 1280));
+        return decoderSettings;
+    }
+
+    private BarcodeDecoder.Settings createBaseDecoderSettings() {
         BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
         Integer[] rpo = new Integer[3];
         rpo[0] = InferencerOptions.DSP;
@@ -101,8 +115,6 @@ public class BarcodeHandler {
         decoderSettings.Symbology.I2OF5.enable(true);
 
         decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
-        decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = inputSize;
-        decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
         decoderSettings.enableAIBarcodeDecode = true;
 
         return decoderSettings;
@@ -118,7 +130,7 @@ public class BarcodeHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            AppLog.i(TAG, "BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);

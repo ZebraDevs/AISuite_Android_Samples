@@ -55,10 +55,9 @@ public class OCRHandler {
     }
 
     private void initializeTextOCR() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
-            // Initialize live preview OCR with selected input size
-            TextOCR.Settings liveOCRSettings = createOCRSettings(modelInputSize);
+            // Initialize live preview OCR with selected model resolution
+            TextOCR.Settings liveOCRSettings = createLiveOCRSettings();
             createTextOCR(liveOCRSettings);
         } catch (Exception e) {
             if (loadingCallback != null) {
@@ -73,7 +72,7 @@ public class OCRHandler {
      */
     public void initializeCaptureOCR() {
         try {
-            TextOCR.Settings captureOCRSettings = createOCRSettings(CAPTURE_SIZE);
+            TextOCR.Settings captureOCRSettings = createCaptureOCRSettings();
             createCaptureOCR(captureOCRSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -84,9 +83,24 @@ public class OCRHandler {
     }
 
     /**
-     * Creates OCR settings with specified input size
+     * Creates live preview OCR settings using the model resolution selected in Settings
      */
-    private TextOCR.Settings createOCRSettings(int inputSize) {
+    private TextOCR.Settings createLiveOCRSettings() {
+        TextOCR.Settings textOCRSettings = createBaseOCRSettings();
+        textOCRSettings.detectionInferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
+        return textOCRSettings;
+    }
+
+    /**
+     * Creates capture OCR settings with specified input size
+     */
+    private TextOCR.Settings createCaptureOCRSettings() {
+        TextOCR.Settings textOCRSettings = createBaseOCRSettings();
+        textOCRSettings.detectionInferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280,1280));
+        return textOCRSettings;
+    }
+
+    private TextOCR.Settings createBaseOCRSettings() {
         TextOCR.Settings textOCRSettings = new TextOCR.Settings(mavenModelName);
 
         Integer[] rpo = new Integer[3];
@@ -96,8 +110,6 @@ public class OCRHandler {
 
         textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = rpo;
         textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
-        textOCRSettings.detectionInferencerOptions.defaultDims.height = inputSize;
-        textOCRSettings.detectionInferencerOptions.defaultDims.width = inputSize;
         textOCRSettings.unclipRatio = 0.6f;
         textOCRSettings.picklistConfig.setOCRPicklist(isPickListEnabled);
 
@@ -115,7 +127,7 @@ public class OCRHandler {
                 attachAnalysisAfterModelLoading();
             }
 
-            AppLog.i(TAG, "TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);

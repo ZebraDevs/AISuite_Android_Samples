@@ -55,9 +55,6 @@
 -keepclassmembers enum com.zebra.ai.palletchecker.domain.model.FIELD_TYPE {
     <fields>;
 }
--keepclassmembers enum com.zebra.ai.palletchecker.domain.enums.SettingsMode {
-    <fields>;
-}
 -keepclassmembers enum com.zebra.ai.palletchecker.domain.enums.ModelInput {
     <fields>;
 }

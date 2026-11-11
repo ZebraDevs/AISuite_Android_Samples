@@ -8,11 +8,12 @@ import com.zebra.ai.palletchecker.camera.CameraResolutionProvider
 import com.zebra.ai.palletchecker.domain.Settings
 import com.zebra.ai.palletchecker.domain.enums.AutoTriggerMode
 import com.zebra.ai.palletchecker.domain.enums.ModelInput
+import com.zebra.ai.palletchecker.domain.enums.PerformanceMode
 import com.zebra.ai.palletchecker.domain.enums.ProcessorType
 import com.zebra.ai.palletchecker.domain.enums.Resolution
-import com.zebra.ai.palletchecker.domain.enums.SettingsMode
 import com.zebra.ai.palletchecker.domain.model.AppSettings
 import com.zebra.ai.palletchecker.domain.model.BarcodeSymbology
+import com.zebra.ai.palletchecker.helpers.DeviceCapabilities
 import com.zebra.ai.palletchecker.presentation.model.SettingsUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,26 +28,19 @@ import kotlinx.coroutines.flow.asStateFlow
  * @param application The application context
  */
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-    private val settingsUseCase = Settings(application, SettingsMode.SNAP)
-    private val wandsettingsUseCase = Settings(application, SettingsMode.WAND)
+    private val settingsUseCase = Settings(application)
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     val settings: StateFlow<AppSettings> = settingsUseCase.getSettings()
 
-    val wandSettings: StateFlow<AppSettings> = wandsettingsUseCase.getSettings()
-
     private val _supportedSnapResolutions = MutableStateFlow<List<CameraResolutionProvider.CameraResolution>>(emptyList())
     val supportedSnapResolutions: StateFlow<List<CameraResolutionProvider.CameraResolution>> = _supportedSnapResolutions.asStateFlow()
-
-    private val _supportedWandResolutions = MutableStateFlow<List<CameraResolutionProvider.CameraResolution>>(emptyList())
-    val supportedWandResolutions: StateFlow<List<CameraResolutionProvider.CameraResolution>> = _supportedWandResolutions.asStateFlow()
 
     init {
         val snapResolutions = CameraResolutionProvider.getSnapResolutions(application)
         _supportedSnapResolutions.value = snapResolutions
-        _supportedWandResolutions.value = CameraResolutionProvider.getWandResolutions(application)
 
         val current = settings.value
         val savedIsInList = snapResolutions.any {
@@ -64,7 +58,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val bestRes = best4x3
                 ?: snapResolutions.filter { it.aspectRatio == "4:3" }.maxByOrNull { it.width.toLong() * it.height.toLong() }
                 ?: snapResolutions.maxByOrNull { it.width.toLong() * it.height.toLong() }
-            bestRes?.let { updateCustomResolution(it.width, it.height, SettingsMode.SNAP) }
+            bestRes?.let { updateCustomResolution(it.width, it.height) }
         }
     }
 
@@ -72,28 +66,73 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * Updates settings using the provided update function and syncs with repository.
      * @param update Function to update AppSettings
      */
-    private fun updateSettingsWith(update: (AppSettings) -> AppSettings, mode: SettingsMode = SettingsMode.SNAP) {
+    private fun updateSettingsWith(update: (AppSettings) -> AppSettings) {
         _uiState.value = _uiState.value.copy(isLoading = true)
-        if (mode == SettingsMode.SNAP) {
-            settingsUseCase.updateSettings(update)
-        } else {
-            wandsettingsUseCase.updateSettings(update)
-        }
+        settingsUseCase.updateSettings(update)
         _uiState.value = _uiState.value.copy(isLoading = false)
     }
 
     /**
      * Updates the model input size and syncs with the AI Vision SDK.
      */
-    fun updateModelInput(modelInput: ModelInput, mode: SettingsMode = SettingsMode.SNAP) {
-        updateSettingsWith ({ it.copy(modelInput = modelInput) },mode)
+    fun updateModelInput(modelInput: ModelInput) {
+        updateSettingsWith ({ it.copy(modelInput = modelInput) })
+    }
+
+    /**
+     * Selects [ModelInput.CUSTOM]. Stored dimensions that are not valid (see
+     * [AppSettings.isValidCustomModelSize], e.g. 0 from settings saved before these fields
+     * existed) are replaced with the default so an invalid size is never applied.
+     */
+    fun selectCustomModelInput() {
+        updateSettingsWith ({ current ->
+            current.copy(
+                modelInput = ModelInput.CUSTOM,
+                customModelWidth = current.customModelWidth
+                    .takeIf { AppSettings.isValidCustomModelSize(it) }
+                    ?: AppSettings.DEFAULT_CUSTOM_MODEL_SIZE,
+                customModelHeight = current.customModelHeight
+                    .takeIf { AppSettings.isValidCustomModelSize(it) }
+                    ?: AppSettings.DEFAULT_CUSTOM_MODEL_SIZE
+            )
+        })
+    }
+
+    /**
+     * Selects [ModelInput.CUSTOM] with the given dimensions. Dimensions that are not valid are
+     * rejected (settings stay unchanged); the UI reports the error to the user.
+     */
+    fun updateCustomModelInput(width: Int, height: Int) {
+        if (!AppSettings.isValidCustomModelSize(width) ||
+            !AppSettings.isValidCustomModelSize(height)
+        ) return
+        updateSettingsWith ({
+            it.copy(
+                modelInput = ModelInput.CUSTOM,
+                customModelWidth = width,
+                customModelHeight = height
+            )
+        })
+    }
+
+    /**
+     * Whether this device's chipset supports the inferencer BURST ("Turbo") performance mode.
+     * The Settings UI only shows the Capture Mode / Turbo option when this is true.
+     */
+    val isBurstModeSupported: Boolean = DeviceCapabilities.isBurstModeSupported
+
+    /**
+     * Updates the inferencer performance mode (Turbo on = BURST, off = BALANCED).
+     */
+    fun updatePerformanceMode(performanceMode: PerformanceMode) {
+        updateSettingsWith({ it.copy(performanceMode = performanceMode) })
     }
 
     /**
      * Updates the camera resolution and syncs with the AI Vision SDK.
      */
-    fun updateResolution(resolution: Resolution, mode: SettingsMode = SettingsMode.SNAP) {
-        updateSettingsWith ({ it.copy(resolution = resolution) }, mode)
+    fun updateResolution(resolution: Resolution) {
+        updateSettingsWith ({ it.copy(resolution = resolution) })
     }
 
     /**
@@ -101,28 +140,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * records the actual width × height so that CameraHelper / ResultsScreen
      * can use the concrete size via effectiveWidth()/effectiveHeight().
      */
-    fun updateCustomResolution(width: Int, height: Int, mode: SettingsMode = SettingsMode.SNAP) {
+    fun updateCustomResolution(width: Int, height: Int) {
         updateSettingsWith({
             it.copy(
                 resolution = Resolution.MAX,
                 customResolutionWidth = width,
                 customResolutionHeight = height
             )
-        }, mode)
+        })
     }
 
     /**
      * Updates the processor type and syncs with the AI Vision SDK.
      */
-    fun updateProcessorType(processorType: ProcessorType, mode: SettingsMode = SettingsMode.SNAP) {
-        updateSettingsWith( { it.copy(processorType = processorType) },mode)
+    fun updateProcessorType(processorType: ProcessorType) {
+        updateSettingsWith( { it.copy(processorType = processorType) })
     }
 
     /**
      * Updates the barcode symbology and syncs with the AI Vision SDK.
      */
-    fun updateBarcodeSymbology(symbology: BarcodeSymbology, mode: SettingsMode = SettingsMode.SNAP) {
-        updateSettingsWith( { it.copy(barcodeSymbology = symbology) },mode)
+    fun updateBarcodeSymbology(symbology: BarcodeSymbology) {
+        updateSettingsWith( { it.copy(barcodeSymbology = symbology) })
     }
 
     /**
@@ -130,11 +169,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * @param symbologyName The name of the symbology
      * @param enabled Whether the symbology is enabled
      */
-    fun updateSymbology(symbologyName: String, enabled: Boolean, mode: SettingsMode = SettingsMode.SNAP) {
+    fun updateSymbology(symbologyName: String, enabled: Boolean) {
         val updatedSymbology =
             settingsUseCase.updateSymbology(symbologyName, enabled)
-        updateBarcodeSymbology(updatedSymbology, SettingsMode.SNAP)
-        updateBarcodeSymbology(updatedSymbology, SettingsMode.WAND)
+        updateBarcodeSymbology(updatedSymbology)
     }
 
     /**
@@ -145,7 +183,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.value = _uiState.value.copy(isLoading = true)
 
         settingsUseCase.resetToDefaults()
-        wandsettingsUseCase.resetToDefaults()
 
         val snapResolutions = _supportedSnapResolutions.value
         val best4x3 = snapResolutions
@@ -154,7 +191,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val bestRes = best4x3
             ?: snapResolutions.filter { it.aspectRatio == "4:3" }.maxByOrNull { it.width.toLong() * it.height.toLong() }
             ?: snapResolutions.maxByOrNull { it.width.toLong() * it.height.toLong() }
-        bestRes?.let { updateCustomResolution(it.width, it.height, SettingsMode.SNAP) }
+        bestRes?.let { updateCustomResolution(it.width, it.height) }
 
         _uiState.value = _uiState.value.copy(isLoading = false)
     }
@@ -184,29 +221,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * Updates AI-powered barcode decode pipeline toggle for both Snap and Wand modes.
      */
     fun updateAiBarcodeDecodeEnabled(enabled: Boolean) {
-        updateSettingsWith({ it.copy(enableAIbarcodeDecode = enabled) }, SettingsMode.SNAP)
-        updateSettingsWith({ it.copy(enableAIbarcodeDecode = enabled) }, SettingsMode.WAND)
+        updateSettingsWith({ it.copy(enableAIbarcodeDecode = enabled) })
     }
 
     /**
      * Updates the live PiP thumbnail setting.
      */
     fun updateLivePipThumbnailEnabled(enabled: Boolean) {
-        updateSettingsWith ({ it.copy(livePipThumbnailEnabled = enabled) }, SettingsMode.WAND)
+        updateSettingsWith ({ it.copy(livePipThumbnailEnabled = enabled) })
     }
 
     /**
      * Updates the audit progress indicator visibility in wand mode.
      */
     fun updateShowAuditProgress(enabled: Boolean) {
-        updateSettingsWith({ it.copy(showAuditProgress = enabled) }, SettingsMode.WAND)
+        updateSettingsWith({ it.copy(showAuditProgress = enabled) })
     }
 
     /**
      * Updates the live bounding box overlay visibility during wand mode.
      */
     fun updateShowLiveBoundingBoxes(enabled: Boolean) {
-        updateSettingsWith({ it.copy(showLiveBoundingBoxes = enabled) }, SettingsMode.WAND)
+        updateSettingsWith({ it.copy(showLiveBoundingBoxes = enabled) })
     }
 
     /**
@@ -214,49 +250,49 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * When disabled, only a single snap is taken.
      */
     fun updateMultiSnapEnabled(enabled: Boolean) {
-        updateSettingsWith({ it.copy(multiSnapEnabled = enabled) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(multiSnapEnabled = enabled) })
     }
 
     /**
      * Updates the number of multi-snap retry attempts (1–10).
      */
     fun updateMultiSnapRetryCount(count: Int) {
-        updateSettingsWith({ it.copy(multiSnapRetryCount = count.coerceIn(1, 10)) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(multiSnapRetryCount = count.coerceIn(1, 10)) })
     }
 
     /**
      * Enables or disables auto-trigger (auto-snap). When disabled, a manual capture button is shown.
      */
     fun updateAutoTriggerEnabled(enabled: Boolean) {
-        updateSettingsWith({ it.copy(autoTriggerEnabled = enabled) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(autoTriggerEnabled = enabled) })
     }
 
     /**
      * Updates the auto-trigger mode/criteria (Pallet Base, Fixed Quantity, Percentage Based).
      */
     fun updateAutoTriggerMode(mode: AutoTriggerMode) {
-        updateSettingsWith({ it.copy(autoTriggerMode = mode) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(autoTriggerMode = mode) })
     }
 
     /**
      * Updates the fixed quantity threshold for auto-snap trigger.
      */
     fun updateFixedQuantityThreshold(value: Int) {
-        updateSettingsWith({ it.copy(fixedQuantityThreshold = value.coerceAtLeast(1)) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(fixedQuantityThreshold = value.coerceAtLeast(1)) })
     }
 
     /**
      * Updates the percentage threshold for auto-snap trigger.
      */
     fun updatePercentageThreshold(value: Int) {
-        updateSettingsWith({ it.copy(percentageThreshold = value.coerceIn(1, 100)) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(percentageThreshold = value.coerceIn(1, 100)) })
     }
 
     /**
      * Updates the expected total boxes (used for percentage-based auto-snap).
      */
     fun updateExpectedTotalBoxes(value: Int) {
-        updateSettingsWith({ it.copy(expectedTotalBoxes = value.coerceAtLeast(1)) }, SettingsMode.SNAP)
+        updateSettingsWith({ it.copy(expectedTotalBoxes = value.coerceAtLeast(1)) })
     }
 
     /**
@@ -269,7 +305,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 showPreSnapBoundingBoxes = if (enabled) true else it.debugSettings.showPreSnapBoundingBoxes,
                 showCapturedSnapBarcodeLabels = if (enabled) true else it.debugSettings.showCapturedSnapBarcodeLabels
             ))
-        }, SettingsMode.SNAP)
+        })
     }
 
     /**
@@ -278,7 +314,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowPreSnapBoundingBoxes(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showPreSnapBoundingBoxes = enabled))
-        }, SettingsMode.SNAP)
+        })
     }
 
     /**
@@ -287,7 +323,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowSpatialMapIndices(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showSpatialMapIndices = enabled))
-        }, SettingsMode.SNAP)
+        })
     }
 
 
@@ -297,7 +333,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowSnapBarcodeLabels(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showSnapBarcodeLabels = enabled))
-        }, SettingsMode.SNAP)
+        })
     }
 
     /**
@@ -306,7 +342,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowCapturedSnapBarcodeLabels(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showCapturedSnapBarcodeLabels = enabled))
-        }, SettingsMode.SNAP)
+        })
     }
 
     /**
@@ -318,7 +354,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 debugModeEnabled = enabled,
                 showWandBarcodeLabels = if (enabled) true else it.debugSettings.showWandBarcodeLabels
             ))
-        }, SettingsMode.WAND)
+        })
     }
 
     /**
@@ -327,7 +363,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowWandBarcodeLabels(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showWandBarcodeLabels = enabled))
-        }, SettingsMode.WAND)
+        })
     }
 
     /**
@@ -337,7 +373,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowSnapTrackingIds(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showSnapTrackingIds = enabled))
-        }, SettingsMode.SNAP)
+        })
     }
 
     /**
@@ -347,7 +383,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowWandTrackingIds(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(showWandTrackingIds = enabled))
-        }, SettingsMode.WAND)
+        })
     }
 
 
@@ -358,6 +394,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateDumpSnapImagesToFilesystem(enabled: Boolean) {
         updateSettingsWith({
             it.copy(debugSettings = it.debugSettings.copy(dumpSnapImagesToFilesystem = enabled))
-        }, SettingsMode.SNAP)
+        })
     }
 }

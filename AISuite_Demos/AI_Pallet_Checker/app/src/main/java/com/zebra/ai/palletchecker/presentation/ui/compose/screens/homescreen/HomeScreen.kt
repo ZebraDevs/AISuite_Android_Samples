@@ -90,16 +90,21 @@ fun HomeScreen(
 
     // Observe ViewModel state
     val settings by settingsViewModel.settings.collectAsState()
-    val wandSettings by settingsViewModel.wandSettings.collectAsState()
 
     val settingsUiState by settingsViewModel.uiState.collectAsState()
 
     LaunchedEffect(
         settings.modelInput,
         settings.enableAIbarcodeDecode,
-        wandSettings.enableAIbarcodeDecode,
-        settings.barcodeSymbology
+        settings.barcodeSymbology,
+        settings.performanceMode,
+        settings.customModelWidth,
+        settings.customModelHeight
     ) {
+        mainViewmodel.reInitModelsOnSettingsChange()
+    }
+
+    LaunchedEffect(Unit) {
         mainViewmodel.initModels { settingsViewModel }
     }
 

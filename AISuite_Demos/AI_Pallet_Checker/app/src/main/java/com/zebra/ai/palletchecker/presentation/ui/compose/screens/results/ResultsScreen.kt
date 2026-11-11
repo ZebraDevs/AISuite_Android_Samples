@@ -1,8 +1,5 @@
 package com.zebra.ai.palletchecker.presentation.ui.compose.screens.results
 
-import android.app.Activity
-import android.app.Activity.RESULT_OK
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
@@ -54,17 +51,13 @@ import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
-import com.google.gson.Gson
-import com.zebra.ai.palletchecker.domain.model.BarcodeConfig
 import com.zebra.ai.palletchecker.domain.model.FIELD_TYPE
 import com.zebra.ai.palletchecker.helpers.LOGI
 import com.zebra.ai.palletchecker.helpers.ScaleType
 import com.zebra.ai.palletchecker.helpers.toPalletBoxUiModel
 import com.zebra.ai.palletchecker.presentation.model.BOX_VALIDATION
 import com.zebra.ai.palletchecker.presentation.model.PBoxUIModel
-import com.zebra.ai.palletchecker.presentation.model.SAPPalletBox
 import com.zebra.ai.palletchecker.presentation.model.SessionMode
-import com.zebra.ai.palletchecker.presentation.model.convertMillisecondsToISO8601
 import com.zebra.ai.palletchecker.presentation.ui.compose.components.ContentWithLabel
 import com.zebra.ai.palletchecker.presentation.ui.compose.components.ZebraText
 import com.zebra.ai.palletchecker.presentation.ui.compose.components.palletBoxCanvas
@@ -77,7 +70,6 @@ import com.zebra.ai.palletchecker.presentation.viewmodel.ConfigureViewModel
 import com.zebra.ai.palletchecker.presentation.viewmodel.MainViewModel
 import com.zebra.ai.palletchecker.presentation.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
-import org.json.JSONObject
 
 @OptIn(ExperimentalGetImage::class)
 @Composable
@@ -91,7 +83,6 @@ fun ResultsScreen(
 ) {
     val activity = LocalActivity.current
     var settings = settingsViewModel.settings.collectAsState()
-    val wandSettings = settingsViewModel.wandSettings.collectAsState()
     val config = configModel.config.collectAsState()
     var palletSession = mainViewModel.getPalletSession().collectAsState()
     val palletResults = mainViewModel.getPalletResults()?.collectAsState(emptyList())
@@ -106,7 +97,6 @@ fun ResultsScreen(
     val isShelfContinuous = palletSession.value.sessionMode == SessionMode.SHELF_CONTINUOUS
     val hasUnmappedBoxes = palletSession.value.hasUnmappedWandBoxes
     var showResult by remember { mutableStateOf(isFromWand && (isShelfContinuous || hasUnmappedBoxes)) }
-    var showLiquidUI by remember { mutableStateOf(false) }
     var shouldMoveToAudit by remember { mutableStateOf(false) }
 
     var auditPreviewSnapshot by remember { mutableStateOf<List<PBoxUIModel>>(emptyList()) }
@@ -152,7 +142,7 @@ fun ResultsScreen(
                 config.value.expectedBoxes,
                 sourceResolution,
                 targetViewSize,
-                wandSettings.value.livePipThumbnailEnabled
+                settings.value.livePipThumbnailEnabled
             )
             shouldMoveToAudit = false
         }
@@ -321,33 +311,6 @@ fun ResultsScreen(
                 ) {
                     Text("Show Results", color = White, fontWeight = FontWeight.Bold)
                 }
-
-                if (showLiquidUI) {
-
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Button(
-
-                        onClick = {
-                            setPalletResults(
-                                mainViewModel,
-                                activity!!,
-                                palletBoxes=palletBoxes ?: emptyList(),
-                                config = config.value.listOfConfig
-                            )
-                        },
-                        modifier = Modifier
-                            .wrapContentWidth()
-                            .defaultMinSize(minHeight = 36.dp)
-                            .padding(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            disabledContainerColor = Gray,
-                            containerColor = ThemeDark
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("Send to SAP", color = White, fontWeight = FontWeight.Bold)
-                    }
-                }
             }
 
         } else {
@@ -391,37 +354,6 @@ fun ResultsScreen(
                     .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (showLiquidUI) {
-                    item {
-
-
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Button(
-
-                            onClick = {
-                                setPalletResults(
-                                    mainViewModel,
-                                    activity!!,
-                                    palletBoxes = palletBoxes ?: emptyList(),
-                                    config = config.value.listOfConfig
-                                )
-                            },
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .defaultMinSize(minHeight = 36.dp)
-                                .padding(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = Gray,
-                                containerColor = ThemeDark
-                            ),
-                            shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Text("Send to SAP", color = White, fontWeight = FontWeight.Bold)
-                        }
-
-
-                    }
-                }
                 item {
                     Spacer(modifier = Modifier.size(10.dp))
                 }
@@ -503,33 +435,4 @@ fun ResultsScreen(
         }
     }
 
-}
-
-private fun setPalletResults(
-    mainViewModel: MainViewModel,
-    activity: Activity,
-    palletBoxes : List<PBoxUIModel>,
-    config: List<BarcodeConfig>
-) {
-    val intent = Intent()
-    if (palletBoxes.isNotEmpty()) {
-
-        val sap = SAPPalletBox(quantity = mainViewModel.findTotalQtyForPallets(appConfig = config))
-        val json = JSONObject().apply {
-            put("material", sap.material)
-            put("quantity", sap.quantity)
-            put("plant", sap.plant)
-            put("storage_location", sap.storage_location)
-            put("movementType", sap.movementType)
-            put("user_id", sap.user_id)
-            put("timestamp", convertMillisecondsToISO8601(System.currentTimeMillis()))
-            put("source", sap.source)
-            put("transaction", sap.transaction)
-        }
-
-        intent.putExtra("metadata", json.toString())
-        intent.putExtra("result", Gson().toJson(sap))
-    }
-    activity.setResult(RESULT_OK, intent)
-    activity.finish()
 }

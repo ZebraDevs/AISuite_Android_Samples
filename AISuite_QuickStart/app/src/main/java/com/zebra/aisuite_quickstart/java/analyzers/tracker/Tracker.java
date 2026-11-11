@@ -201,10 +201,9 @@ public class Tracker {
      * and decoding barcodes from image data.
      */
     public void initializeBarcodeDecoder() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
-            // Initialize live preview decoder with selected input size
-            BarcodeDecoder.Settings liveDecoderSettings = createBarcodeDecoderSettings(modelInputSize);
+            // Initialize live preview decoder with selected model resolution
+            BarcodeDecoder.Settings liveDecoderSettings = createLiveBarcodeDecoderSettings();
             // Call the helper function to create the decoder
             createBarcodeDecoder(liveDecoderSettings);
 
@@ -222,7 +221,7 @@ public class Tracker {
         BarcodeDecoder.getBarcodeDecoder(decoderSettings, executor).thenAccept(decoderInstance -> {
             barcodeDecoder = decoderInstance;
             createAnalyzer(List.of(barcodeDecoder));
-            AppLog.i(TAG, "BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + decoderSettings.detectorSetting.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "BarcodeDecoder model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
         }).exceptionally(e -> {
             if (e instanceof AIVisionSDKLicenseException) {
                 // Notify failed loading
@@ -247,10 +246,9 @@ public class Tracker {
      * image data.
      */
     private void initializeTextOCR() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
-            // Initialize live preview OCR with selected input size
-            TextOCR.Settings liveOCRSettings = createTextOCRSettings(modelInputSize);
+            // Initialize live preview OCR with selected model resolution
+            TextOCR.Settings liveOCRSettings = createLiveTextOCRSettings();
             // Call the helper function to create the TextOCR instance
             createTextOCR(liveOCRSettings);
 
@@ -268,7 +266,7 @@ public class Tracker {
         TextOCR.getTextOCR(textOCRSettings, executor).thenAccept(OCRInstance -> {
             textOCR = OCRInstance;
             createAnalyzer(List.of(textOCR));
-            AppLog.i(TAG, "TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + textOCRSettings.detectionInferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "TextOCR model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
         }).exceptionally(e -> {
             if (e instanceof AIVisionSDKLicenseException) {
                 // Notify failed loading
@@ -288,10 +286,9 @@ public class Tracker {
     }
 
     private void initializeModuleRecognizer() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
             // Create settings for live preview
-            ModuleRecognizer.Settings liveRecognizerSettings = createModuleRecognizerSettings(modelInputSize);
+            ModuleRecognizer.Settings liveRecognizerSettings = createLiveModuleRecognizerSettings();
             // Call the helper function to create the recognizer
             createModuleRecognizer(liveRecognizerSettings);
 
@@ -308,7 +305,7 @@ public class Tracker {
         long startTime = System.currentTimeMillis();
         ModuleRecognizer.getModuleRecognizer(settings, executor).thenAccept(recognizerInstance -> {
             long creationTime = System.currentTimeMillis() - startTime;
-            AppLog.i(TAG, "ModuleRecognizer model loading time: " + creationTime + " milli sec and input size: " + settings.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "ModuleRecognizer model loading time: " + creationTime + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
 
             moduleRecognizer = recognizerInstance;
             // Use EntityTrackerAnalyzer with moduleRecognizer as a Detector
@@ -323,9 +320,24 @@ public class Tracker {
     }
 
     /**
-     * Creates barcode decoder settings with specified input size
+     * Creates live preview barcode decoder settings using the model resolution selected in Settings
      */
-    private BarcodeDecoder.Settings createBarcodeDecoderSettings(int inputSize) {
+    private BarcodeDecoder.Settings createLiveBarcodeDecoderSettings() {
+        BarcodeDecoder.Settings decoderSettings = createBaseBarcodeDecoderSettings();
+        decoderSettings.detectorSetting.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
+        return decoderSettings;
+    }
+
+    /**
+     * Creates capture barcode decoder settings with specified input size
+     */
+    private BarcodeDecoder.Settings createCaptureBarcodeDecoderSettings() {
+        BarcodeDecoder.Settings decoderSettings = createBaseBarcodeDecoderSettings();
+        decoderSettings.detectorSetting.inferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280,1280));
+        return decoderSettings;
+    }
+
+    private BarcodeDecoder.Settings createBaseBarcodeDecoderSettings() {
         BarcodeDecoder.Settings decoderSettings = new BarcodeDecoder.Settings(mavenModelName);
         Integer[] rpo = new Integer[3];
         rpo[0] = InferencerOptions.DSP;
@@ -342,15 +354,31 @@ public class Tracker {
         decoderSettings.Symbology.I2OF5.enable(true);
 
         decoderSettings.detectorSetting.inferencerOptions.runtimeProcessorOrder = rpo;
-        decoderSettings.detectorSetting.inferencerOptions.defaultDims.height = inputSize;
-        decoderSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
         decoderSettings.enableAIBarcodeDecode = true;
 
         return decoderSettings;
     }
 
 
-    private TextOCR.Settings createTextOCRSettings(int inputSize) {
+    /**
+     * Creates live preview OCR settings using the model resolution selected in Settings
+     */
+    private TextOCR.Settings createLiveTextOCRSettings() {
+        TextOCR.Settings textOCRSettings = createBaseTextOCRSettings();
+        textOCRSettings.detectionInferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
+        return textOCRSettings;
+    }
+
+    /**
+     * Creates capture OCR settings with specified input size
+     */
+    private TextOCR.Settings createCaptureTextOCRSettings() {
+        TextOCR.Settings textOCRSettings = createBaseTextOCRSettings();
+        textOCRSettings.detectionInferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280,1280));
+        return textOCRSettings;
+    }
+
+    private TextOCR.Settings createBaseTextOCRSettings() {
         TextOCR.Settings textOCRSettings = new TextOCR.Settings(mavenOCRModelName);
         Integer[] rpo = new Integer[3];
         rpo[0] = InferencerOptions.DSP;
@@ -359,17 +387,30 @@ public class Tracker {
 
         textOCRSettings.detectionInferencerOptions.runtimeProcessorOrder = rpo;
         textOCRSettings.recognitionInferencerOptions.runtimeProcessorOrder = rpo;
-        textOCRSettings.detectionInferencerOptions.defaultDims.height = inputSize;
-        textOCRSettings.detectionInferencerOptions.defaultDims.width = inputSize;
         textOCRSettings.unclipRatio = 0.6f;
 
         return textOCRSettings;
     }
 
     /**
-     * Creates module recognizer settings with specified input size
+     * Creates live preview module recognizer settings using the model resolution selected in Settings
      */
-    private ModuleRecognizer.Settings createModuleRecognizerSettings(int inputSize) {
+    private ModuleRecognizer.Settings createLiveModuleRecognizerSettings() {
+        ModuleRecognizer.Settings settings = createBaseModuleRecognizerSettings();
+        settings.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
+        return settings;
+    }
+
+    /**
+     * Creates capture module recognizer settings with specified input size
+     */
+    private ModuleRecognizer.Settings createCaptureModuleRecognizerSettings() {
+        ModuleRecognizer.Settings settings = createBaseModuleRecognizerSettings();
+        settings.inferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280, 1280));
+        return settings;
+    }
+
+    private ModuleRecognizer.Settings createBaseModuleRecognizerSettings() {
         // Copy assets
         String productIndexZipFilename = "product_index.zip";
         String toPath = context.getFilesDir() + "/";
@@ -380,8 +421,6 @@ public class Tracker {
 
         // Configure InferencerOptions
         settings.inferencerOptions.runtimeProcessorOrder = new Integer[]{InferencerOptions.DSP, InferencerOptions.CPU, InferencerOptions.GPU};
-        settings.inferencerOptions.defaultDims.height = inputSize;
-        settings.inferencerOptions.defaultDims.width = inputSize;
 
         // Enable product recognition with cloud index
         settings.enableProductRecognition(mavenProductModelName,
@@ -396,7 +435,7 @@ public class Tracker {
      */
     public void initializeCaptureBarcodeDecoder() {
         try {
-            BarcodeDecoder.Settings captureDecoderSettings = createBarcodeDecoderSettings(CAPTURE_SIZE);
+            BarcodeDecoder.Settings captureDecoderSettings = createCaptureBarcodeDecoderSettings();
             createCaptureBarcodeDecoder(captureDecoderSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -426,7 +465,7 @@ public class Tracker {
      */
     public void initializeCaptureOcr() {
         try {
-            TextOCR.Settings captureOcrSettings = createTextOCRSettings(CAPTURE_SIZE);
+            TextOCR.Settings captureOcrSettings = createCaptureTextOCRSettings();
             createCaptureTextOCR(captureOcrSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -456,7 +495,7 @@ public class Tracker {
      */
     public void initializeCaptureModuleRecognizer() {
         try {
-            ModuleRecognizer.Settings captureModuleSettings = createModuleRecognizerSettings(CAPTURE_SIZE);
+            ModuleRecognizer.Settings captureModuleSettings = createCaptureModuleRecognizerSettings();
             createCaptureModuleRecognizer(captureModuleSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {

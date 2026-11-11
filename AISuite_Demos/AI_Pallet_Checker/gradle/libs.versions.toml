@@ -24,9 +24,9 @@ foundation = "1.9.0"
 uiTestJunit4 = "1.9.0"
 uiVersion = "1.9.2"
 
-zebraAIVisionSdk = "4.1.0"
-barcodeDecoder = "5.0.4"
-palletAndBoxLocalizer = "1.0.5.beta"
+zebraAIVisionSdk = "4.1.5"
+barcodeDecoder = "5.0.6"
+palletAndBoxLocalizer = "1.1.0.beta"
 navigationVersion = "2.8.9"
 coil = "2.4.0"
 

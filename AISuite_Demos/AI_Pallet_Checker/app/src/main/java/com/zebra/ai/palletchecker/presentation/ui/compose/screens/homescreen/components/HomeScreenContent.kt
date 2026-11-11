@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.zebra.ai.palletchecker.R
+import com.zebra.ai.palletchecker.domain.enums.ModelInput
 import com.zebra.ai.palletchecker.domain.model.AppSettings
 import com.zebra.ai.palletchecker.presentation.enums.ButtonType
 import com.zebra.ai.palletchecker.presentation.model.SettingsUiState
@@ -66,11 +68,13 @@ import com.zebra.ai.palletchecker.presentation.ui.theme.AppTextStyles
 import com.zebra.ai.palletchecker.presentation.ui.theme.borderPrimaryMain
 import com.zebra.ai.palletchecker.presentation.ui.theme.disabledMain
 import com.zebra.ai.palletchecker.presentation.ui.theme.headerBackgroundColor
+import com.zebra.ai.palletchecker.presentation.viewmodel.MainViewModel
 import com.zebra.ai.palletchecker.presentation.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreenContent(
+    mainViewModel: MainViewModel,
     settingsViewModel: SettingsViewModel,
     settings: AppSettings,
     uiState: SettingsUiState,
@@ -91,6 +95,14 @@ fun HomeScreenContent(
     val navBarWidthFraction = HomeScreenUiDefaults.NavBarWidthFraction
     val navBarAnimationDuration = HomeScreenUiDefaults.AnimationDuration
     val scrimAlpha = HomeScreenUiDefaults.ScrimAlpha
+    val reinitState = mainViewModel.getModelReinitState().collectAsState()
+
+
+    LaunchedEffect(reinitState.value) {
+        if(reinitState.value) {
+            mainViewModel.initModels { settingsViewModel }
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -171,7 +183,13 @@ fun HomeScreenContent(
                                 text = buildAnnotatedString {
                                         append(stringResource(id = R.string.home_screen_content_model_input))
                                     withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
-                                        append(stringResource(id = settings.modelInput.homeDisplayNameResId))
+                                        append(
+                                            if (settings.modelInput == ModelInput.CUSTOM) {
+                                                "Custom (${settings.customModelWidth} × ${settings.customModelHeight})"
+                                            } else {
+                                                stringResource(id = settings.modelInput.homeDisplayNameResId)
+                                            }
+                                        )
                                     }
                                 },
                                 fontSize = AppDimensions.dialogTextFontSizeMedium,
@@ -280,6 +298,7 @@ fun HomeScreenContent(
                     buttonType = ButtonType.Text,
                     text = stringResource(id = R.string.home_screen_content_restore_settings),
                     onClick = {
+                        mainViewModel.reInitModelsOnSettingsChange()
                         settingsViewModel.resetToDefaults()
                         // TODO Apply Settings to SDK
                     },

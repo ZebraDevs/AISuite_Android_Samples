@@ -32,6 +32,7 @@ class PalletProcessHelper(
 
     companion object {
         const val PALLET_BASE_CLASS_ID = 3
+        const val PALLET_BOX_THRESHOLD = 0.85f
     }
 
     private var resultFlow = MutableSharedFlow<List<PalletBox>>(
@@ -92,7 +93,14 @@ class PalletProcessHelper(
                 val palletProcessJob = async {
                     val result = ModelsStorage.getPalletAndBoxLocalizer()?.process(imageData, Dispatchers.IO.asExecutor())?.await()
                     result?.forEach {
-                        palletBoxList.add(PalletBox(classId = it.classId, boundingBox = it.boundingBox.toComposeRect()))
+                        if(it.accuracy > PALLET_BOX_THRESHOLD) {
+                            palletBoxList.add(
+                                PalletBox(
+                                    classId = it.classId,
+                                    boundingBox = it.boundingBox.toComposeRect()
+                                )
+                            )
+                        }
                     }
                 }
 
@@ -157,7 +165,14 @@ class PalletProcessHelper(
         val palletProcessJob = scope.async(Dispatchers.Default) {
             val result = ModelsStorage.getPalletAndBoxLocalizer()?.process(imageData, Dispatchers.IO.asExecutor())?.await()
             result?.forEach {
-                palletBoxList.add(PalletBox(classId = it.classId, boundingBox = it.boundingBox.toComposeRect()))
+                if(it.accuracy > PALLET_BOX_THRESHOLD) {
+                    palletBoxList.add(
+                        PalletBox(
+                            classId = it.classId,
+                            boundingBox = it.boundingBox.toComposeRect()
+                        )
+                    )
+                }
             }
         }
 
@@ -382,7 +397,14 @@ class PalletProcessHelper(
                 palletAndBoxLocalizer?.let { palletAndBoxDetector ->
                     entities.getValue(palletAndBoxDetector)?.forEach {
                         if (it is LocalizerEntity) {
-                            palletBoxList.add(PalletBox(classId = it.classId, boundingBox = it.boundingBox.toComposeRect()))
+                            if(it.accuracy > PALLET_BOX_THRESHOLD) {
+                                palletBoxList.add(
+                                    PalletBox(
+                                        classId = it.classId,
+                                        boundingBox = it.boundingBox.toComposeRect()
+                                    )
+                                )
+                            }
                         }
                     }
                 }

@@ -2,14 +2,10 @@
     <string name="app_name">AI Pallet Checker(Beta)</string>
 
     <!--ModelInput-->
-    <string name="model_input_640_title_settings">640 x 640 (small)</string>
-    <string name="model_input_640_title_home">640 x 640</string>
-    <string name="model_input_1280_title_settings">1280 x 1280 (medium)</string>
-    <string name="model_input_1280_title_home">1280 x 1280</string>
-    <string name="model_input_1600_title_settings">1600 x 1600 (large)</string>
-    <string name="model_input_1600_title_home">1600 x 1600</string>
-    <string name="model_input_2560_title_settings">2560 x 2560 (large)</string>
-    <string name="model_input_2560_title_home">2560 x 2560</string>
+    <string name="model_input_small">Small</string>
+    <string name="model_input_medium">Medium</string>
+    <string name="model_input_large">Large</string>
+    <string name="model_input_custom">Custom</string>
 
     <!-- ProcessorType -->
     <string name="processor_type_dsp">DSP</string>
@@ -133,15 +129,15 @@
     <string name="model_input_size_bottom_sheet_note_label">Note:&#160;</string>
     <string name="model_input_size_bottom_sheet_description4">Model Input Size can be customized in increments of 32 using the SDK. The options below represent some generic sizes. &#160;</string>
     <string name="model_input_size_bottom_sheet_input_size_options">Model Input Size Options </string>
-    <string name="model_input_size_bottom_sheet_input_small">Small – 640 x 640 </string>
+    <string name="model_input_size_bottom_sheet_input_small">Small </string>
     <string name="model_input_size_bottom_sheet_input_small_fastest">Fastest processing</string>
     <string name="model_input_size_bottom_sheet_input_small_fastest_bold">Fastest</string>
     <string name="model_input_size_bottom_sheet_input_small_best">Best for large, clear, or close-up barcodes</string>
     <string name="model_input_size_bottom_sheet_input_small_miss">May miss small, damaged, or distant barcodes</string>
-    <string name="model_input_size_bottom_sheet_input_medium">Medium – 1280 x 1280 </string>
+    <string name="model_input_size_bottom_sheet_input_medium">Medium</string>
     <string name="model_input_size_bottom_sheet_input_medium_balanced">Balanced speed and accuracy </string>
     <string name="model_input_size_bottom_sheet_input_medium_handles">Handles most barcode types and sizes in standard conditions</string>
-    <string name="model_input_size_bottom_sheet_input_large">Large – 1600 x 1600 </string>
+    <string name="model_input_size_bottom_sheet_input_large">Large </string>
     <string name="model_input_size_bottom_sheet_input_large_accuracy">Higher accuracy</string>
     <string name="model_input_size_bottom_sheet_input_large_best">Best for small, damaged, or distant barcodes</string>
     <string name="model_input_size_bottom_sheet_input_large_slower">Slowest Processing, and highest memory/battery consumption</string>
@@ -150,8 +146,8 @@
     <string name="model_input_size_bottom_sheet_input_large_not_recommended">Not recommended for CPU/GPU (inference type)</string>
     <string name="model_input_size_bottom_sheet_input_large_not_recommended_bold">Not recommended for CPU/GPU</string>
     <string name="model_input_size_bottom_sheet_recommendation_title">Recommendation: &#160;</string>
-    <string name="model_input_size_bottom_sheet_recommendation_start">Start with 640x640 for close/large barcode.</string>
-    <string name="model_input_size_bottom_sheet_recommendation_start_bold">Start with 640x640</string>
+    <string name="model_input_size_bottom_sheet_recommendation_start">Start with Small for close/large barcode.</string>
+    <string name="model_input_size_bottom_sheet_recommendation_start_bold">Start with Small</string>
     <string name="model_input_size_bottom_sheet_recommendation_increase">Increase to the next size if you encounter issues reading barcodes.</string>
     <string name="model_input_size_bottom_sheet_recommendation_demanding">Use larger model input sizes only for the most demanding and challenging use cases, and only if your device has sufficient processing power and memory.</string>
     <string name="model_input_size_bottom_sheet_recommendation_demanding_bold">larger model input sizes only for the most demanding and challenging use cases</string>
@@ -217,17 +213,47 @@
     <string name="setting_screen_note_label">Note:&#160;</string>
     <string name="setting_screen_model_input_size_description_part4">Model Input Size can be customized in increments of 32 using the SDK. The options below represent some generic sizes.&#160;</string>
     <string name="setting_screen_more_button">More &gt;</string>
-    <string name="setting_screen_model_input_640_title">640 x 640 (small)</string>
-    <string name="setting_screen_model_input_640_subtitle">Fastest; best for large or close-up barcodes</string>
-    <string name="setting_screen_model_input_1280_title">1280 x 1280 (medium)</string>
-    <string name="setting_screen_model_input_1280_subtitle">Balanced speed and accuracy</string>
-    <string name="setting_screen_model_input_1600_title">1600 x 1600 (large)</string>
-    <string name="setting_screen_model_input_1600_subtitle">Slower; use for small, damaged or distant barcodes</string>
-    <string name="setting_screen_model_input_2560_title">2560 x 2560 (large)</string>
+    <string name="setting_screen_model_input_small_subtitle">Fastest; best for large or close-up barcodes</string>
+    <string name="setting_screen_model_input_medium_subtitle">Balanced speed and accuracy</string>
+    <string name="setting_screen_model_input_large_subtitle">Slower; use for small, damaged or distant barcodes</string>
+    <string name="setting_screen_model_input_custom_title">Custom (exact pixels)</string>
+    <string name="setting_screen_model_input_custom_width_label">Width</string>
+    <string name="setting_screen_model_input_custom_height_label">Height</string>
+    <string name="setting_screen_model_input_custom_separator">x</string>
+    <string name="setting_screen_model_input_custom_unit">px</string>
+    <string name="setting_screen_model_input_custom_invalid_hint">Width and height must be between %1$d and %2$d, in multiples of %3$d.</string>
     <string name="setting_screen_resolution_title">Resolution</string>
     <string name="setting_screen_resolution_description_part1">Camera resolution is the number of pixels in your photo (e.g., 1MP = 1280x720).&#160;</string>
     <string name="setting_screen_resolution_description_part2">Higher resolution captures more detail for small or distant barcodes but uses more power and memory.&#160;</string>
     <string name="setting_screen_resolution_description_part3">Benefits are limited if the model input size is low.&#160;</string>
+    <!-- Capture Mode (Turbo / Burst) SettingsCard -->
+    <string name="setting_screen_capture_mode_title">Capture Mode</string>
+    <string name="setting_screen_capture_mode_description">Turbo Mode boosts scanning speed for short bursts while using more power. Available on supported devices only.&#160;</string>
+    <string name="setting_screen_turbo_mode_title">Turbo Mode</string>
+    <string name="setting_screen_turbo_mode_subtitle">Offers peak speed for short bursts.</string>
+
+    <!-- Capture Mode bottom sheet -->
+    <string name="capture_mode_bottom_sheet_title">Capture Mode</string>
+    <string name="capture_mode_bottom_sheet_description1">Capture Mode sets the performance profile the AI inferencer uses on the device\'s DSP, trading off scanning speed against power consumption and heat.&#160;</string>
+    <string name="capture_mode_bottom_sheet_note_label">Note:&#160;</string>
+    <string name="capture_mode_bottom_sheet_description2">Turbo Mode is only available on supported Zebra devices (6690 chipset) and is turned off by default.&#160;</string>
+    <string name="capture_mode_bottom_sheet_doc_link">View performance mode documentation</string>
+    <string name="capture_mode_bottom_sheet_subtitle">Capture Modes</string>
+    <string name="capture_mode_bottom_sheet_balanced_title">Standard (Balanced)</string>
+    <string name="capture_mode_bottom_sheet_balanced_default">Default: best for continuous, all-day scanning</string>
+    <string name="capture_mode_bottom_sheet_balanced_default_bold">Default</string>
+    <string name="capture_mode_bottom_sheet_balanced_power">Optimized for power efficiency and lower heat</string>
+    <string name="capture_mode_bottom_sheet_turbo_title">Turbo Mode (Burst)</string>
+    <string name="capture_mode_bottom_sheet_turbo_speed">Maximizes processing speed for short bursts of scanning</string>
+    <string name="capture_mode_bottom_sheet_turbo_speed_bold">Maximizes processing speed</string>
+    <string name="capture_mode_bottom_sheet_turbo_power">Uses more power and generates more heat</string>
+    <string name="capture_mode_bottom_sheet_turbo_support">Supported on 6690-chipset devices only</string>
+    <string name="capture_mode_bottom_sheet_recommendation_title">Recommendation:&#160;</string>
+    <string name="capture_mode_bottom_sheet_recommendation">Use Standard for everyday scanning; enable Turbo only for short, high-speed scanning sessions.</string>
+    <string name="capture_mode_bottom_sheet_recommendation_bold">Use Standard for everyday scanning</string>
+    <string name="capture_mode_bottom_sheet_tip_title">Tip:&#160;</string>
+    <string name="capture_mode_bottom_sheet_tip">If the device gets warm or the battery drains quickly during long sessions, switch back to Standard.</string>
+
     <string name="setting_screen_inference_title">Inference (processor) Type</string>
     <string name="setting_screen_inference_description1">This setting chooses which chip in your device runs AI tasks, affecting speed and battery life. &#160;</string>
     <string name="setting_screen_inference_description2">Not all devices have a DSP. </string>

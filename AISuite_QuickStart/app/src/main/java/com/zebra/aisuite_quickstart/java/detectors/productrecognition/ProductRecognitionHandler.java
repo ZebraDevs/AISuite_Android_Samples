@@ -77,11 +77,10 @@ public class ProductRecognitionHandler {
      * Initializes the ModuleRecognizer with product recognition enabled.
      */
     private void initializeModuleRecognizer() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
 
             // Create settings for live preview
-            ModuleRecognizer.Settings liveRecognizerSettings = createRecognizerSettings(modelInputSize);
+            ModuleRecognizer.Settings liveRecognizerSettings = createRecognizerSettings();
 
             // Call the helper function to create the recognizer
             createModuleRecognizer(liveRecognizerSettings);
@@ -102,7 +101,7 @@ public class ProductRecognitionHandler {
         try {
 
             // Create settings for capture
-            ModuleRecognizer.Settings captureRecognizerSettings = createCaptureRecognizerSettings(CAPTURE_SIZE);
+            ModuleRecognizer.Settings captureRecognizerSettings = createCaptureRecognizerSettings();
             createCaptureRecognizer(captureRecognizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -112,7 +111,7 @@ public class ProductRecognitionHandler {
         }
     }
 
-    private ModuleRecognizer.Settings createRecognizerSettings(int inputSize) {
+    private ModuleRecognizer.Settings createRecognizerSettings() {
         // Create settings with base model
         ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
 
@@ -122,8 +121,7 @@ public class ProductRecognitionHandler {
                 InferencerOptions.CPU,
                 InferencerOptions.GPU
         };
-        settings.inferencerOptions.defaultDims.height = inputSize;
-        settings.inferencerOptions.defaultDims.width = inputSize;
+        settings.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
 
         // Enable product recognition with cloud index
         try {
@@ -143,7 +141,7 @@ public class ProductRecognitionHandler {
         return settings;
     }
 
-    private ModuleRecognizer.Settings createCaptureRecognizerSettings(int inputSize) {
+    private ModuleRecognizer.Settings createCaptureRecognizerSettings() {
         // Create settings with base model
         ModuleRecognizer.Settings settings = new ModuleRecognizer.Settings(mavenModelName);
 
@@ -153,8 +151,8 @@ public class ProductRecognitionHandler {
                 InferencerOptions.CPU,
                 InferencerOptions.GPU
         };
-        settings.inferencerOptions.defaultDims.height = inputSize;
-        settings.inferencerOptions.defaultDims.width = inputSize;
+
+        settings.inferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280,1280));
 
         // Enable product recognition with cloud index
         try {
@@ -166,8 +164,7 @@ public class ProductRecognitionHandler {
         }
 
         BarcodeDecoder.Settings labelBarcodeSettings = new BarcodeDecoder.Settings(barcodeMavenModelName);
-        labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.width = inputSize;
-        labelBarcodeSettings.detectorSetting.inferencerOptions.defaultDims.height = inputSize;
+        labelBarcodeSettings.detectorSetting.inferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280, 1280));
         labelBarcodeSettings.enableAIBarcodeDecode = true;
         Map<EntityType, BarcodeDecoder.Settings> barcodeSettingsMap = new HashMap<>();
         barcodeSettingsMap.put(EntityType.LABEL, labelBarcodeSettings);
@@ -188,7 +185,7 @@ public class ProductRecognitionHandler {
                         attachAnalysisAfterModelLoading();
                     }
                     long creationTime = System.currentTimeMillis() - startTime;
-                    AppLog.i(TAG, "ModuleRecognizer model loading time: " + creationTime + " milli sec and input size: " + settings.inferencerOptions.defaultDims.width);
+                    AppLog.i(TAG, "ModuleRecognizer model loading time: " + creationTime + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
                 })
                 .exceptionally(throwable -> {
                     if (loadingCallback != null) {

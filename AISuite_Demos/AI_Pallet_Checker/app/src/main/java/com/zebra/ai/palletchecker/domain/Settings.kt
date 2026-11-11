@@ -6,7 +6,6 @@ import com.zebra.ai.palletchecker.data.source.storage.SettingsStorage
 import com.zebra.ai.palletchecker.domain.enums.AutoTriggerMode
 import com.zebra.ai.palletchecker.domain.enums.ModelInput
 import com.zebra.ai.palletchecker.domain.enums.Resolution
-import com.zebra.ai.palletchecker.domain.enums.SettingsMode
 import com.zebra.ai.palletchecker.domain.model.AppSettings
 import com.zebra.ai.palletchecker.domain.model.BarcodeSymbology
 import kotlinx.coroutines.flow.StateFlow
@@ -27,8 +26,8 @@ import kotlinx.coroutines.flow.StateFlow
  * - Retrieve the current settings via `getSettings` to observe settings changes in real time.
  * - Integrate with UI components and other parts of the application to ensure settings are applied consistently.
  */
-class Settings(application: Application, val mode: SettingsMode) {
-    private val settingsRepository = SettingsRepository.getInstance(SettingsStorage(application,mode))
+class Settings(application: Application) {
+    private val settingsRepository = SettingsRepository.getInstance(SettingsStorage(application))
     /**
      * Updates settings using the provided update function and syncs with the repository.
      * @param update A lambda to modify the current settings.
@@ -104,19 +103,17 @@ class Settings(application: Application, val mode: SettingsMode) {
      * Resets all settings to their default values.
      */
     fun resetToDefaults() {
-        if(mode == SettingsMode.SNAP) {
-            settingsRepository.updateSettings(AppSettings(
-                resolution = Resolution.TWELVE_MP,
-                modelInput = ModelInput.LARGE_1600,
-                autoTriggerEnabled = true,
-                autoTriggerMode = AutoTriggerMode.FIXED_QUANTITY,
-                fixedQuantityThreshold = 1,
-                percentageThreshold = 80,
-                expectedTotalBoxes = 10,
-            ))
-        } else {
-            settingsRepository.updateSettings(AppSettings(resolution = Resolution.TWO_MP, modelInput = ModelInput.MEDIUM_1280))
-        }
+
+        settingsRepository.updateSettings(AppSettings(
+            resolution = Resolution.TWELVE_MP,
+            modelInput = ModelInput.LARGE,
+            autoTriggerEnabled = true,
+            autoTriggerMode = AutoTriggerMode.FIXED_QUANTITY,
+            fixedQuantityThreshold = 1,
+            percentageThreshold = 80,
+            expectedTotalBoxes = 10,
+        ))
+
     }
 
     /**

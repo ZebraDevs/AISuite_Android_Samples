@@ -2,10 +2,14 @@
 
 package com.zebra.ai.palletchecker.domain.model
 
+import androidx.compose.ui.unit.IntSize
 import com.zebra.ai.palletchecker.domain.enums.AutoTriggerMode
 import com.zebra.ai.palletchecker.domain.enums.ModelInput
+import com.zebra.ai.palletchecker.domain.enums.PerformanceMode
 import com.zebra.ai.palletchecker.domain.enums.ProcessorType
 import com.zebra.ai.palletchecker.domain.enums.Resolution
+import com.zebra.ai.palletchecker.helpers.DeviceCapabilities
+import com.zebra.ai.vision.detector.InferencerOptions
 
 /**
  * AppSettings holds all configuration options for the pallet checker app.
@@ -13,7 +17,11 @@ import com.zebra.ai.palletchecker.domain.enums.Resolution
  * Used to persist, compare, and apply user or system configuration throughout the app.
  */
 data class AppSettings(
-    val modelInput: ModelInput = ModelInput.LARGE_1600, // AI model input size
+    val modelInput: ModelInput = ModelInput.LARGE, // AI model input size
+    /** Width in pixels used when [modelInput] is [ModelInput.CUSTOM]. */
+    val customModelWidth: Int = DEFAULT_CUSTOM_MODEL_SIZE,
+    /** Height in pixels used when [modelInput] is [ModelInput.CUSTOM]. */
+    val customModelHeight: Int = DEFAULT_CUSTOM_MODEL_SIZE,
     val resolution: Resolution = Resolution.TWELVE_MP,    // Camera resolution
     val customResolutionWidth: Int = 0,   // Actual width when resolution == MAX (device-queried)
     val customResolutionHeight: Int = 0,  // Actual height when resolution == MAX (device-queried)
@@ -31,7 +39,25 @@ data class AppSettings(
     val multiSnapRetryCount: Int = 3,           // Number of snap attempts (1 = single snap, no retry)
     val debugSettings: DebugSettings = DebugSettings(), // Debug visualization options
     val enableAIbarcodeDecode: Boolean = true,
+    val performanceMode: PerformanceMode = PerformanceMode.BALANCED, // Inferencer performance profile (Turbo = BURST)
 ) {
+    companion object {
+        const val DEFAULT_CUSTOM_MODEL_SIZE = 2560
+        const val CUSTOM_MODEL_SIZE_MIN = 640
+        const val CUSTOM_MODEL_SIZE_MAX = 2560
+        const val CUSTOM_MODEL_SIZE_STEP = 32
+
+        /**
+         * A custom dimension must lie within [CUSTOM_MODEL_SIZE_MIN]..[CUSTOM_MODEL_SIZE_MAX]
+         * and be a multiple of [CUSTOM_MODEL_SIZE_STEP].
+         */
+        fun isValidCustomModelSize(size: Int): Boolean =
+            size in CUSTOM_MODEL_SIZE_MIN..CUSTOM_MODEL_SIZE_MAX &&
+                    size % CUSTOM_MODEL_SIZE_STEP == 0
+    }
+
+    val wandResolution: Resolution = Resolution.TWO_MP
+    val wandModelInput: IntSize = IntSize(832,832)
     /**
      * Returns the effective camera width to use.
      * When resolution is MAX, returns the device-queried custom width;
@@ -56,6 +82,8 @@ data class AppSettings(
      */
     fun isEquals(other: AppSettings): Boolean {
         return modelInput == other.modelInput &&
+                customModelWidth == other.customModelWidth &&
+                customModelHeight == other.customModelHeight &&
                 resolution == other.resolution &&
                 customResolutionWidth == other.customResolutionWidth &&
                 customResolutionHeight == other.customResolutionHeight &&
@@ -72,7 +100,50 @@ data class AppSettings(
                 multiSnapEnabled == other.multiSnapEnabled &&
                 multiSnapRetryCount == other.multiSnapRetryCount &&
                 debugSettings == other.debugSettings &&
-                enableAIbarcodeDecode == other.enableAIbarcodeDecode
+                enableAIbarcodeDecode == other.enableAIbarcodeDecode &&
+                performanceMode == other.performanceMode
+    }
+
+    /**
+     * Returns the SDK performance mode to apply. BURST is downgraded to BALANCED on devices
+     * that do not support it (or when the persisted value is missing, e.g. settings saved by
+     * an older app version), since enabling BURST on an unsupported chipset throws.
+     */
+    fun getInferencePerformanceMode(): InferencerOptions.PerformanceMode {
+        val mode = performanceMode ?: PerformanceMode.BALANCED
+        return if (mode == PerformanceMode.BURST && DeviceCapabilities.isBurstModeSupported) {
+            InferencerOptions.PerformanceMode.BURST
+        } else {
+            InferencerOptions.PerformanceMode.BALANCED
+        }
+    }
+
+    /**
+     * Get ModelResolution (Small/Medium/Large) from modelInput when defined.
+     * Otherwise, fall back to modelInputSize as a custom dimension.
+     */
+    fun getInferenceModelResolution() : InferencerOptions.ModelResolution? {
+        return when(this.modelInput) {
+            ModelInput.SMALL -> InferencerOptions.ModelResolution.SMALL
+            ModelInput.MEDIUM -> InferencerOptions.ModelResolution.MEDIUM
+            ModelInput.LARGE -> InferencerOptions.ModelResolution.LARGE
+            else -> null
+        }
+    }
+
+    /**
+     * Get model input size, When no preset (Small/Medium/Large) matches.
+     */
+    fun getInferenceResolution() : InferencerOptions.Resolution? {
+        return when (modelInput) {
+            // The UI only stores valid sizes; a stored invalid size (e.g. 0 from an older or
+            // hand-edited settings file) falls back to the default instead of reaching the SDK.
+            ModelInput.CUSTOM -> InferencerOptions.Resolution(
+                customModelWidth.takeIf { isValidCustomModelSize(it) } ?: DEFAULT_CUSTOM_MODEL_SIZE,
+                customModelHeight.takeIf { isValidCustomModelSize(it) } ?: DEFAULT_CUSTOM_MODEL_SIZE
+            )
+            else -> null
+        }
     }
 }
 

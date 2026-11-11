@@ -52,10 +52,9 @@ public class WareHouseLocalizerHandler {
     }
 
     public void initializeWareHouseLocalizer() {
-        int modelInputSize = sharedPreferences.getInt(CommonUtils.PREF_MODEL_INPUT_SIZE, 640);
         try {
-            // Initialize live preview localizer with selected input size
-            Localizer.Settings liveLocalizerSettings = createLocalizerSettings(modelInputSize);
+            // Initialize live preview localizer with selected model resolution
+            Localizer.Settings liveLocalizerSettings = createLiveLocalizerSettings();
             createWareHouseLocalizer(liveLocalizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -70,7 +69,7 @@ public class WareHouseLocalizerHandler {
      */
     public void initializeCaptureLocalizer() {
         try {
-            Localizer.Settings captureLocalizerSettings = createLocalizerSettings(CAPTURE_SIZE);
+            Localizer.Settings captureLocalizerSettings = createCaptureLocalizerSettings();
             createCaptureLocalizer(captureLocalizerSettings);
         } catch (Exception ex) {
             if (loadingCallback != null) {
@@ -81,9 +80,24 @@ public class WareHouseLocalizerHandler {
     }
 
     /**
-     * Creates localizer settings with specified input size
+     * Creates live preview localizer settings using the model resolution selected in Settings
      */
-    private Localizer.Settings createLocalizerSettings(int inputSize) {
+    private Localizer.Settings createLiveLocalizerSettings() {
+        Localizer.Settings localizerSettings = createBaseLocalizerSettings();
+        localizerSettings.inferencerOptions.setModelResolution(CommonUtils.getModelResolution(sharedPreferences));
+        return localizerSettings;
+    }
+
+    /**
+     * Creates capture localizer settings with specified input size
+     */
+    private Localizer.Settings createCaptureLocalizerSettings() {
+        Localizer.Settings localizerSettings = createBaseLocalizerSettings();
+        localizerSettings.inferencerOptions.setModelResolution(new InferencerOptions.Resolution(1280, 1280));
+        return localizerSettings;
+    }
+
+    private Localizer.Settings createBaseLocalizerSettings() {
         Localizer.Settings localizerSettings = new Localizer.Settings(mavenModelName);
         Integer[] rpo = new Integer[3];
         rpo[0] = InferencerOptions.DSP;
@@ -91,8 +105,6 @@ public class WareHouseLocalizerHandler {
         rpo[2] = InferencerOptions.GPU;
 
         localizerSettings.inferencerOptions.runtimeProcessorOrder = rpo;
-        localizerSettings.inferencerOptions.defaultDims.height = inputSize;
-        localizerSettings.inferencerOptions.defaultDims.width = inputSize;
 
         return localizerSettings;
     }
@@ -107,7 +119,7 @@ public class WareHouseLocalizerHandler {
                 }
                 attachAnalysisAfterModelLoading();
             }
-            AppLog.i(TAG, "Pallet and Box Localizer model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and input size: " + localizerSettings.inferencerOptions.defaultDims.width);
+            AppLog.i(TAG, "Pallet and Box Localizer model loading time: " + (System.currentTimeMillis() - m_Start) + " milli sec and model resolution: " + CommonUtils.getModelResolution(sharedPreferences));
         }).exceptionally(e -> {
             if (loadingCallback != null) {
                 loadingCallback.onLoadingComplete(false);
