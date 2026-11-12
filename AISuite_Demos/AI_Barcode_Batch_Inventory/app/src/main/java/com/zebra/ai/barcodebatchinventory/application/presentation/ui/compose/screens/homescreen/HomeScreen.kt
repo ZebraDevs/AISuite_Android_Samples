@@ -66,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zebra.ai.barcodebatchinventory.R
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodebatchinventory.application.presentation.enums.ButtonType
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.components.ZebraButton
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.components.ZebraText
@@ -259,7 +260,6 @@ fun HomeScreen(
                                     .semantics { contentDescription = "HomeScreenText" }
                                     .padding(start = AppDimensions.dimension_16dp)
                             )
-//                    Spacer(modifier = Modifier.height(AppDimensions.dimension_2dp))
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -277,7 +277,17 @@ fun HomeScreen(
                                         text = buildAnnotatedString {
                                             append(stringResource(id = R.string.home_screen_content_model_input))
                                             withStyle(style = SpanStyle(fontWeight = FontWeight.Light)) {
-                                                append(stringResource(id = settings.modelInput.homeDisplayNameResId))
+                                                append(
+                                                    if (settings.modelInput == ModelInput.CUSTOM) {
+                                                        stringResource(
+                                                            id = R.string.model_input_custom_home_format,
+                                                            settings.customModelWidth,
+                                                            settings.customModelHeight
+                                                        )
+                                                    } else {
+                                                        stringResource(id = settings.modelInput.homeDisplayNameResId)
+                                                    }
+                                                )
                                             }
                                         },
                                         fontSize = AppDimensions.dialogTextFontSizeMedium,
@@ -286,7 +296,6 @@ fun HomeScreen(
                                     )
                                 }
                             }
-//                    Spacer(modifier = Modifier.height(AppDimensions.dimension_2dp))
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -313,7 +322,6 @@ fun HomeScreen(
                                     )
                                 }
                             }
-//                    Spacer(modifier = Modifier.height(AppDimensions.dimension_2dp))
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -350,7 +358,6 @@ fun HomeScreen(
                                 homeViewModel.applySettingsToSDK()
                             },
                             modifier = Modifier.fillMaxWidth(),
-//                            enabled = entityTrackerInitState.isInitialized,
                             textColor = borderPrimaryMain
                             // fontSize and fontWeight from original Text are not directly supported by ZebraButton's internal Text
                         )
@@ -378,14 +385,6 @@ fun HomeScreen(
                             shapes = RoundedCornerShape(AppDimensions.dimension_4dp),
                             backgroundColor = if (entityTrackerInitState.isInitialized) borderPrimaryMain else disabledMain,
                             textColor = AppColors.TextWhite,
-//                            leadingIcon = if (!entityTrackerInitState.isInitialized) {
-//                                {
-//                                    CircularProgressIndicator(
-//                                        modifier = Modifier.size(AppDimensions.dimension_20dp),
-//                                        color = AppColors.TextWhite // Changed from Color.White
-//                                    )
-//                                }
-//                            } else null,
                             textModifier = Modifier.padding(vertical = AppDimensions.dimension_14dp)
                             // Original fontSize and fontWeight from Text for "Start Scan" are applied by ZebraButton's default Text styling
                         )

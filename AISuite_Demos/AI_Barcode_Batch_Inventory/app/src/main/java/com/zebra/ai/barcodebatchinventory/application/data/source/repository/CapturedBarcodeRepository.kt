@@ -21,7 +21,6 @@ class CapturedBarcodeRepository private constructor(context: Context) {
 
     companion object {
         private const val TAG = "CapturedBarcodeRepo"
-
         @Volatile
         private var INSTANCE: CapturedBarcodeRepository? = null
 
@@ -46,7 +45,7 @@ class CapturedBarcodeRepository private constructor(context: Context) {
         BitmapFactory.decodeResource(context.resources, R.drawable.no_decode_marker)
 
     init {
-        Log.d(TAG, "Initialized batch-only captured barcode repository")
+        Log.d(TAG, "Initialized captured barcode repository")
     }
 
     fun addCapturedBarcode(barcodeData: String) {

@@ -85,16 +85,9 @@ fun ModelInputSizeBottomSheet(
                             stringResource(id = R.string.model_input_size_bottom_sheet_input_large_not_recommended_bold)
                         )
                     ),
-                    stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge) to listOf(
-                        stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_accuracy) to listOf(""),
-                        stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_best) to listOf(""),
-                        stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_slower) to listOf(
-                            stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_slower_bold_01),
-                            stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_slower_bold_02)
-                        ),
-                        stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_not_recommended) to listOf(
-                            stringResource(id = R.string.model_input_size_bottom_sheet_input_xlarge_not_recommended_bold)
-                        )
+                    stringResource(id = R.string.model_input_size_bottom_sheet_input_custom) to listOf(
+                        stringResource(id = R.string.model_input_size_bottom_sheet_input_custom_accuracy) to listOf(""),
+                        stringResource(id = R.string.model_input_size_bottom_sheet_input_custom_best) to listOf("")
                     )
                 )
                 ),

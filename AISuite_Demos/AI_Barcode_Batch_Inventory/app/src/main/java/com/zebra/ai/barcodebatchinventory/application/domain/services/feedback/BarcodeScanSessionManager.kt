@@ -72,7 +72,7 @@ class BarcodeScanSessionManager private constructor(
 
     suspend fun processBarcodes(entities: List<Entity>) {
         if (currentFeedbackSettings == null) {
-            Log.v(TAG, "Skipping: session not bound.") // Uncomment for verbose logging
+            Log.v(TAG, "Skipping: session not bound.")
             return
         }
 

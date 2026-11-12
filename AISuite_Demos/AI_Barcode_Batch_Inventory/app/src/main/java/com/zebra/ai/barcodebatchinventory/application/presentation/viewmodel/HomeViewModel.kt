@@ -30,7 +30,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "HomeViewModel"
     private val entityTrackerCoordinator = EntityTrackerCoordinator.getInstance(application)
 
-    //TODO need to handle this with DI
     private val settingsRepository = SettingsRepository.getInstance(SettingsJsonStorage(application))
 
     private val homeUseCase = HomeUseCase(entityTrackerCoordinator, settingsRepository)

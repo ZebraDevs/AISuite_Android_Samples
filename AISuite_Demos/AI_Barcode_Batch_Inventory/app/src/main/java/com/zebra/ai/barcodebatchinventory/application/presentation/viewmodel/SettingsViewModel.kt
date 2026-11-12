@@ -7,9 +7,11 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.zebra.ai.barcodebatchinventory.R
 import com.zebra.ai.barcodebatchinventory.application.data.source.repository.SettingsRepository
 import com.zebra.ai.barcodebatchinventory.application.data.source.storage.SettingsJsonStorage
 import com.zebra.ai.barcodebatchinventory.application.domain.model.SettingsApplicationResult
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.CaptureMode
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ProcessorType
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.Resolution
@@ -36,7 +38,6 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "SettingsViewModel"
 
-    //TODO : Need to replace by Proper DI
     val settingsJsonStorage = SettingsJsonStorage(application)
     val settingsRepository = SettingsRepository.getInstance(settingsJsonStorage)
     private val entityTrackerCoordinator = EntityTrackerCoordinator.getInstance(application)
@@ -94,6 +95,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
+     * Selects [ModelInput.CUSTOM] with the given dimensions. A blank field is passed as 0.
+     * Dimensions that are not valid (see [AppSettings.isValidCustomModelSize]) are rejected
+     * when the settings are applied.
+     */
+    fun updateCustomModelInput(width: Int, height: Int) {
+        updateDraftSettingsWith {
+            it.copy(
+                modelInput = ModelInput.CUSTOM,
+                customModelWidth = width,
+                customModelHeight = height
+            )
+        }
+    }
+
+    /**
      * Updates the camera resolution and syncs with the AI Vision SDK.
      */
     fun updateResolution(resolution: Resolution) {
@@ -112,6 +128,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun updateAIBarcodeDecode(enabled: Boolean) {
         updateDraftSettingsWith { it.copy(enableAIBarcodeDecode = enabled) }
+    }
+
+    /**
+     * Updates the batch capture session duration (milliseconds).
+     */
+    fun updateCaptureDuration(durationMs: Long) {
+        updateDraftSettingsWith {
+            it.copy(captureMode = CaptureMode.FIXED, captureDurationMs = durationMs)
+        }
+    }
+
+    /**
+     * Selects the dynamic capture mode (ends early once detectable barcodes are decoded).
+     * The previously chosen fixed duration is kept for when the user switches back.
+     */
+    fun updateDynamicCapture() {
+        updateDraftSettingsWith { it.copy(captureMode = CaptureMode.DYNAMIC) }
+    }
+
+    /**
+     * Updates the DSP burst (performance) mode setting.
+     */
+    fun updateBurstMode(enabled: Boolean) {
+        updateDraftSettingsWith { it.copy(enableBurstMode = enabled) }
     }
 
     /**
@@ -161,6 +201,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun applySettingsToSDK() {
         if (isApplyingSettings) {
             Log.d(TAG, "applySettingsToSDK() ignored — reconfiguration already in progress")
+            return
+        }
+        val draft = _draftSettings.value
+        if (draft.modelInput == ModelInput.CUSTOM &&
+            !(AppSettings.isValidCustomModelSize(draft.customModelWidth) &&
+                    AppSettings.isValidCustomModelSize(draft.customModelHeight))
+        ) {
+            _applicationState.value = SettingsApplicationResult.Error(
+                exception = null,
+                message = getApplication<Application>().getString(
+                    R.string.setting_screen_custom_model_input_invalid,
+                    AppSettings.CUSTOM_MODEL_SIZE_MIN,
+                    AppSettings.CUSTOM_MODEL_SIZE_MAX,
+                    AppSettings.CUSTOM_MODEL_SIZE_STEP
+                )
+            )
             return
         }
         isApplyingSettings = true

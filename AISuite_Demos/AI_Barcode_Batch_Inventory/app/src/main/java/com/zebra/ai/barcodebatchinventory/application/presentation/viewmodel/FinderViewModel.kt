@@ -16,6 +16,7 @@ import com.zebra.ai.barcodebatchinventory.sdkcoordinator.EntityTrackerCoordinato
 import com.zebra.ai.barcodebatchinventory.application.domain.usecase.FinderUseCase
 import com.zebra.ai.barcodebatchinventory.application.presentation.model.EntityTrackerInitState
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.CoordinatorState
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,7 +28,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import android.os.SystemClock
+import com.zebra.ai.barcodebatchinventory.application.domain.model.BarcodeProcessingResult
 import androidx.camera.core.ZoomState
+import com.zebra.ai.barcodebatchinventory.application.domain.services.capture.DynamicCaptureGate
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.CaptureMode
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.model.AppSettings
 import com.zebra.ai.barcodebatchinventory.application.data.services.SystemFeedbackService
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -41,10 +47,6 @@ import kotlin.coroutines.cancellation.CancellationException
 class FinderViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "BatchScannerViewModel"
 
-    companion object {
-        private const val BATCH_CAPTURE_WINDOW_MS = 5000L
-    }
-
     private val _overlayItems = MutableSharedFlow<List<BarcodeOverlayItem>>(replay = 1)
     val overlayItems: SharedFlow<List<BarcodeOverlayItem>> = _overlayItems.asSharedFlow()
 
@@ -53,7 +55,6 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
 
     private val entityTrackerCoordinator: EntityTrackerCoordinator = EntityTrackerCoordinator.getInstance(application)
 
-    //TODO :: Implement proper DI
     val settingsJsonStorage = SettingsJsonStorage(application)
     val settingsRepository = SettingsRepository.getInstance(settingsJsonStorage)
     val capturedBarcodeRepository = CapturedBarcodeRepository.getInstance(application)
@@ -78,6 +79,10 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
     private val _captureProgress = MutableStateFlow(0f)
     val captureProgress: StateFlow<Float> = _captureProgress.asStateFlow()
 
+    /** True during a dynamic-mode capture, where duration (and so progress) is unknown. */
+    private val _isCaptureIndeterminate = MutableStateFlow(false)
+    val isCaptureIndeterminate: StateFlow<Boolean> = _isCaptureIndeterminate.asStateFlow()
+
     private val _decodedBarcodeCount = MutableStateFlow(0)
     val decodedBarcodeCount: StateFlow<Int> = _decodedBarcodeCount.asStateFlow()
 
@@ -95,8 +100,12 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
 
     private var captureJob: kotlinx.coroutines.Job? = null
 
+    // Non-null only while a dynamic-mode capture is running. Touched from the main scope only.
+    private var dynamicGate: DynamicCaptureGate? = null
+
     // Temporary storage for barcodes during capture session
-    private val captureSessionBarcodes = mutableSetOf<String>()
+    // Shared with the barcode processor (Default dispatcher), so it must be thread-safe
+    private val captureSessionBarcodes: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     // Job for collecting barcodes during capture
     private var barcodeCollectionJob: kotlinx.coroutines.Job? = null
@@ -109,7 +118,7 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
      * Initializes the ViewModel and sets up state observation for UI and barcode tracking.
      */
     init {
-        Log.d(TAG, "FinderViewModel initialized for batch-only flow; configure/action UI is removed")
+        Log.d(TAG, "FinderViewModel initialized")
         observerEntityTrackerInitState()
         startBarcodeProcessing()
     }
@@ -172,7 +181,10 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
         captureJob?.cancel()
         captureJob = null
         stopCollectingBarcodes()
+        finderUseCase.setLiveSessionValues(null)
         _isCaptureInProgress.value = false
+        _isCaptureIndeterminate.value = false
+        dynamicGate = null
 
         finderUseCase.unbindScanSessionFromLifecycle()
         finderUseCase.unbindCamera()
@@ -296,6 +308,20 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
 
         // Clear temporary barcode collection for this capture session
         captureSessionBarcodes.clear()
+        // Tick barcodes as they decode, not only once the session is saved
+        finderUseCase.setLiveSessionValues(captureSessionBarcodes)
+
+        // Dynamic mode: arm the gate before capture starts so no frame is missed
+        val isDynamic = settingsRepository.settings.value.captureMode == CaptureMode.DYNAMIC
+        dynamicGate = if (isDynamic) {
+            DynamicCaptureGate(
+                startTimeMs = SystemClock.elapsedRealtime(),
+                config = DynamicCaptureGate.Config(
+                    maxTimeoutMs = AppSettings.DYNAMIC_CAPTURE_MAX_TIMEOUT_MS
+                )
+            )
+        } else null
+        _isCaptureIndeterminate.value = isDynamic
 
         // Reset states
         _captureSuccess.value = false
@@ -326,36 +352,20 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
         startCollectingBarcodes()
 
         captureJob = viewModelScope.launch {
-            val updateIntervalMs = 200L
-            val captureWindowMs = BATCH_CAPTURE_WINDOW_MS  // Fixed 5-second batch capture window
-            var elapsed = 0L
-
-            Log.d(TAG, "Capture: collecting barcodes for ${captureWindowMs}ms...")
-
-            // Collect all decoded barcodes during the 5-second capture window
-            while (isActive && elapsed < captureWindowMs) {
-                kotlinx.coroutines.delay(updateIntervalMs)
-                elapsed += updateIntervalMs
-
-                val collected = captureSessionBarcodes.size
-                _decodedBarcodeCount.value = collected
-                _captureProgress.value = (elapsed.toFloat() / captureWindowMs).coerceAtMost(1f)
-
-                val currentDecoded = finderUseCase.getDecodedBarcodeCount()
-                val currentDetected = finderUseCase.getDetectedBarcodeCount()
-
-                Log.d(TAG, "Capture [${elapsed}ms]: collected=$collected" +
-                        " frame=$currentDecoded/$currentDetected")
+            // Read at capture start so a changed setting applies to the next session
+            val captureSettings = settingsRepository.settings.value
+            if (captureSettings.captureMode == CaptureMode.DYNAMIC) {
+                runDynamicCapture()
+            } else {
+                runFixedCapture(captureSettings.captureDurationMs)
             }
-
-            // Fill progress bar on completion
             _captureProgress.value = 1f
 
             val collectedBarcodes = captureSessionBarcodes.toSet()
             val repoCountBeforeSave = capturedBarcodeRepository.getCapturedBarcodes().size
             Log.d(
                 TAG,
-                "BatchCaptureComplete: windowMs=$captureWindowMs uniqueCaptured=${collectedBarcodes.size} " +
+                "BatchCaptureComplete: mode=${captureSettings.captureMode} uniqueCaptured=${collectedBarcodes.size} " +
                         "repoCountBeforeSave=$repoCountBeforeSave"
             )
 
@@ -366,7 +376,11 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
             _captureSuccess.value = collectedBarcodes.isNotEmpty()
             Log.d(TAG, "Capture success: ${_captureSuccess.value} (collected=${collectedBarcodes.size})")
 
+            // Show the completion ring as the capture ends
+            _showCompletionCheckmark.value = true
             _isCaptureInProgress.value = false
+            _isCaptureIndeterminate.value = false
+            dynamicGate = null
             _captureProgress.value = 1f
 
             // Trigger audio and haptic feedback after timeout completes
@@ -384,6 +398,9 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
                         "repoCountAfter=${capturedBarcodeRepository.getCapturedBarcodes().size}"
             )
 
+            // The repository now holds these values, so the live set is no longer needed
+            finderUseCase.setLiveSessionValues(null)
+
             // Mark capture as completed first - this will trigger checkmarks on barcodes
             _isCaptureCompleted.value = true
 
@@ -391,12 +408,12 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
             // Keep decoding ACTIVE so the icons continue tracking with device movement
             finderUseCase.setShowCheckmarksOnBarcodes(true)
 
+            // Refresh the overlays so the ticks appear immediately
+            finderUseCase.refreshEntityOverlays()
+
             // Note: We DON'T stop decoding here - we keep it active so the overlay
             // items continue to update and track with device movement
             // The barcodes won't be added again to the repository because they're already there
-
-            // Show center checkmark briefly
-            _showCompletionCheckmark.value = true
 
             // Wait 1 second then hide the center checkmark
             // User must manually click "View Results" to navigate
@@ -407,6 +424,64 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
             // Release AF lock so continuous picture AF resumes while the user aims for the next scan.
             finderUseCase.enableContinuousAutoFocus()
         }
+    }
+
+    /** Fixed mode: collect for [captureWindowMs] while the progress ring advances linearly. */
+    private suspend fun runFixedCapture(captureWindowMs: Long) {
+        val updateIntervalMs = 200L
+        var elapsed = 0L
+
+        Log.d(TAG, "Capture: collecting barcodes for ${captureWindowMs}ms...")
+
+        while (elapsed < captureWindowMs) {
+            kotlinx.coroutines.delay(updateIntervalMs)
+            elapsed += updateIntervalMs
+
+            val collected = captureSessionBarcodes.size
+            _decodedBarcodeCount.value = collected
+            _captureProgress.value = (elapsed.toFloat() / captureWindowMs).coerceAtMost(1f)
+
+            Log.d(TAG, "Capture [${elapsed}ms]: collected=$collected" +
+                    " frame=${finderUseCase.getDecodedBarcodeCount()}/${finderUseCase.getDetectedBarcodeCount()}")
+        }
+    }
+
+    /**
+     * Dynamic mode: waits for [DynamicCaptureGate] to finish, ticking its deadline periodically.
+     */
+    private suspend fun runDynamicCapture() {
+        val gate = dynamicGate ?: return
+
+        while (!gate.isFinished) {
+            kotlinx.coroutines.delay(50L)
+            gate.onTick(SystemClock.elapsedRealtime())
+        }
+    }
+
+    /**
+     * Per-frame hook for dynamic capture: records the frame's decoded values and lets the gate
+     * decide whether the session is complete.
+     */
+    private fun feedDynamicGate(result: BarcodeProcessingResult) {
+        val gate = dynamicGate ?: return
+        if (!_isCaptureInProgress.value || gate.isFinished) return
+
+        // Use this frame's own values, not the shared capture set
+        val frameValues = ArrayList<String>(result.overlayItems.size)
+        for (item in result.overlayItems) {
+            val value = item.barcodeData
+            if (!value.isNullOrEmpty()) {
+                frameValues.add(value)
+                captureSessionBarcodes.add(value)
+            }
+        }
+        _decodedBarcodeCount.value = captureSessionBarcodes.size
+
+        gate.onFrame(
+            nowMs = SystemClock.elapsedRealtime(),
+            detectedCount = result.detectedCount,
+            decodedValues = frameValues
+        )
     }
 
     /**
@@ -420,7 +495,10 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
         finderUseCase.stopDecoding()
         finderUseCase.enableContinuousAutoFocus()
         finderUseCase.setShowCheckmarksOnBarcodes(false)
+        finderUseCase.setLiveSessionValues(null)
         _isCaptureInProgress.value = false
+        _isCaptureIndeterminate.value = false
+        dynamicGate = null
         _captureProgress.value = 0f
         _showCompletionCheckmark.value = false
         _isCaptureCompleted.value = false
@@ -452,14 +530,12 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
         finderUseCase.unbindCamera()
     }
 
-    private var vmEmitCount = 0L
-
     private fun startBarcodeProcessing() {
         Log.d(TAG, "startBarcodeProcessing() called")
         viewModelScope.launch {
             try {
                 finderUseCase.processBarcode().collect { result ->
-                    vmEmitCount++
+                    feedDynamicGate(result)
 
                     // Throttle overlay updates when not capturing to reduce UI recomposition
                     if (!_isCaptureInProgress.value) {
@@ -469,11 +545,6 @@ class FinderViewModel(application: Application) : AndroidViewModel(application) 
                     }
 
                     val emitOk = _overlayItems.tryEmit(result.overlayItems)
-                    Log.i("AppPerfMon", "VMEmit: app=BatchInventory" +
-                            " emit#=$vmEmitCount" +
-                            " overlayCount=${result.overlayItems.size}" +
-                            " emitOk=$emitOk" +
-                            " thread=${Thread.currentThread().name}")
                     if (!emitOk) {
                         _overlayItems.emit(result.overlayItems)
                     }

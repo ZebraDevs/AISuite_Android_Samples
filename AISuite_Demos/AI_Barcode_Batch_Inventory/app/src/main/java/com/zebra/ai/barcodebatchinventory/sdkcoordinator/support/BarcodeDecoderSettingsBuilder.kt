@@ -1,16 +1,21 @@
 package com.zebra.ai.barcodebatchinventory.sdkcoordinator.support
 
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ProcessorType
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.model.AppSettings
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.model.BarcodeSymbology
 import com.zebra.ai.vision.detector.BarcodeDecoder
+import com.zebra.ai.vision.detector.InferencerOptions
 
 class BarcodeDecoderSettingsBuilder {
 
     private val settings = BarcodeDecoder.Settings("barcode-decoder")
     private var processorType: ProcessorType = ProcessorType.DSP
-    private var inputWidth: Int = 1600
-    private var inputHeight: Int = 1600
+    private var modelInput: ModelInput = ModelInput.LARGE_1600
+    private var customWidth: Int = AppSettings.DEFAULT_CUSTOM_MODEL_SIZE
+    private var customHeight: Int = AppSettings.DEFAULT_CUSTOM_MODEL_SIZE
     private var barcodeSymbology: BarcodeSymbology = BarcodeSymbology()
+    private var burstModeEnabled: Boolean = false
 
     fun configureSymbologies(barcodeSymbology: BarcodeSymbology): BarcodeDecoderSettingsBuilder {
         this.barcodeSymbology = barcodeSymbology
@@ -22,14 +27,24 @@ class BarcodeDecoderSettingsBuilder {
         return this
     }
 
-    fun configureModelInput(inputWidth: Int, inputHeight: Int): BarcodeDecoderSettingsBuilder {
-        this.inputWidth = inputWidth
-        this.inputHeight = inputHeight
+    fun configureModelInput(
+        modelInput: ModelInput,
+        customWidth: Int,
+        customHeight: Int
+    ): BarcodeDecoderSettingsBuilder {
+        this.modelInput = modelInput
+        this.customWidth = customWidth
+        this.customHeight = customHeight
         return this
     }
 
     fun configureAIBarcodeDecode(enabled: Boolean): BarcodeDecoderSettingsBuilder {
         settings.enableAIBarcodeDecode = enabled
+        return this
+    }
+
+    fun configureBurstMode(enabled: Boolean): BarcodeDecoderSettingsBuilder {
+        this.burstModeEnabled = enabled
         return this
     }
 
@@ -98,9 +113,32 @@ class BarcodeDecoderSettingsBuilder {
     }
 
     private fun applyModelInput() {
-        settings.detectorSetting?.inferencerOptions?.defaultDims?.let { dynamicDims ->
-            dynamicDims.width  = inputWidth
-            dynamicDims.height = inputHeight
+        settings.detectorSetting?.inferencerOptions?.let { inferencerOptions ->
+            when (modelInput) {
+                ModelInput.SMALL_640 ->
+                    inferencerOptions.setModelResolution(InferencerOptions.ModelResolution.SMALL)
+                ModelInput.MEDIUM_1280 ->
+                    inferencerOptions.setModelResolution(InferencerOptions.ModelResolution.MEDIUM)
+                ModelInput.LARGE_1600 ->
+                    inferencerOptions.setModelResolution(InferencerOptions.ModelResolution.LARGE)
+                ModelInput.CUSTOM ->
+                    inferencerOptions.setModelResolution(
+                        InferencerOptions.Resolution(customWidth, customHeight)
+                    )
+            }
+        }
+    }
+
+    /**
+     * Throws AIVisionSDKException if BURST is requested on a device that does not support it.
+     */
+    private fun applyPerformanceMode() {
+        settings.detectorSetting?.inferencerOptions?.let { inferencerOptions ->
+            inferencerOptions.performanceMode = if (burstModeEnabled) {
+                InferencerOptions.PerformanceMode.BURST
+            } else {
+                InferencerOptions.PerformanceMode.BALANCED
+            }
         }
     }
 
@@ -108,6 +146,7 @@ class BarcodeDecoderSettingsBuilder {
         applySymbologies()
         applyProcessorType()
         applyModelInput()
+        applyPerformanceMode()
         return settings
     }
 }

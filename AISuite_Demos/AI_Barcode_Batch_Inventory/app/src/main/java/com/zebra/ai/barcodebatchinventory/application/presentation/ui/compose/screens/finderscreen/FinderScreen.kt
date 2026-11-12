@@ -78,12 +78,6 @@ fun FinderScreen(
 
     val overlayItems by finderViewModel.overlayItems.collectAsState(initial = emptyList())
 
-    LaunchedEffect(overlayItems) {
-        Log.i("AppPerfMon", "UIDisplay: app=BatchInventory" +
-                " overlaysRendered=${overlayItems.size}" +
-                " thread=${Thread.currentThread().name}")
-    }
-
     val entityTrackerInitState by finderViewModel.entityTrackerInitState.collectAsState()
 
     val zoomScale by finderViewModel.zoomScale.collectAsState()
@@ -92,6 +86,7 @@ fun FinderScreen(
     // Capture session states
     val isCaptureInProgress by finderViewModel.isCaptureInProgress.collectAsState()
     val captureProgress by finderViewModel.captureProgress.collectAsState()
+    val isCaptureIndeterminate by finderViewModel.isCaptureIndeterminate.collectAsState()
     val decodedBarcodeCount by finderViewModel.decodedBarcodeCount.collectAsState()
     val showCompletionCheckmark by finderViewModel.showCompletionCheckmark.collectAsState()
     val captureSuccess by finderViewModel.captureSuccess.collectAsState()
@@ -170,7 +165,6 @@ fun FinderScreen(
 
                 finderViewModel.unbindCameraToLifecycle() // Ensure you have added this method to ViewModel!
                 // Don't reset scan session - we want to preserve checkmarks state when navigating to results
-                // finderViewModel.resetScanSession()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -225,8 +219,8 @@ fun FinderScreen(
 
                     BarcodeOverlay(
                         items = overlayItems,
-                        onItemClick = { item ->
-                            Log.d(TAG, "Barcode overlay clicked: ${item.barcodeData.orEmpty()}")
+                        onItemClick = { _ ->
+                            Log.d(TAG, "Barcode overlay clicked.")
                         },
                         modifier = Modifier
                             .fillMaxSize()
@@ -370,6 +364,7 @@ fun FinderScreen(
                 ) {
                     CaptureProgressIndicator(
                         progress = captureProgress,
+                        indeterminate = isCaptureIndeterminate,
                         showCheckmark = showCompletionCheckmark,
                         isSuccess = captureSuccess,
                         decodedBarcodeCount = decodedBarcodeCount

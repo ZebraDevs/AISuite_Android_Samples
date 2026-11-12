@@ -3,6 +3,11 @@ package com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.s
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -27,6 +32,8 @@ import androidx.compose.ui.unit.sp
 /**
  * Circular progress indicator for capture session.
  * Shows progress during capture with "Scanning" text.
+ * When [indeterminate] (dynamic capture, duration unknown) a short arc sweeps around the ring
+ * instead of a progress arc.
  * After completion, shows a green ring for success (barcodes found) or red ring for failure (no barcodes).
  */
 @Composable
@@ -35,8 +42,20 @@ fun CaptureProgressIndicator(
     showCheckmark: Boolean,
     isSuccess: Boolean = true,
     decodedBarcodeCount: Int = 0,
+    indeterminate: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    // Rotation for the indeterminate arc
+    val bufferingRotation by rememberInfiniteTransition(label = "buffering").animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "bufferingRotation"
+    )
+
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(durationMillis = 100),
@@ -108,11 +127,11 @@ fun CaptureProgressIndicator(
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                 )
 
-                // Progress arc (white)
+                // Progress arc (white); in indeterminate mode a fixed-length arc rotates instead
                 drawArc(
                     color = Color.White,
-                    startAngle = -90f,
-                    sweepAngle = 360f * animatedProgress,
+                    startAngle = if (indeterminate) -90f + bufferingRotation else -90f,
+                    sweepAngle = if (indeterminate) 90f else 360f * animatedProgress,
                     useCenter = false,
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                 )

@@ -1,7 +1,6 @@
 package com.zebra.ai.barcodebatchinventory.application.domain.services.barcodeprocessing.processors
 
 import android.graphics.RectF
-import android.util.Log
 import com.zebra.ai.barcodebatchinventory.application.data.source.repository.CapturedBarcodeRepository
 import com.zebra.ai.barcodebatchinventory.application.data.source.repository.SettingsRepository
 import com.zebra.ai.barcodebatchinventory.application.domain.model.BarcodeOverlayItem
@@ -19,11 +18,16 @@ class FinderBarcodeProcessor(
     private val barcodeScanSessionManager: BarcodeScanSessionManager?,
 ) : BaseBarcodeProcessor(entityTrackerCoordinator) {
 
-    private val PERF_TAG = "AppPerfMon"
-    private var processFrameCount = 0L
-
     @Volatile
     var showCheckmarksOnBarcodes = false
+
+    /**
+     * Values decoded in the capture session in progress, or null outside a capture. Decoded
+     * values are added here as frames are processed so their ticks draw immediately instead of
+     * after the session is saved. Must be thread-safe.
+     */
+    @Volatile
+    var liveSessionValues: MutableSet<String>? = null
 
     @Volatile
     var detectedBarcodeCount: Int = 0
@@ -39,10 +43,6 @@ class FinderBarcodeProcessor(
     }
 
     override suspend fun processScreenSpecificLogic(entities: List<Entity>): BarcodeProcessingResult {
-        val startNs = System.nanoTime()
-        val frameNum = ++processFrameCount
-        val processingThread = Thread.currentThread().name
-
         val barcodeEntities = entities.filterIsInstance<BarcodeEntity>()
         detectedBarcodeCount = barcodeEntities.size
 
@@ -53,6 +53,14 @@ class FinderBarcodeProcessor(
             }
         }
         decodedBarcodeCount = decodedEntities.size
+
+        val liveValues = liveSessionValues
+        if (liveValues != null) {
+            for (entity in decodedEntities) {
+                val value = entity.value?.trim()
+                if (!value.isNullOrEmpty()) liveValues.add(value)
+            }
+        }
 
         if (decodedEntities.isNotEmpty()) {
             barcodeScanSessionManager?.processBarcodes(decodedEntities)
@@ -67,42 +75,27 @@ class FinderBarcodeProcessor(
         }
 
         val overlays = ArrayList<BarcodeOverlayItem>(barcodeEntities.size)
-        var skippedUndecoded = 0
         for (entity in barcodeEntities) {
             val item = createBarcodeOverlayItem(
                 entity = entity,
                 showCheckmarks = showCheckmarks,
                 completedBarcodeValues = completedBarcodeValues,
+                liveValues = liveValues,
                 shouldShowUndecoded = shouldShowUndecoded
             )
             if (item != null) {
                 overlays.add(item)
-            } else if (entity.value.isNullOrEmpty()) {
-                skippedUndecoded++
             }
         }
 
-        val durationUs = (System.nanoTime() - startNs) / 1000
-        Log.i(PERF_TAG, "Process: app=BatchInventory" +
-                " frame#=$frameNum" +
-                " inputEntities=${entities.size}" +
-                " barcodeEntities=${barcodeEntities.size}" +
-                " decoded=${decodedEntities.size}" +
-                " overlaysProduced=${overlays.size}" +
-                " skippedUndecoded=$skippedUndecoded" +
-                " showUndecoded=$shouldShowUndecoded" +
-                " showCheckmarks=$showCheckmarks" +
-                " completedCount=${completedBarcodeValues?.size ?: 0}" +
-                " processDur=${durationUs}us" +
-                " thread=$processingThread")
-
-        return BarcodeProcessingResult(overlayItems = overlays)
+        return BarcodeProcessingResult(overlayItems = overlays, detectedCount = barcodeEntities.size)
     }
 
     private fun createBarcodeOverlayItem(
         entity: BarcodeEntity,
         showCheckmarks: Boolean,
         completedBarcodeValues: HashSet<String>?,
+        liveValues: Set<String>?,
         shouldShowUndecoded: Boolean
     ): BarcodeOverlayItem? {
         val barcodeValue = entity.value?.trim()
@@ -118,7 +111,9 @@ class FinderBarcodeProcessor(
             }
         }
 
-        val isCaptured = completedBarcodeValues?.contains(barcodeValue) == true
+        // Saved in an earlier session, or decoded so far in the capture in progress
+        val isCaptured = completedBarcodeValues?.contains(barcodeValue) == true ||
+                liveValues?.contains(barcodeValue) == true
         return BarcodeOverlayItem(
             bounds = RectF(entity.boundingBox),
             barcodeData = barcodeValue,

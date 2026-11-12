@@ -41,6 +41,7 @@ import com.zebra.ai.barcodebatchinventory.application.presentation.ui.theme.whit
 
 private const val TAG = "BarcodeOverlay"
 
+
 /**
  * Draws barcode overlays on the camera preview using Jetpack Compose.
  * Handles device orientation, tap detection, and delegates drawing to drawBarcodeOverlayItem.
@@ -80,7 +81,6 @@ fun BarcodeOverlay(
     }
 
     // Determine if device is physically rotated to landscape
-    // Based on debugging, adjust these ranges if needed:
     // Typical ranges: 0-45°=Portrait, 45-135°=Left, 135-225°=Upside, 225-315°=Right, 315-360°=Portrait
     val isDeviceInLandscape = when (deviceOrientation) {
         in 45..135 -> true   // Left landscape (counter-clockwise rotation)

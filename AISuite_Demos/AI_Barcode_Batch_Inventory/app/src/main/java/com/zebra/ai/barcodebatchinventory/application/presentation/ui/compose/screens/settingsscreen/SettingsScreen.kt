@@ -56,13 +56,17 @@ import com.zebra.ai.barcodebatchinventory.application.presentation.enums.ButtonT
 import com.zebra.ai.barcodebatchinventory.application.domain.model.SettingsApplicationResult
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ModelInput
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.ProcessorType
+import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.CaptureMode
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums.Resolution
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.components.ZebraButton
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.components.ZebraText
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.BarcodeSymbologyBottomSheet
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.InferenceBottomSheet
+import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.CaptureDurationBottomSheet
+import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.PerformanceModeBottomSheet
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.ModelInputSizeBottomSheet
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.bottomsheet.ResolutionBottomSheet
+import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.components.CustomModelInputOption
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.components.RadioButtonOption
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.components.SettingsCard
 import com.zebra.ai.barcodebatchinventory.application.presentation.ui.compose.screens.settingsscreen.components.SwitchOption
@@ -103,6 +107,8 @@ fun SettingsScreen(
     var resolutionExpanded by remember { mutableStateOf(false) }
     var inferenceExpanded by remember { mutableStateOf(false) }
     var feedbackExpanded by remember { mutableStateOf(false) }
+    var captureDurationExpanded by remember { mutableStateOf(false) }
+    var performanceModeExpanded by remember { mutableStateOf(false) }
     var inferencerOptionsExpanded by remember { mutableStateOf(false) }
     var barcodeSymbologyExpanded by remember { mutableStateOf(false) }
 
@@ -110,6 +116,8 @@ fun SettingsScreen(
     var showModelInputSizeDialog by remember { mutableStateOf(false) }
     var showResolutionDialog by remember { mutableStateOf(false) }
     var showInferenceDialog by remember { mutableStateOf(false) }
+    var showCaptureDurationDialog by remember { mutableStateOf(false) }
+    var showPerformanceModeDialog by remember { mutableStateOf(false) }
     var showBarcodeSymbologyDialog by remember { mutableStateOf(false) }
 
     // Get context for displaying error toasts
@@ -305,12 +313,18 @@ fun SettingsScreen(
                                     settingsViewModel.updateModelInput(ModelInput.LARGE_1600)
                                 }
                             )
-                            RadioButtonOption(
-                                title = stringResource(id = R.string.setting_screen_model_input_2560_title),
-                                subtitle = stringResource(id = R.string.setting_screen_model_input_2560_subtitle),
-                                selected = settings.modelInput == ModelInput.XLARGE_2560,
+                            CustomModelInputOption(
+                                selected = settings.modelInput == ModelInput.CUSTOM,
+                                width = settings.customModelWidth,
+                                height = settings.customModelHeight,
                                 onSelected = {
-                                    settingsViewModel.updateModelInput(ModelInput.XLARGE_2560)
+                                    settingsViewModel.updateCustomModelInput(
+                                        settings.customModelWidth,
+                                        settings.customModelHeight
+                                    )
+                                },
+                                onSizeChanged = { width, height ->
+                                    settingsViewModel.updateCustomModelInput(width, height)
                                 }
                             )
                         }
@@ -457,7 +471,6 @@ fun SettingsScreen(
                 }
             }
 
-            // TODO: Temporarily hidden - Inference Type Section
             // Settings Inference Section
             item {
                 SettingsCard(
@@ -632,6 +645,79 @@ fun SettingsScreen(
                                 checked = settings.enableAIBarcodeDecode,
                                 onCheckedChange = {
                                     settingsViewModel.updateAIBarcodeDecode(it)
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
+                    }
+                }
+            }
+
+            // Performance Mode Section
+            item {
+                SettingsCard(
+                    title = stringResource(id = R.string.setting_screen_performance_mode_title),
+                    isExpanded = performanceModeExpanded,
+                    onExpandToggle = { performanceModeExpanded = !performanceModeExpanded }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(
+                                AppDimensions.dimension_10dp,
+                                Alignment.Start
+                            ),
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier
+                                .background(mainInverse)
+                                .padding(
+                                    start = AppDimensions.dimension_12dp,
+                                    top = AppDimensions.dimension_16dp,
+                                    end = AppDimensions.dimension_12dp,
+                                    bottom = AppDimensions.dimension_16dp
+                                )
+                        ) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(
+                                    AppDimensions.dimension_10dp,
+                                    Alignment.CenterVertically
+                                ),
+                                horizontalAlignment = Alignment.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.setting_screen_performance_mode_description),
+                                    fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                    color = textBlack,
+                                    lineHeight = AppDimensions.BulletLineHeight
+                                )
+                                ZebraText(
+                                    textValue = stringResource(id = R.string.setting_screen_more_button),
+                                    textColor = borderPrimaryMain,
+                                    fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                    modifier = Modifier.clickable {
+                                        showPerformanceModeDialog = true
+                                    }
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .padding(
+                                    horizontal = AppDimensions.dimension_2dp,
+                                    vertical = AppDimensions.zeroPadding
+                                )
+                                .semantics {
+                                    contentDescription = "SettingsOptionsToggles: Capture Mode"
+                                },
+                            verticalArrangement = Arrangement.spacedBy(AppDimensions.zeroPadding)
+                        ) {
+                            SwitchOption(
+                                title = stringResource(id = R.string.setting_screen_burst_mode_title),
+                                subtitle = stringResource(id = R.string.setting_screen_burst_mode_subtitle),
+                                checked = settings.enableBurstMode,
+                                onCheckedChange = {
+                                    settingsViewModel.updateBurstMode(it)
                                 }
                             )
                         }
@@ -1266,6 +1352,98 @@ fun SettingsScreen(
                 }
             }
 
+            // Capture Duration Section
+            item {
+                SettingsCard(
+                    title = stringResource(id = R.string.setting_screen_capture_duration_title),
+                    isExpanded = captureDurationExpanded,
+                    onExpandToggle = { captureDurationExpanded = !captureDurationExpanded },
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(
+                                AppDimensions.dimension_10dp,
+                                Alignment.Start
+                            ),
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier
+                                .background(mainInverse)
+                                .padding(
+                                    start = AppDimensions.dimension_12dp,
+                                    top = AppDimensions.dimension_16dp,
+                                    end = AppDimensions.dimension_12dp,
+                                    bottom = AppDimensions.dimension_16dp
+                                )
+                        ) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(
+                                    AppDimensions.dimension_10dp,
+                                    Alignment.CenterVertically
+                                ),
+                                horizontalAlignment = Alignment.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.setting_screen_capture_duration_description),
+                                    color = textBlack,
+                                    fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                    lineHeight = AppDimensions.BulletLineHeight
+                                )
+                                ZebraText(
+                                    textValue = stringResource(id = R.string.setting_screen_more_button),
+                                    textColor = borderPrimaryMain,
+                                    fontSize = AppDimensions.dialogTextFontSizeSmall,
+                                    modifier = Modifier.clickable {
+                                        showCaptureDurationDialog = true
+                                    }
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .padding(
+                                    horizontal = AppDimensions.dimension_2dp,
+                                    vertical = AppDimensions.zeroPadding
+                                )
+                                .semantics {
+                                    contentDescription = "SettingsOptionsRadioButtons: Capture Duration"
+                                },
+                            verticalArrangement = Arrangement.spacedBy(AppDimensions.dimension_12dp)
+                        ) {
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_capture_duration_1s_title),
+                                subtitle = stringResource(id = R.string.setting_screen_capture_duration_1s_subtitle),
+                                selected = settings.captureMode == CaptureMode.FIXED && settings.captureDurationMs == 1000L,
+                                onSelected = { settingsViewModel.updateCaptureDuration(1000L) }
+                            )
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_capture_duration_3s_title),
+                                subtitle = stringResource(id = R.string.setting_screen_capture_duration_3s_subtitle),
+                                selected = settings.captureMode == CaptureMode.FIXED && settings.captureDurationMs == 3000L,
+                                onSelected = { settingsViewModel.updateCaptureDuration(3000L) }
+                            )
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_capture_duration_5s_title),
+                                subtitle = stringResource(id = R.string.setting_screen_capture_duration_5s_subtitle),
+                                selected = settings.captureMode == CaptureMode.FIXED && settings.captureDurationMs == 5000L,
+                                onSelected = { settingsViewModel.updateCaptureDuration(5000L) }
+                            )
+                            RadioButtonOption(
+                                title = stringResource(id = R.string.setting_screen_capture_duration_dynamic_title),
+                                subtitle = stringResource(id = R.string.setting_screen_capture_duration_dynamic_subtitle),
+                                selected = settings.captureMode == CaptureMode.DYNAMIC,
+                                onSelected = { settingsViewModel.updateDynamicCapture() }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(AppDimensions.dimension_16dp))
+                    }
+                }
+            }
+
             // Reset to Default Settings Button - Always visible at bottom
             item {
                 Spacer(modifier = Modifier.height(AppDimensions.dimension_24dp))
@@ -1295,7 +1473,7 @@ fun SettingsScreen(
         settingsViewModel.let { viewModel ->
             ModelInputSizeBottomSheet(
                 settingsViewModel = viewModel,
-                currentSelection = settings.modelInput ?: ModelInput.SMALL_640,
+                currentSelection = settings.modelInput ?: ModelInput.LARGE_1600,
                 onBackClick = { showModelInputSizeDialog = false },
                 onBackPressed = { showModelInputSizeDialog = false }
             )
@@ -1307,7 +1485,7 @@ fun SettingsScreen(
         settingsViewModel.let { viewModel ->
             ResolutionBottomSheet(
                 settingsViewModel = viewModel,
-                currentSelection = settings.resolution ?: Resolution.TWO_MP,
+                currentSelection = settings.resolution ?: Resolution.EIGHT_MP,
                 onBackClick = { showResolutionDialog = false },
                 onBackPressed = { showResolutionDialog = false }
             )
@@ -1324,6 +1502,22 @@ fun SettingsScreen(
                 onBackPressed = { showInferenceDialog = false }
             )
         }
+    }
+
+    // Show Capture Duration details when requested
+    if (showCaptureDurationDialog) {
+        CaptureDurationBottomSheet(
+            onBackClick = { showCaptureDurationDialog = false },
+            onBackPressed = { showCaptureDurationDialog = false }
+        )
+    }
+
+    // Show Performance Mode details when requested
+    if (showPerformanceModeDialog) {
+        PerformanceModeBottomSheet(
+            onBackClick = { showPerformanceModeDialog = false },
+            onBackPressed = { showPerformanceModeDialog = false }
+        )
     }
 
     // Show barcode symbology screen when requested
@@ -1357,14 +1551,13 @@ fun SettingsScreen(
 
 }
 
-// Remove the old ModelInputSizeOption composable as it's now replaced by RadioButtonOption
 @Preview(showBackground = true, name = "AI Vision SDK Settings Screen")
 @Composable
 fun SettingsScreenPreview() {
     MaterialTheme {
         SettingsScreen(
-            onBackClick = TODO(),
-            onBackPressed = TODO()
+            onBackClick = {},
+            onBackPressed = {}
         )
     }
 }

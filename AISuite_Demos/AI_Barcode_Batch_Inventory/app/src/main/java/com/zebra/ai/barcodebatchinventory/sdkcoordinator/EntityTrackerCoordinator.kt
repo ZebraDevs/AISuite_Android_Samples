@@ -66,9 +66,6 @@ import java.util.concurrent.Executors
  */
 class EntityTrackerCoordinator private constructor(private val application: Application) {
     private val TAG = "EntityTrackerCoordinator"
-    private val PERF_TAG = "AppPerfMon"
-    private var callbackCount = 0L
-    private var firstCallbackTimeMs = 0L
 
     companion object {
         @Volatile
@@ -218,14 +215,17 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                 .configureSymbologies(appSettings.barcodeSymbology)
                 .configureProcessorType(appSettings.processorType)
                 .configureModelInput(
-                    appSettings.modelInput.width,
-                    appSettings.modelInput.height
+                    appSettings.modelInput,
+                    appSettings.customModelWidth,
+                    appSettings.customModelHeight
                 )
                 .configureAIBarcodeDecode(appSettings.enableAIBarcodeDecode)
+                .configureBurstMode(appSettings.enableBurstMode)
                 .build()
             _coordinatorState.value = CoordinatorState.BARCODE_DECODER_SETTINGS_INITIALIZED
-            Log.d(TAG, "Barcode decoder settings built: enableAIBarcodeDecode=${barcodeDecoderSettings?.enableAIBarcodeDecode}")
+            Log.d(TAG, "Barcode decoder settings built: enableAIBarcodeDecode=${barcodeDecoderSettings?.enableAIBarcodeDecode}, enableBurstMode=${appSettings.enableBurstMode}")
         } catch (e: Exception) {
+            _errorMessage.value = e.message.orEmpty()
             _coordinatorState.value = CoordinatorState.ERROR_BARCODE_DECODER_SETTINGS
             Log.e(TAG, "Error creating barcode decoder settings: ${e.message}", e)
         }
@@ -248,6 +248,7 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                     _coordinatorState.value = CoordinatorState.ERROR_UNSUPPORTED_PROCESSOR
                 } else {
                     Log.e(TAG, "Barcode decoder initialization failed: ${e.message}", e)
+                    _errorMessage.value = rootCause?.message.orEmpty()
                     _coordinatorState.value = CoordinatorState.ERROR_BARCODE_DECODER
                 }
                 null
@@ -269,12 +270,6 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
                 if (!isViewFinderActive) return@resultCallback
                 // ?.let handles dispose() nullifying the field between gate check and getValue().
                 val entities = barcodeDecoder?.let { result.getValue(it) } ?: emptyList()
-                
-                // Performance logging (BI-specific)
-                if (callbackCount == 0L) {
-                    firstCallbackTimeMs = System.currentTimeMillis()
-                }
-                callbackCount++
                 
                 // Store for checkmark replay (BI-specific)
                 lastDecodedEntities = entities
@@ -483,8 +478,6 @@ class EntityTrackerCoordinator private constructor(private val application: Appl
         }
 
         imageAnalysis?.setAnalyzer(cameraExecutor, analyzer as ImageAnalysis.Analyzer)
-        firstCallbackTimeMs = 0L
-        callbackCount = 0L
         Log.d(TAG, "Decoding started - analyzer attached to ImageAnalysis")
     }
 

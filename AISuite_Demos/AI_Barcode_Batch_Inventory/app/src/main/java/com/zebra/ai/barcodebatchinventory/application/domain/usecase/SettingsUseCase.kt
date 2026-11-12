@@ -144,10 +144,11 @@ class SettingsUseCase(
 
             CoordinatorState.ERROR_BARCODE_DECODER -> {
                 Log.e(TAG, "Configuration failed: barcode decoder error")
+                val detail = captureSdkErrorDetail()
                 rollbackToPreviousSettings()
                 SettingsApplicationResult.Error(
                     null,
-                    "Failed to initialize barcode decoder. Please try again.",
+                    withSdkDetail("Failed to initialize barcode decoder. Please try again.", detail),
                     isRecoverable = true
                 )
             }
@@ -194,10 +195,11 @@ class SettingsUseCase(
 
             CoordinatorState.ERROR_BARCODE_DECODER_SETTINGS -> {
                 Log.e(TAG, "Configuration failed: barcode decoder settings error")
+                val detail = captureSdkErrorDetail()
                 rollbackToPreviousSettings()
                 SettingsApplicationResult.Error(
                     null,
-                    "Failed to configure barcode decoder settings. Please try different settings.",
+                    withSdkDetail("Failed to configure barcode decoder settings. Please try different settings.", detail),
                     isRecoverable = true
                 )
             }
@@ -223,6 +225,18 @@ class SettingsUseCase(
             }
         }
     }
+
+    /**
+     * Reads the SDK-reported failure text. Call before rollback.
+     */
+    private fun captureSdkErrorDetail(): String =
+        entityTrackerCoordinator.errorMessage.value.trim()
+
+    /**
+     * Appends the SDK-reported text to the message for display.
+     */
+    private fun withSdkDetail(message: String, detail: String): String =
+        if (detail.isEmpty()) message else "$message\n\nDetails: $detail"
 
     /**
      * Best-effort rollback to the last known good settings.

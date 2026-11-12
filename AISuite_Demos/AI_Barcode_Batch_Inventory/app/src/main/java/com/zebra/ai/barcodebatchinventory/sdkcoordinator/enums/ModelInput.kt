@@ -1,5 +1,6 @@
 package com.zebra.ai.barcodebatchinventory.sdkcoordinator.enums
 
+import com.google.gson.annotations.SerializedName
 import com.zebra.ai.barcodebatchinventory.R
 
 /**
@@ -34,10 +35,15 @@ enum class ModelInput(
         1600, 1600
     ),
 
-    /** Extra Large input size: 2560x2560 */
-    XLARGE_2560(
-        R.string.model_input_2560_title_settings,
-        R.string.model_input_2560_title_home,
+    /**
+     * User-defined input size. The width and height listed here are only the defaults;
+     * the values in effect are [com.zebra.ai.barcodebatchinventory.sdkcoordinator.model.AppSettings.customModelWidth]
+     * and [com.zebra.ai.barcodebatchinventory.sdkcoordinator.model.AppSettings.customModelHeight].
+     */
+    @SerializedName(value = "CUSTOM", alternate = ["XLARGE_2560"])
+    CUSTOM(
+        R.string.model_input_custom_title_settings,
+        R.string.model_input_custom_title_home,
         2560, 2560
     );
 }

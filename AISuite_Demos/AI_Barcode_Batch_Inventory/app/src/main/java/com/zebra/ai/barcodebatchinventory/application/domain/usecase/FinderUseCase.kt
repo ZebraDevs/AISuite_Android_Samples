@@ -125,6 +125,14 @@ class FinderUseCase(
     }
 
     /**
+     * Sets the values decoded in the capture in progress so the processor can tick them as they
+     * are decoded. Pass null when no capture is running.
+     */
+    fun setLiveSessionValues(values: MutableSet<String>?) {
+        (barcodeProcessor as? FinderBarcodeProcessor)?.liveSessionValues = values
+    }
+
+    /**
      * Returns the number of barcode entities (decoded + undecoded) detected in the most recent frame.
      * Used by the ViewModel to calculate the dynamic capture timeout.
      */

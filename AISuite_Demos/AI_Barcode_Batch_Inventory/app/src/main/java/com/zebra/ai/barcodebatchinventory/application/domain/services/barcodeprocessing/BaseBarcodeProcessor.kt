@@ -1,6 +1,5 @@
 package com.zebra.ai.barcodebatchinventory.application.domain.services.barcodeprocessing
 
-import android.util.Log
 import com.zebra.ai.barcodebatchinventory.application.domain.model.BarcodeProcessingResult
 import com.zebra.ai.barcodebatchinventory.sdkcoordinator.EntityTrackerCoordinator
 import com.zebra.ai.vision.entity.Entity
@@ -29,16 +28,9 @@ abstract class BaseBarcodeProcessor(
      *
      * @return A [Flow] of [BarcodeProcessingResult] ready for UI consumption.
      */
-    private var flowFrameCount = 0L
-
     fun getProcessingFlow(): Flow<BarcodeProcessingResult> {
         return entityTrackerCoordinator.observeEntityTrackingResults()
             .map { entities ->
-                flowFrameCount++
-                Log.i("AppPerfMon", "FlowMap: app=BatchInventory" +
-                        " flow#=$flowFrameCount" +
-                        " inputEntities=${entities.size}" +
-                        " thread=${Thread.currentThread().name}")
                 processScreenSpecificLogic(entities)
             }
             .flowOn(Dispatchers.Default)

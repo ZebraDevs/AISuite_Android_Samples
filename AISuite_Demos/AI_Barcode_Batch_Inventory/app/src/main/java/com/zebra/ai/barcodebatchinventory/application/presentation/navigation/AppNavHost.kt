@@ -38,7 +38,7 @@ fun AppNavHost(
     var isNavBarVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        Log.d(NAV_TAG, "Navigation graph initialized for batch inventory; configure route is not registered")
+        Log.d(NAV_TAG, "Navigation graph initialized")
     }
 
     NavHost(

@@ -5,7 +5,7 @@ package com.zebra.ai.barcodebatchinventory.sdkcoordinator.model
  */
 
 data class FeedbackType(
-    var audio: Boolean = false,
+    var audio: Boolean = true,
     var haptics: Boolean = false,
     var showUndecodedBarcode: Boolean = false
 )
